@@ -14,6 +14,7 @@ export const Route = createFileRoute("/admin/settings")({
 type Form = {
   usd_per_credit: number; iqd_per_usd: number;
   tier_pdf_iqd: number; tier_printed_iqd: number; tier_video_iqd: number;
+  per_page_iqd_pdf: number; per_page_iqd_printed: number; per_page_iqd_video: number;
   print_cost_iqd: number; shipping_cost_iqd: number;
 };
 
@@ -33,6 +34,9 @@ function SettingsPage() {
         tier_pdf_iqd: q.data.tier_pdf_iqd,
         tier_printed_iqd: q.data.tier_printed_iqd,
         tier_video_iqd: q.data.tier_video_iqd,
+        per_page_iqd_pdf: q.data.per_page_iqd_pdf ?? 400,
+        per_page_iqd_printed: q.data.per_page_iqd_printed ?? 1200,
+        per_page_iqd_video: q.data.per_page_iqd_video ?? 2500,
         print_cost_iqd: q.data.print_cost_iqd,
         shipping_cost_iqd: q.data.shipping_cost_iqd,
       });
@@ -63,10 +67,17 @@ function SettingsPage() {
       <form onSubmit={submit} className="space-y-4 rounded-2xl border bg-card p-6">
         <Row label="USD per credit (سعر الكريدت بالدولار)" type="number" step="0.001" value={form.usd_per_credit} onChange={(v) => set("usd_per_credit", v)} />
         <Row label="IQD per USD (سعر صرف الدولار)" type="number" value={form.iqd_per_usd} onChange={(v) => set("iqd_per_usd", v)} />
+        <div className="text-xs font-semibold text-muted-foreground mt-2">السعر الأساسي (لـ 5 صفحات)</div>
         <div className="grid gap-4 md:grid-cols-3">
           <Row label="PDF (د.ع)" type="number" value={form.tier_pdf_iqd} onChange={(v) => set("tier_pdf_iqd", v)} />
           <Row label="Printed (د.ع)" type="number" value={form.tier_printed_iqd} onChange={(v) => set("tier_printed_iqd", v)} />
           <Row label="Video (د.ع)" type="number" value={form.tier_video_iqd} onChange={(v) => set("tier_video_iqd", v)} />
+        </div>
+        <div className="text-xs font-semibold text-muted-foreground mt-2">سعر كل صفحة إضافية فوق 5</div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Row label="PDF / صفحة" type="number" value={form.per_page_iqd_pdf} onChange={(v) => set("per_page_iqd_pdf", v)} />
+          <Row label="Printed / صفحة" type="number" value={form.per_page_iqd_printed} onChange={(v) => set("per_page_iqd_printed", v)} />
+          <Row label="Video / صفحة" type="number" value={form.per_page_iqd_video} onChange={(v) => set("per_page_iqd_video", v)} />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <Row label="تكلفة الطباعة (د.ع)" type="number" value={form.print_cost_iqd} onChange={(v) => set("print_cost_iqd", v)} />
