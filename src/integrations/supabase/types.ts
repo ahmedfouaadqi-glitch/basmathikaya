@@ -14,16 +14,291 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      characters: {
+        Row: {
+          age: number
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          id: string
+          image_path: string | null
+          language: string
+          mood: string
+        }
+        Insert: {
+          age: number
+          created_at?: string
+          customer_name: string
+          customer_phone: string
+          id?: string
+          image_path?: string | null
+          language?: string
+          mood: string
+        }
+        Update: {
+          age?: number
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          image_path?: string | null
+          language?: string
+          mood?: string
+        }
+        Relationships: []
+      }
+      generation_events: {
+        Row: {
+          aig_log_id: string | null
+          aig_run_id: string | null
+          cost_credits: number | null
+          cost_iqd: number | null
+          cost_usd: number | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          image_count: number | null
+          input_tokens: number | null
+          model: string
+          operation: string
+          order_id: string | null
+          output_tokens: number | null
+          provider: string
+          reconciled: boolean
+          status: Database["public"]["Enums"]["event_status"]
+          step: string
+          tier: string | null
+          total_tokens: number | null
+        }
+        Insert: {
+          aig_log_id?: string | null
+          aig_run_id?: string | null
+          cost_credits?: number | null
+          cost_iqd?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          image_count?: number | null
+          input_tokens?: number | null
+          model: string
+          operation: string
+          order_id?: string | null
+          output_tokens?: number | null
+          provider?: string
+          reconciled?: boolean
+          status?: Database["public"]["Enums"]["event_status"]
+          step: string
+          tier?: string | null
+          total_tokens?: number | null
+        }
+        Update: {
+          aig_log_id?: string | null
+          aig_run_id?: string | null
+          cost_credits?: number | null
+          cost_iqd?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          image_count?: number | null
+          input_tokens?: number | null
+          model?: string
+          operation?: string
+          order_id?: string | null
+          output_tokens?: number | null
+          provider?: string
+          reconciled?: boolean
+          status?: Database["public"]["Enums"]["event_status"]
+          step?: string
+          tier?: string | null
+          total_tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "generation_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generations: {
+        Row: {
+          cover_image_path: string | null
+          created_at: string
+          first_paragraph: string | null
+          full_story: string | null
+          id: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          cover_image_path?: string | null
+          created_at?: string
+          first_paragraph?: string | null
+          full_story?: string | null
+          id?: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          cover_image_path?: string | null
+          created_at?: string
+          first_paragraph?: string | null
+          full_story?: string | null
+          id?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "generations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          amount_iqd: number
+          character_id: string
+          created_at: string
+          customer_phone: string
+          delivered_at: string | null
+          id: string
+          notes: string | null
+          order_number: number
+          paid_at: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          tier: Database["public"]["Enums"]["order_tier"] | null
+          updated_at: string
+          whatsapp_sent_at: string | null
+        }
+        Insert: {
+          amount_iqd?: number
+          character_id: string
+          created_at?: string
+          customer_phone: string
+          delivered_at?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: number
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          tier?: Database["public"]["Enums"]["order_tier"] | null
+          updated_at?: string
+          whatsapp_sent_at?: string | null
+        }
+        Update: {
+          amount_iqd?: number
+          character_id?: string
+          created_at?: string
+          customer_phone?: string
+          delivered_at?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: number
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          tier?: Database["public"]["Enums"]["order_tier"] | null
+          updated_at?: string
+          whatsapp_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_settings: {
+        Row: {
+          id: number
+          iqd_per_usd: number
+          print_cost_iqd: number
+          shipping_cost_iqd: number
+          tier_pdf_iqd: number
+          tier_printed_iqd: number
+          tier_video_iqd: number
+          updated_at: string
+          usd_per_credit: number
+        }
+        Insert: {
+          id?: number
+          iqd_per_usd?: number
+          print_cost_iqd?: number
+          shipping_cost_iqd?: number
+          tier_pdf_iqd?: number
+          tier_printed_iqd?: number
+          tier_video_iqd?: number
+          updated_at?: string
+          usd_per_credit?: number
+        }
+        Update: {
+          id?: number
+          iqd_per_usd?: number
+          print_cost_iqd?: number
+          shipping_cost_iqd?: number
+          tier_pdf_iqd?: number
+          tier_printed_iqd?: number
+          tier_video_iqd?: number
+          updated_at?: string
+          usd_per_credit?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      order_costs_v: {
+        Row: {
+          cost_credits: number | null
+          cost_iqd: number | null
+          cost_usd: number | null
+          created_at: string | null
+          gross_profit_iqd: number | null
+          images_generated: number | null
+          margin_pct: number | null
+          order_id: string | null
+          order_number: number | null
+          revenue_iqd: number | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          tier: Database["public"]["Enums"]["order_tier"] | null
+          total_tokens: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      event_status: "success" | "error"
+      order_status: "pending" | "paid" | "delivered" | "cancelled"
+      order_tier: "pdf" | "printed" | "video"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +425,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      event_status: ["success", "error"],
+      order_status: ["pending", "paid", "delivered", "cancelled"],
+      order_tier: ["pdf", "printed", "video"],
+    },
   },
 } as const
