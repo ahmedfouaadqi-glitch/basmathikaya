@@ -182,6 +182,7 @@ export type Database = {
       orders: {
         Row: {
           amount_iqd: number
+          character_brief: string | null
           character_id: string
           created_at: string
           customer_phone: string
@@ -189,14 +190,18 @@ export type Database = {
           id: string
           notes: string | null
           order_number: number
+          page_count: number
           paid_at: string | null
+          pdf_path: string | null
           status: Database["public"]["Enums"]["order_status"]
           tier: Database["public"]["Enums"]["order_tier"] | null
+          title: string | null
           updated_at: string
           whatsapp_sent_at: string | null
         }
         Insert: {
           amount_iqd?: number
+          character_brief?: string | null
           character_id: string
           created_at?: string
           customer_phone: string
@@ -204,14 +209,18 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number?: number
+          page_count?: number
           paid_at?: string | null
+          pdf_path?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tier?: Database["public"]["Enums"]["order_tier"] | null
+          title?: string | null
           updated_at?: string
           whatsapp_sent_at?: string | null
         }
         Update: {
           amount_iqd?: number
+          character_brief?: string | null
           character_id?: string
           created_at?: string
           customer_phone?: string
@@ -219,9 +228,12 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number?: number
+          page_count?: number
           paid_at?: string | null
+          pdf_path?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tier?: Database["public"]["Enums"]["order_tier"] | null
+          title?: string | null
           updated_at?: string
           whatsapp_sent_at?: string | null
         }
@@ -239,6 +251,9 @@ export type Database = {
         Row: {
           id: number
           iqd_per_usd: number
+          per_page_iqd_pdf: number
+          per_page_iqd_printed: number
+          per_page_iqd_video: number
           print_cost_iqd: number
           shipping_cost_iqd: number
           tier_pdf_iqd: number
@@ -250,6 +265,9 @@ export type Database = {
         Insert: {
           id?: number
           iqd_per_usd?: number
+          per_page_iqd_pdf?: number
+          per_page_iqd_printed?: number
+          per_page_iqd_video?: number
           print_cost_iqd?: number
           shipping_cost_iqd?: number
           tier_pdf_iqd?: number
@@ -261,6 +279,9 @@ export type Database = {
         Update: {
           id?: number
           iqd_per_usd?: number
+          per_page_iqd_pdf?: number
+          per_page_iqd_printed?: number
+          per_page_iqd_video?: number
           print_cost_iqd?: number
           shipping_cost_iqd?: number
           tier_pdf_iqd?: number
@@ -270,6 +291,54 @@ export type Database = {
           usd_per_credit?: number
         }
         Relationships: []
+      }
+      story_pages: {
+        Row: {
+          created_at: string
+          id: string
+          image_path: string | null
+          image_prompt: string | null
+          order_id: string
+          page_number: number
+          text: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          image_prompt?: string | null
+          order_id: string
+          page_number: number
+          text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          image_prompt?: string | null
+          order_id?: string
+          page_number?: number
+          text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_pages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "story_pages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
