@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Upload, Loader2 } from "lucide-react";
 import { useT } from "../lib/i18n";
-import { createOrderDraft } from "../lib/orders.functions";
+import { createOrderDraft, getPublicPricing } from "../lib/orders.functions";
+import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES } from "../lib/pricing";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -38,14 +40,25 @@ function CreatePage() {
   const { t, lang } = useT();
   const navigate = useNavigate();
   const create = useServerFn(createOrderDraft);
+  const pricingFn = useServerFn(getPublicPricing);
+  const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
+
   const [name, setName] = useState("");
   const [age, setAge] = useState<number | "">("");
   const [phone, setPhone] = useState("");
   const [mood, setMood] = useState<string>("adventure");
+  const [pages, setPages] = useState<number>(5);
   const [imgPreview, setImgPreview] = useState<string | null>(null);
   const [imgDataUrl, setImgDataUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const pricing = pricingQ.data ?? DEFAULT_PRICING;
+  const estimates = useMemo(() => ({
+    pdf: computeTierAmount("pdf", pages, pricing),
+    printed: computeTierAmount("printed", pages, pricing),
+    video: computeTierAmount("video", pages, pricing),
+  }), [pages, pricing]);
 
   async function onPick(file: File | null) {
     if (!file) return;
@@ -71,6 +84,7 @@ function CreatePage() {
           age: Number(age),
           mood,
           language: lang,
+          page_count: pages,
           image_data_url: imgDataUrl,
         },
       });
@@ -182,6 +196,39 @@ function CreatePage() {
                 <span>{t(m.key as never)}</span>
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Page count */}
+        <div>
+          <div className="flex items-baseline justify-between mb-2">
+            <label className="block text-sm font-medium">{t("field_pages")}</label>
+            <span className="text-lg font-extrabold text-primary">{pages} <span className="text-xs font-medium text-muted-foreground">{t("pages_label")}</span></span>
+          </div>
+          <input
+            type="range"
+            min={MIN_PAGES}
+            max={MAX_PAGES}
+            step={1}
+            value={pages}
+            onChange={(e) => setPages(Number(e.target.value))}
+            className="w-full accent-[color:var(--color-primary)]"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">{t("field_pages_hint")}</p>
+
+          <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl border bg-secondary/30 p-2 text-center text-xs">
+            <div>
+              <div className="text-muted-foreground">{t("tier_pdf")}</div>
+              <div className="font-bold text-primary">{estimates.pdf.toLocaleString()} {t("iqd")}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">{t("tier_printed")}</div>
+              <div className="font-bold text-primary">{estimates.printed.toLocaleString()} {t("iqd")}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">{t("tier_video")}</div>
+              <div className="font-bold text-primary">{estimates.video.toLocaleString()} {t("iqd")}</div>
+            </div>
           </div>
         </div>
 

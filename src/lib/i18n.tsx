@@ -86,6 +86,18 @@ const D: Dict = {
   generating_cover: { ar: "جاري رسم الغلاف…", en: "Drawing the cover…" },
   cover_failed: { ar: "تعذّر توليد الغلاف، حاول مجدداً", en: "Couldn't generate the cover" },
   whatsapp_msg_open: { ar: "ستُفتح محادثة واتساب جاهزة", en: "A WhatsApp chat will open" },
+  field_pages: { ar: "عدد صفحات القصة", en: "Number of pages" },
+  field_pages_hint: { ar: "كلما زادت الصفحات، زادت تفاصيل القصة والتكلفة", en: "More pages = richer story & higher price" },
+  pages_label: { ar: "صفحات", en: "pages" },
+  estimated_price: { ar: "السعر التقديري", en: "Estimated price" },
+  story_pages: { ar: "صفحات القصة", en: "Story pages" },
+  page_n: { ar: "صفحة", en: "Page" },
+  download_pdf: { ar: "تحميل القصة PDF", en: "Download PDF" },
+  regenerate_image: { ar: "إعادة توليد الصورة", en: "Regenerate image" },
+  building_pdf: { ar: "جاري تجهيز ملف القصة…", en: "Preparing your PDF…" },
+  story_progress: { ar: "جاري رسم القصة", en: "Drawing your story" },
+  pages_ready: { ar: "صفحة جاهزة", en: "pages ready" },
+  preview_blurb: { ar: "هذه معاينة مصغّرة — القصة الكاملة ستصلك PDF بعد إتمام الطلب.", en: "This is a teaser preview — the full story arrives as a PDF after you confirm your order." },
 };
 
 type Ctx = {
