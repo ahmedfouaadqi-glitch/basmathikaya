@@ -9,8 +9,13 @@ export function getAdminSessionConfig() {
   if (!password) throw new Error("SESSION_SECRET is not configured");
   const request = getRequest();
   const host = request?.headers.get("host") ?? "";
-  const proto = request?.headers.get("x-forwarded-proto") ?? new URL(request?.url ?? "http://localhost").protocol.replace(":", "");
-  const secure = proto === "https" && !host.startsWith("localhost") && !host.startsWith("127.0.0.1");
+  const proto =
+    request?.headers.get("x-forwarded-proto") ??
+    request?.headers.get("x-forwarded-protocol") ??
+    (request?.headers.get("x-forwarded-ssl") === "on" ? "https" : undefined) ??
+    new URL(request?.url ?? "http://localhost").protocol.replace(":", "");
+  const isLocalhost = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  const secure = !isLocalhost && (proto === "https" || host.includes("lovable"));
   return {
     password,
     name: "basma-admin",
@@ -18,7 +23,8 @@ export function getAdminSessionConfig() {
     cookie: {
       httpOnly: true,
       secure,
-      sameSite: "lax" as const,
+      sameSite: (secure ? "none" : "lax") as "none" | "lax",
+      partitioned: secure,
       path: "/",
     },
   };
