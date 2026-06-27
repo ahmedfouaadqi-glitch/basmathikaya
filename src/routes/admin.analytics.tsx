@@ -35,7 +35,7 @@ function AnalyticsPage() {
 }
 
 function Card({ label, value, tone }: { label: string; value: string; tone?: "rose" | "emerald" }) {
-  const cls = tone === "rose" ? "text-rose-700" : tone === "emerald" ? "text-emerald-700" : "text-foreground";
+  const cls = tone === "rose" ? "text-destructive" : tone === "emerald" ? "text-primary" : "text-foreground";
   return (
     <div className="rounded-2xl border bg-card p-5">
       <div className="text-xs text-muted-foreground">{label}</div>

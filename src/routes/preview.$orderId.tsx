@@ -75,7 +75,7 @@ function PreviewPage() {
         <>
           {/* Cover + first paragraph */}
           <div className="grid gap-6 md:grid-cols-[260px_1fr] items-start">
-            <div className="watermark-overlay aspect-[3/4] overflow-hidden rounded-2xl border bg-gradient-to-br from-amber-100 to-purple-200 shadow-xl">
+            <div className="watermark-overlay aspect-[3/4] overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/20 via-background to-accent/30 shadow-xl">
               {previewQ.data?.cover_url ? (
                 <img src={previewQ.data.cover_url} alt="cover" className="h-full w-full object-cover" />
               ) : (

@@ -19,12 +19,12 @@ function fmt(n: number | string | null | undefined) {
 
 function statusBadge(s: string, t: (k: never) => string) {
   const map: Record<string, { label: string; cls: string }> = {
-    pending: { label: t("status_pending" as never), cls: "bg-amber-100 text-amber-800" },
-    paid: { label: t("status_paid" as never), cls: "bg-blue-100 text-blue-800" },
-    delivered: { label: t("status_delivered" as never), cls: "bg-emerald-100 text-emerald-800" },
-    cancelled: { label: t("status_cancelled" as never), cls: "bg-rose-100 text-rose-800" },
+    pending: { label: t("status_pending" as never), cls: "bg-accent/25 text-accent-foreground" },
+    paid: { label: t("status_paid" as never), cls: "bg-primary/15 text-primary" },
+    delivered: { label: t("status_delivered" as never), cls: "bg-primary/25 text-primary" },
+    cancelled: { label: t("status_cancelled" as never), cls: "bg-destructive/15 text-destructive" },
   };
-  const m = map[s] ?? { label: s, cls: "bg-gray-100 text-gray-700" };
+  const m = map[s] ?? { label: s, cls: "bg-secondary text-muted-foreground" };
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.cls}`}>{m.label}</span>;
 }
 
@@ -101,8 +101,8 @@ function AdminOrders() {
                   <td className="px-3 py-2.5">{o.tier ?? "—"}</td>
                   <td className="px-3 py-2.5">{statusBadge(o.status, t as never)}</td>
                   <td className="px-3 py-2.5 text-end font-mono">{fmt(o.amount_iqd)}</td>
-                  <td className="px-3 py-2.5 text-end font-mono text-rose-700">{fmt(o.cost?.cost_iqd)}</td>
-                  <td className="px-3 py-2.5 text-end font-mono text-emerald-700">{fmt(o.cost?.gross_profit_iqd)}</td>
+                  <td className="px-3 py-2.5 text-end font-mono text-destructive">{fmt(o.cost?.cost_iqd)}</td>
+                  <td className="px-3 py-2.5 text-end font-mono text-primary">{fmt(o.cost?.gross_profit_iqd)}</td>
                   <td className="px-3 py-2.5 text-end font-mono">{o.cost?.margin_pct != null ? `${o.cost.margin_pct}%` : "—"}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
@@ -110,12 +110,12 @@ function AdminOrders() {
                         <Eye className="size-3.5" /> {t("view")}
                       </Link>
                       {o.status === "pending" && (
-                        <button onClick={() => setStatus(o.id, "paid")} className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700">
+                        <button onClick={() => setStatus(o.id, "paid")} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90">
                           <CheckCircle2 className="size-3.5" /> {t("mark_paid")}
                         </button>
                       )}
                       {o.status === "paid" && (
-                        <button onClick={() => setStatus(o.id, "delivered")} className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700">
+                        <button onClick={() => setStatus(o.id, "delivered")} className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-accent-foreground hover:bg-accent/90">
                           <Truck className="size-3.5" /> {t("mark_delivered")}
                         </button>
                       )}
