@@ -1,10 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { adminLogin } from "../lib/admin.functions";
 import { useT } from "../lib/i18n";
+import { brandLogoUrl } from "../lib/brand";
 
 export const Route = createFileRoute("/admin/login")({
   head: () => ({ meta: [{ title: "دخول الإدارة" }, { name: "robots", content: "noindex" }] }),
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/admin/login")({
 
 function AdminLoginPage() {
   const { t } = useT();
+  const router = useRouter();
   const navigate = useNavigate();
   const login = useServerFn(adminLogin);
   const [phone, setPhone] = useState("");
@@ -29,9 +31,11 @@ function AdminLoginPage() {
         setLoading(false);
         return;
       }
-      navigate({ to: "/admin" });
+      await router.invalidate();
+      await navigate({ to: "/admin", replace: true });
     } catch {
       toast.error(t("admin_login_err"));
+    } finally {
       setLoading(false);
     }
   }
@@ -40,8 +44,8 @@ function AdminLoginPage() {
     <div className="mx-auto flex min-h-[70vh] max-w-md items-center px-4">
       <form onSubmit={onSubmit} className="w-full rounded-2xl border bg-card p-8 shadow-warm">
         <div className="mb-6 text-center">
-          <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground">
-            <ShieldCheck className="size-6" />
+          <div className="mx-auto inline-flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-background shadow-sm ring-1 ring-border">
+            <img src={brandLogoUrl} alt="بصمة حكاية" className="h-16 w-16 object-contain" />
           </div>
           <h1 className="mt-4 text-2xl font-extrabold">{t("admin_login_title")}</h1>
         </div>

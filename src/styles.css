@@ -59,11 +59,11 @@
 :root {
   --radius: 0.875rem;
 
-  /* Warm storytelling palette */
-  --cream: oklch(0.985 0.012 80);              /* #FFFBF5 */
-  --ink: oklch(0.18 0.025 35);                 /* #1A1410 */
-  --gold: oklch(0.71 0.16 55);                 /* #D97706 */
-  --plum: oklch(0.40 0.16 305);                /* #6B21A8 */
+  /* Basma Hekaya logo palette */
+  --cream: oklch(0.985 0.014 83);              /* warm paper */
+  --ink: oklch(0.19 0.025 210);                /* deep story ink */
+  --gold: oklch(0.78 0.15 72);                 /* book gold */
+  --plum: oklch(0.63 0.115 195);               /* fingerprint teal */
 
   --background: var(--cream);
   --foreground: var(--ink);
@@ -71,27 +71,27 @@
   --card-foreground: var(--ink);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--ink);
-  --primary: var(--gold);
+  --primary: var(--plum);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.02 60);
+  --secondary: oklch(0.95 0.028 188);
   --secondary-foreground: var(--ink);
-  --muted: oklch(0.94 0.015 60);
-  --muted-foreground: oklch(0.45 0.02 50);
-  --accent: var(--plum);
-  --accent-foreground: oklch(0.99 0 0);
+  --muted: oklch(0.94 0.018 190);
+  --muted-foreground: oklch(0.45 0.028 205);
+  --accent: var(--gold);
+  --accent-foreground: oklch(0.20 0.03 60);
   --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.91 0.015 60);
-  --input: oklch(0.91 0.015 60);
-  --ring: var(--gold);
-  --sidebar: oklch(0.97 0.012 70);
+  --border: oklch(0.90 0.022 190);
+  --input: oklch(0.90 0.022 190);
+  --ring: var(--plum);
+  --sidebar: oklch(0.97 0.018 188);
   --sidebar-foreground: var(--ink);
-  --sidebar-primary: var(--gold);
+  --sidebar-primary: var(--plum);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.015 60);
+  --sidebar-accent: oklch(0.94 0.025 72);
   --sidebar-accent-foreground: var(--ink);
-  --sidebar-border: oklch(0.91 0.015 60);
-  --sidebar-ring: var(--gold);
+  --sidebar-border: oklch(0.90 0.022 190);
+  --sidebar-ring: var(--plum);
 }
 
 .dark {
@@ -101,17 +101,17 @@
   --card-foreground: oklch(0.97 0.01 80);
   --popover: oklch(0.22 0.025 35);
   --popover-foreground: oklch(0.97 0.01 80);
-  --primary: oklch(0.78 0.16 60);
-  --primary-foreground: oklch(0.18 0.025 35);
+  --primary: oklch(0.70 0.12 195);
+  --primary-foreground: oklch(0.12 0.02 205);
   --secondary: oklch(0.28 0.03 35);
   --secondary-foreground: oklch(0.97 0.01 80);
   --muted: oklch(0.28 0.03 35);
   --muted-foreground: oklch(0.72 0.02 60);
-  --accent: oklch(0.55 0.18 305);
-  --accent-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.78 0.15 72);
+  --accent-foreground: oklch(0.14 0.02 55);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.78 0.16 60);
+  --ring: oklch(0.70 0.12 195);
 }
 
 @layer base {
@@ -119,7 +119,8 @@
   html { font-family: var(--font-sans); }
   body {
     background:
-      radial-gradient(ellipse at top, oklch(0.97 0.04 70 / 0.6), transparent 60%),
+      radial-gradient(ellipse at top, oklch(0.92 0.055 190 / 0.55), transparent 55%),
+      radial-gradient(ellipse at bottom left, oklch(0.90 0.08 75 / 0.35), transparent 45%),
       var(--color-background);
     color: var(--color-foreground);
     min-height: 100vh;
