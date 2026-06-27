@@ -1,0 +1,1 @@
+ALTER VIEW public.order_costs_v SET (security_invoker = true);
