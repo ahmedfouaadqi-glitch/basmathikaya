@@ -365,9 +365,12 @@ export const adminUpdateStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = { status: data.status };
-    if (data.status === "paid") patch.paid_at = new Date().toISOString();
-    if (data.status === "delivered") patch.delivered_at = new Date().toISOString();
+    const now = new Date().toISOString();
+    const patch = {
+      status: data.status,
+      ...(data.status === "paid" ? { paid_at: now } : {}),
+      ...(data.status === "delivered" ? { delivered_at: now } : {}),
+    };
     const { error } = await supabaseAdmin.from("orders").update(patch).eq("id", data.orderId);
     if (error) throw new Error(error.message);
     return { ok: true as const };
