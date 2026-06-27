@@ -118,7 +118,7 @@ function OrderDetail() {
                       <td className="px-2 py-1.5 text-end font-mono">{Number(e.cost_iqd).toFixed(0)}</td>
                       <td className="px-2 py-1.5 text-end font-mono">{e.duration_ms}</td>
                       <td className="px-2 py-1.5">
-                        <span className={e.status === "success" ? "text-emerald-700" : "text-rose-700"}>{e.status}</span>
+                        <span className={e.status === "success" ? "text-primary" : "text-destructive"}>{e.status}</span>
                       </td>
                     </tr>
                   ))}
@@ -140,7 +140,7 @@ function OrderDetail() {
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "rose" | "emerald" }) {
-  const cls = tone === "rose" ? "text-rose-700" : tone === "emerald" ? "text-emerald-700" : "text-foreground";
+  const cls = tone === "rose" ? "text-destructive" : tone === "emerald" ? "text-primary" : "text-foreground";
   return (
     <div className="rounded-2xl border bg-card p-4">
       <div className="text-xs text-muted-foreground">{label}</div>

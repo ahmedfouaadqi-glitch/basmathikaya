@@ -106,8 +106,8 @@ function CreatePage() {
               className="group relative block w-full overflow-hidden rounded-xl border"
             >
               <img src={imgPreview} alt="" className="aspect-square w-full max-w-xs mx-auto object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
-                <span className="text-white font-medium">تغيير الصورة</span>
+              <div className="absolute inset-0 flex items-center justify-center bg-foreground/45 opacity-0 transition group-hover:opacity-100">
+                <span className="font-medium text-primary-foreground">تغيير الصورة</span>
               </div>
             </button>
           ) : (
