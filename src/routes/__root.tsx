@@ -15,6 +15,7 @@ import { LanguageProvider, useT } from "../lib/i18n";
 import { Toaster } from "../components/ui/sonner";
 import { brandLogoUrl } from "../lib/brand";
 import { SiteFooter } from "../components/SiteFooter";
+import { InstallGate } from "../components/InstallGate";
 import { useServerFn } from "@tanstack/react-start";
 import { getCurrentUser } from "../lib/auth.functions";
 import { getActiveTheme } from "../lib/themes.functions";
@@ -57,6 +58,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#169CA3" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-title", content: "بصمة حكاية" },
+      { name: "application-name", content: "بصمة حكاية" },
       { title: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
       { name: "description", content: "منصة لإنشاء قصص مخصصة بملامحك أنت. ارفع صورتك، اختر جوّك، واحصل على حكاية فريدة." },
       { property: "og:title", content: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
@@ -72,7 +78,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
-      { rel: "apple-touch-icon", href: "/icon.svg" },
+      { rel: "icon", href: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { rel: "icon", href: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png", sizes: "180x180" },
     ],
   }),
   shellComponent: RootShell,
@@ -159,12 +167,14 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <ThemeBanner />
-        <Header />
-        <main className="min-h-[calc(100vh-220px)]">
-          <Outlet />
-        </main>
-        <SiteFooter />
+        <InstallGate>
+          <ThemeBanner />
+          <Header />
+          <main className="min-h-[calc(100vh-220px)]">
+            <Outlet />
+          </main>
+          <SiteFooter />
+        </InstallGate>
         <Toaster richColors position="top-center" />
       </LanguageProvider>
     </QueryClientProvider>
