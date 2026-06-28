@@ -179,62 +179,131 @@ export type Database = {
           },
         ]
       }
+      order_characters: {
+        Row: {
+          age: number | null
+          created_at: string
+          description: string | null
+          id: string
+          is_primary: boolean
+          name: string
+          order_id: string
+          position: number
+          role: string
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_primary?: boolean
+          name: string
+          order_id: string
+          position?: number
+          role?: string
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_primary?: boolean
+          name?: string
+          order_id?: string
+          position?: number
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_characters_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_characters_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           amount_iqd: number
           character_brief: string | null
-          character_id: string
+          character_id: string | null
           created_at: string
+          custom_instructions: string | null
           customer_phone: string
           delivered_at: string | null
           id: string
+          images_error: string | null
+          images_status: string
+          moods: string[]
           notes: string | null
           order_number: number
           page_count: number
           paid_at: string | null
+          payment_confirmed_at: string | null
           pdf_path: string | null
           status: Database["public"]["Enums"]["order_status"]
           tier: Database["public"]["Enums"]["order_tier"] | null
           title: string | null
           updated_at: string
+          user_id: string | null
           whatsapp_sent_at: string | null
         }
         Insert: {
           amount_iqd?: number
           character_brief?: string | null
-          character_id: string
+          character_id?: string | null
           created_at?: string
+          custom_instructions?: string | null
           customer_phone: string
           delivered_at?: string | null
           id?: string
+          images_error?: string | null
+          images_status?: string
+          moods?: string[]
           notes?: string | null
           order_number?: number
           page_count?: number
           paid_at?: string | null
+          payment_confirmed_at?: string | null
           pdf_path?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tier?: Database["public"]["Enums"]["order_tier"] | null
           title?: string | null
           updated_at?: string
+          user_id?: string | null
           whatsapp_sent_at?: string | null
         }
         Update: {
           amount_iqd?: number
           character_brief?: string | null
-          character_id?: string
+          character_id?: string | null
           created_at?: string
+          custom_instructions?: string | null
           customer_phone?: string
           delivered_at?: string | null
           id?: string
+          images_error?: string | null
+          images_status?: string
+          moods?: string[]
           notes?: string | null
           order_number?: number
           page_count?: number
           paid_at?: string | null
+          payment_confirmed_at?: string | null
           pdf_path?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tier?: Database["public"]["Enums"]["order_tier"] | null
           title?: string | null
           updated_at?: string
+          user_id?: string | null
           whatsapp_sent_at?: string | null
         }
         Relationships: [
@@ -245,12 +314,53 @@ export type Database = {
             referencedRelation: "characters"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      otp_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          phone: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone?: string
+        }
+        Relationships: []
       }
       pricing_settings: {
         Row: {
           id: number
           iqd_per_usd: number
+          max_characters: number
+          per_character_iqd_pdf: number
+          per_character_iqd_printed: number
+          per_character_iqd_video: number
           per_page_iqd_pdf: number
           per_page_iqd_printed: number
           per_page_iqd_video: number
@@ -265,6 +375,10 @@ export type Database = {
         Insert: {
           id?: number
           iqd_per_usd?: number
+          max_characters?: number
+          per_character_iqd_pdf?: number
+          per_character_iqd_printed?: number
+          per_character_iqd_video?: number
           per_page_iqd_pdf?: number
           per_page_iqd_printed?: number
           per_page_iqd_video?: number
@@ -279,6 +393,10 @@ export type Database = {
         Update: {
           id?: number
           iqd_per_usd?: number
+          max_characters?: number
+          per_character_iqd_pdf?: number
+          per_character_iqd_printed?: number
+          per_character_iqd_video?: number
           per_page_iqd_pdf?: number
           per_page_iqd_printed?: number
           per_page_iqd_video?: number
@@ -339,6 +457,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          last_login_at: string | null
+          marketing_consent: boolean
+          notes: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          last_login_at?: string | null
+          marketing_consent?: boolean
+          notes?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          last_login_at?: string | null
+          marketing_consent?: boolean
+          notes?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
