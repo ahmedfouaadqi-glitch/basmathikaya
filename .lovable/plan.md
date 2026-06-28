@@ -1,100 +1,78 @@
-## خطة تحديث "بصمة حكاية" — 4 ميزات جديدة
+# خطة التحديث الشاملة لمشروع "بصمة حكاية"
 
-### 1) تسجيل دخول المستخدم برقم الهاتف + OTP عبر واتساب/SMS
+## 1) رفع صورة لكل شخصية + عرضها في الإدارة
+- إضافة عمود `photo_path` (text, nullable) إلى جدول `order_characters` عبر migration.
+- في `src/routes/create.tsx`: لكل بطاقة شخصية، إضافة حقل `<input type="file" accept="image/*">` مع معاينة مصغرة. الرفع يتم عبر دالة خادم جديدة `uploadCharacterPhoto` (createServerFn) ترفع الملف إلى bucket `story-uploads` تحت مسار `orders/{orderId}/chars/{idx}.jpg` وتُرجع المسار.
+  - ملاحظة: السماح بالرفع قبل إنشاء الطلب عبر إنشاء `draft_id` (UUID مؤقت)، ثم عند إرسال `createOrderDraft` نمرر مصفوفة `photo_paths`.
+- في `createOrderDraft`: حفظ `photo_path` لكل شخصية، ونقل الملفات من مسار المسودة إلى مسار الطلب النهائي.
+- استخدام صور الشخصيات في `image_prompt` (تمريرها كمراجع ضمن `messages` متعددة الوسائط لنموذج `google/gemini-3.1-flash-image` لضمان ثبات شكل الشخصيات).
+- في `src/routes/admin.orders.$id.tsx`: قسم جديد "صور الشخصيات المرفوعة" يعرض جميع الصور مع الأسماء عبر signed URLs.
 
-**جداول جديدة:**
-- `users` (id, full_name, phone E.164, created_at, last_login_at, marketing_consent default true, notes)
-- `otp_codes` (id, phone, code_hash, expires_at, attempts, consumed_at)
-- `user_sessions` (id, user_id, token_hash, expires_at) — كوكي httpOnly مشفّر مثل جلسة الإدارة
+## 2) إظهار التحميل والإحصائيات الكاملة في الإدارة
+- في صفحة تفاصيل الطلب: زر "تحميل PDF" (signed URL لـ `pdf_path`) يظهر دائماً عند توفر الملف، بالإضافة لزر "تحميل صور الشخصيات (zip)" وأزرار "تحميل غلاف" و "تحميل كل الصفحات".
+- في `admin.analytics.tsx`: التأكد من ظهور كل المقاييس (إيراد، تكلفة فعلية، ربح، هامش، عدد الطلبات بحسب الحالة، أكثر العملاء طلباً، متوسط الصفحات/الشخصيات) — مع زر تصدير CSV.
+- في `admin.index.tsx`: إضافة عمود "PDF" مع أيقونة تحميل سريع لكل طلب جاهز.
 
-**موفر الإرسال:** Twilio عبر Connector Gateway (يدعم WhatsApp + SMS). سيُطلب ربط Twilio من إعدادات الـ Connectors. تكلفة الإرسال على حساب المالك.
+## 3) تكبير الشعار في الموقع + ختمه على صور القصص
+- استبدال `brand.ts` ليشير إلى الشعار الجديد المرفوع (`شعار_بصمة_حكاية.png`) كـ Lovable asset.
+- في `__root.tsx` و `index.tsx`: تكبير الشعار (من ~40px إلى ~72px في الهيدر، و~200px في الواجهة).
+- ختم الشعار على كل صورة قصة بعد توليدها في `generateAndUploadImage`:
+  - تحميل الشعار مرة واحدة (cache في الذاكرة) ودمجه على زاوية الصورة باستخدام `sharp` — لكنه غير متاح في Cloudflare Workers.
+  - الحل: استخدام مكتبة `@cf-wasm/photon` (WASM، متوافق مع Workers) أو تركيب الشعار في الـ PDF مباشرة عبر `pdf-lib` (موجودة فعلاً) كطبقة فوق كل صفحة. والاكتفاء بـ overlay عبر CSS في عرض الويب للصور المنفردة (`<img>` + `<img class="logo-stamp">` بزاوية مع opacity).
+  - الاقتراح المعتمد: ختم على PDF عبر `pdf-lib` (دقيق ودائم) + overlay CSS في صفحات الويب (`preview` و `admin`).
 
-**التدفق:**
-1. شاشة `/auth` (مدمجة قبل `/create`): يدخل الاسم + رقم الهاتف → ضغط "إرسال رمز" → server fn `requestOtp` يُرسل رمز 6 خانات عبر WhatsApp (مع fallback SMS).
-2. إدخال الرمز → `verifyOtp` ينشئ/يحدّث `users` ويصدر جلسة (30 يوم).
-3. كل صفحات `/create`, `/preview`, طلبات المستخدم تتطلب الجلسة (middleware `requireUserSession`).
-4. الإدارة ترى قائمة `users` مع: الاسم، الهاتف، عدد الطلبات، آخر دخول، مجموع الإنفاق — صفحة `/admin/users` مع تصدير CSV للتسويق.
+## 4) فيديو ترويسي في الواجهة (مكان الشعار الكبير)
+- رفع الفيديوهين كـ Lovable assets:
+  - `subtle-elegant-animation-the-teal-fingerprint-line.mp4` (الأول)
+  - `animate-with-a-different-motion-style-the-teal-fin.mp4` (الثاني)
+- مكوّن `BrandIntroVideo` في `index.tsx`: `<video autoPlay muted playsInline>` يعرض الأول ثم عند `onEnded` يبدّل المصدر للثاني ويعمل بشكل تلقائي (loop بين الاثنين). بدون عناصر تحكم.
 
-**الحدود:** 3 رموز/ساعة لكل رقم، صلاحية الرمز 10 دقائق، 5 محاولات قصوى.
+## 5) تذييل ثابت "بصمة حكاية — جزء من نظام معروف"
+- في `__root.tsx`: إضافة `<footer>` يظهر في كل الصفحات يحتوي:
+  - "بصمة حكاية — جزء من نظام معروف © 2026"
+  - رابط تيكتوك (البند 6)
+- إضافة نفس النص كسطر صغير أسفل كل صفحة PDF في `pdf.server.ts`.
 
----
+## 6) رابط تيكتوك
+- في الفوتر وفي الهيدر: أيقونة TikTok (lucide أو SVG مخصص) ترتبط بـ `https://www.tiktok.com/@basmathikaya1` مع `target="_blank" rel="noopener"`.
+- إضافة meta tag للقناة في `__root.tsx` head.
 
-### 2) عدة شخصيات في الطلب الواحد + تسعير ديناميكي
+## 7) البحث في الإدارة عن العملاء
+- في `admin.users.tsx`: إضافة حقل بحث `<input>` يقوم بفلترة العملاء (الاسم/الهاتف) عبر `useState` على البيانات المُحمَّلة. إذا كانت القائمة كبيرة، تحديث `listUsers` server fn لقبول `q: string` وإجراء فلترة SQL (`ilike`).
+- إضافة فلترة مشابهة في `admin.index.tsx` للطلبات حسب اسم العميل/الهاتف/رقم الطلب.
 
-**تعديل الجدول:** `characters` يُحوّل إلى `order_characters` بعلاقة many-to-one مع `orders`:
-- `order_characters` (id, order_id, name, age, role enum: protagonist|friend|family|pet|other, description text)
-- إزالة `character_id` من `orders`، تبقى بيانات العميل المُوحّدة على `users`.
-- إضافة `extra_characters_count` (محسوبة من العدد - 1) و `companions_brief` على `orders`.
-
-**الحدود والتسعير:**
-- شخصية رئيسية واحدة إلزامية (مجانية ضمن السعر الأساس) + حتى 4 شخصيات إضافية.
-- إضافة حقول إلى `pricing_settings`: `per_character_iqd_pdf` (default 1500)، `per_character_iqd_printed` (default 3000)، `per_character_iqd_video` (default 6000) — قابلة للتعديل من `/admin/settings`.
-- `computeTierAmount(tier, pageCount, characterCount, p)` يضيف `(characterCount - 1) * per_character_iqd_{tier}`.
-
-**واجهة `/create`:** قسم "الشخصيات" — بطاقة لكل شخصية مع زر "+ إضافة شخصية" و"حذف"، وعرض السعر اللحظي يتحدّث مع كل إضافة.
-
----
-
-### 3) "جو الكتابة" متعدد + تعليمات نصية مخصصة
-
-**تعديل `orders`:** إضافة `moods text[]` (بدل `mood` المفرد على `characters`) و `custom_instructions text` (اختياري، حد 500 حرف).
-
-**واجهة:** البطاقات الحالية للأجواء تصبح اختيار متعدد (toggle)، مع حد 1–3 أجواء. تحت الاختيار يظهر `<textarea>` "تعليمات إضافية للقصة (اختياري)" مع placeholder: "مثال: الأحداث في كركوك، البطل يحب كرة القدم، أضف عبرة عن الصدق…".
-
-**الدمج في توليد القصة:** الـ system prompt يضمّ:
-```
-أجواء القصة: {moods.join(", ")}
-تعليمات المؤلف: {custom_instructions || "—"}
-الشخصيات: {characters.map(...)}
-```
-
----
-
-### 4) معاينة بدون صور — الصور تُولَّد بعد تأكيد الدفع
-
-**تغيير جوهري في دورة الحياة:**
-
-```text
-draft → preview_ready (نص فقط) → tier_chosen → payment_pending
-      → payment_confirmed (الإدارة) → images_generating → ready_for_delivery
-```
-
-**التنفيذ:**
-1. `generateFullStory` يُولّد فقط: العنوان + ملخص الشخصية + نص كل صفحة + `image_prompt` لكل صفحة (يُحفظ بدون توليد صورة). تكلفة AI تنخفض ~95٪ في المعاينة.
-2. `/preview/$orderId` يعرض: عنوان، ملخص، قائمة نصوص الصفحات (بدون صور)، أزرار الباقات.
-3. عند اختيار باقة → `confirmTierAndPrepareWhatsapp` يضع الطلب في `payment_pending` ويفتح واتساب (بدون PDF بعد).
-4. في `/admin/orders/$id` زر **"تأكيد الدفع وبدء توليد الصور"** → server fn `confirmPaymentAndGenerateImages`:
-   - يولّد الغلاف + صور الصفحات بالتوازي
-   - يبني PDF
-   - يحدّث الحالة إلى `ready_for_delivery` ويحفظ `pdf_path`
-5. المستخدم في `/preview/$orderId` (polling مستمر) يرى لمّا يصير `ready_for_delivery`: تظهر الصور + زر "تحميل PDF" + رسالة "تم تأكيد الدفع — قصتك جاهزة".
-6. صفحة `/my-orders` للمستخدم المسجّل تعرض كل طلباته وحالاتها.
+## 8) ثيمات موسمية مخصصة
+- إنشاء جدول `seasonal_themes`:
+  - `name` (محرم، صفر، المولد النبوي، رمضان، …)
+  - `start_date`, `end_date`
+  - `accent_color`, `bg_pattern_url`, `banner_text`, `banner_url`
+  - `active` (boolean)
+- صفحة إدارة جديدة `admin.themes.tsx` لإضافة/تعديل/تفعيل الثيمات.
+- في `__root.tsx`: تحميل الثيم النشط حالياً (loader) وحقن متغيرات CSS (`--accent`, `--seasonal-banner-bg`) ديناميكياً، وعرض شريط علوي بالنص الموسمي إن وُجد.
+- في `pdf.server.ts`: استخدام الثيم النشط (لون الإطار، شعار/نقشة) في صفحات الـ PDF.
 
 ---
 
-### المخطط التقني المختصر
+## التفاصيل التقنية الموجزة
 
-| ملف | التغيير |
-|---|---|
-| Migration | جداول `users`, `otp_codes`, `user_sessions`, `order_characters`; إضافة `moods`, `custom_instructions`, حقول التسعير; تعديل `orders` enum للحالات الجديدة |
-| `src/lib/twilio.server.ts` | جديد — إرسال WhatsApp/SMS عبر Connector Gateway |
-| `src/lib/user-session.server.ts` | جديد — كوكي جلسة المستخدم + `requireUserSession` middleware |
-| `src/lib/auth.functions.ts` | جديد — `requestOtp`, `verifyOtp`, `logout`, `getCurrentUser` |
-| `src/lib/pricing.ts` | تحديث `computeTierAmount` ليضيف تكلفة الشخصيات |
-| `src/lib/orders.functions.ts` | فصل `generateFullStory` (نص فقط) عن `confirmPaymentAndGenerateImages` (صور+PDF)؛ دعم عدة شخصيات وأجواء |
-| `src/routes/auth.tsx` | جديد — شاشة تسجيل الدخول OTP |
-| `src/routes/create.tsx` | بناء الشخصيات الديناميكي، اختيار أجواء متعدد، textarea تعليمات، سعر لحظي |
-| `src/routes/preview.$orderId.tsx` | إزالة عرض الصور، عرض النص فقط، polling لحالة `ready_for_delivery` |
-| `src/routes/my-orders.tsx` | جديد — طلبات المستخدم |
-| `src/routes/admin.users.tsx` | جديد — قائمة العملاء + تصدير CSV |
-| `src/routes/admin.orders.$id.tsx` | زر "تأكيد الدفع وبدء التوليد"، عرض الشخصيات والأجواء والتعليمات |
-| `src/routes/admin.settings.tsx` | حقول تسعير الشخصيات الإضافية |
-| `src/lib/i18n.tsx` | مفاتيح ترجمة جديدة |
+**ملفات جديدة:**
+- `supabase/migrations/...` (إضافة `photo_path` + جدول `seasonal_themes`)
+- `src/lib/uploads.functions.ts` — `uploadCharacterPhoto`, `uploadDraftPhoto`
+- `src/lib/themes.functions.ts` — `listThemes`, `upsertTheme`, `getActiveTheme`
+- `src/routes/admin.themes.tsx`
+- `src/components/BrandIntroVideo.tsx`
+- `src/assets/basma-logo-v2.png.asset.json` + asset pointers للفيديوهين
 
-**ما يحتاج من المستخدم قبل التنفيذ:**
-- ربط **Twilio** من قائمة الـ Connectors (للـ OTP عبر WhatsApp/SMS). إن لم يتوفر الآن، نبدأ بـ "وضع التطوير" يطبع الرمز في console الإدارة ويُستبدل بـ Twilio لاحقاً بدون تغييرات.
+**ملفات معدّلة:**
+- `src/routes/create.tsx` (رفع صور لكل شخصية)
+- `src/routes/admin.orders.$id.tsx` (عرض صور + أزرار تحميل)
+- `src/routes/admin.users.tsx` و `admin.index.tsx` (بحث)
+- `src/routes/admin.analytics.tsx` (تصدير CSV + متريكس إضافية)
+- `src/routes/__root.tsx` و `index.tsx` (شعار أكبر + فوتر + فيديو + ثيم)
+- `src/lib/orders.functions.ts` (تمرير صور المراجع للمولد + حفظ photo_path)
+- `src/lib/pdf.server.ts` (ختم الشعار + التذييل + ألوان الثيم)
+- `src/lib/brand.ts`, `src/lib/i18n.tsx`, `src/styles.css`
 
-**ما لن يتغيّر:**
-- تدفق الدفع اليدوي عبر واتساب
-- صلاحيات الإدارة (07733570130 / 7979)
-- شعار وألوان العلامة
+**ملاحظات:**
+- ختم الصور: سيتم على مستوى الـ PDF وعرض الويب فقط (تجنباً لتبعيات native غير متوفرة في Workers). الصور المخزنة في bucket تبقى نظيفة، والختم يُضاف في طبقة العرض.
+- صور المراجع تُمرر للنموذج كـ `image_url` في messages متعددة الوسائط (Gemini يدعمها).

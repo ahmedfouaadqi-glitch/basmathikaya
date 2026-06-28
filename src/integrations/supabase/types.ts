@@ -188,6 +188,7 @@ export type Database = {
           is_primary: boolean
           name: string
           order_id: string
+          photo_path: string | null
           position: number
           role: string
         }
@@ -199,6 +200,7 @@ export type Database = {
           is_primary?: boolean
           name: string
           order_id: string
+          photo_path?: string | null
           position?: number
           role?: string
         }
@@ -210,6 +212,7 @@ export type Database = {
           is_primary?: boolean
           name?: string
           order_id?: string
+          photo_path?: string | null
           position?: number
           role?: string
         }
@@ -407,6 +410,48 @@ export type Database = {
           tier_video_iqd?: number
           updated_at?: string
           usd_per_credit?: number
+        }
+        Relationships: []
+      }
+      seasonal_themes: {
+        Row: {
+          accent_color: string | null
+          active: boolean
+          banner_text_ar: string | null
+          banner_text_en: string | null
+          banner_url: string | null
+          created_at: string
+          end_date: string | null
+          id: string
+          name: string
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          active?: boolean
+          banner_text_ar?: string | null
+          banner_text_en?: string | null
+          banner_url?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          name: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          active?: boolean
+          banner_text_ar?: string | null
+          banner_text_en?: string | null
+          banner_url?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          name?: string
+          start_date?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
