@@ -1,67 +1,100 @@
+## خطة تحديث "بصمة حكاية" — 4 ميزات جديدة
 
-## الهدف
-المعاينة الحالية مجرد فقرة افتتاحية + غلاف. سنحوّلها إلى **قصة كاملة متعددة الصفحات**، كل صفحة فيها نص + صورة معبّرة، مع إمكانية اختيار عدد الصفحات (الافتراضي 5)، وتسعير يزداد مع زيادة الصفحات، ورابط تحميل PDF يصل للعميل، وعرض كامل للصفحات داخل لوحة الإدارة.
+### 1) تسجيل دخول المستخدم برقم الهاتف + OTP عبر واتساب/SMS
 
-## 1) قاعدة البيانات (هجرة واحدة)
-- جدول جديد `story_pages`:
-  - `order_id` (FK), `page_number` (int), `text` (text), `image_path` (text)، فهرس فريد `(order_id, page_number)`، RLS مغلق، GRANT للـ `service_role`.
-- إضافة أعمدة:
-  - `orders.page_count int not null default 5`
-  - `orders.pdf_path text` (مسار PDF داخل bucket جديد)
-  - `generations.full_story text` موجود مسبقًا، نُبقيه ونستخدمه لتخزين JSON الصفحات (نسخة احتياطية للنص).
-- جدول `pricing_settings`: نضيف
-  - `per_page_iqd_pdf`, `per_page_iqd_printed`, `per_page_iqd_video` (سعر كل صفحة إضافية فوق 5).
-- bucket تخزين خاص جديد: `story-pdfs` (private).
-- bucket صور الصفحات: نعيد استخدام `story-covers` بمسار فرعي `pages/<orderId>/<n>.png`.
+**جداول جديدة:**
+- `users` (id, full_name, phone E.164, created_at, last_login_at, marketing_consent default true, notes)
+- `otp_codes` (id, phone, code_hash, expires_at, attempts, consumed_at)
+- `user_sessions` (id, user_id, token_hash, expires_at) — كوكي httpOnly مشفّر مثل جلسة الإدارة
 
-## 2) تدفّق التوليد (server function `generatePreview` → `generateFullStory`)
-- المدخلات: `orderId` + `page_count` (يُقرأ من `orders.page_count`).
-- الخطوة A — نص القصة الكامل (نموذج نص واحد منظَّم JSON):
-  - `google/gemini-3-flash-preview` مع `response_format: json_object`.
-  - يُعيد: `title`, `cover_prompt`, `pages: [{ text, image_prompt }]` بعدد `page_count`.
-  - حفظ النص لكل صفحة في `story_pages` + النص الكامل في `generations.full_story`.
-- الخطوة B — الغلاف (مثل الحالي) باستخدام `cover_prompt`.
-- الخطوة C — صور الصفحات بالتوازي (محدودة 3 بنفس الوقت) عبر `google/gemini-3.1-flash-image` باستخدام `image_prompt` لكل صفحة + وصف ثابت للشخصية لضمان الاتساق البصري؛ رفعها إلى `story-covers/pages/<orderId>/<n>.png`، وتحديث `story_pages.image_path`.
-- كل خطوة تُسجَّل في `generation_events` (كما هو) لاحتساب التكلفة لحظيًا.
+**موفر الإرسال:** Twilio عبر Connector Gateway (يدعم WhatsApp + SMS). سيُطلب ربط Twilio من إعدادات الـ Connectors. تكلفة الإرسال على حساب المالك.
 
-## 3) توليد ملف PDF
-- بعد اكتمال الصفحات: server function `buildStoryPdf(orderId)`:
-  - استخدام `pdf-lib` (متوافق مع Cloudflare Worker، بدون اعتماد Node-only).
-  - صفحة غلاف + صفحات بتخطيط: صورة في الأعلى + النص في الأسفل، دعم RTL للعربية باستخدام خط مدمج `Tajawal` (تحميل bytes من الـ asset).
-  - رفع الملف إلى `story-pdfs/<orderId>.pdf` وحفظ `orders.pdf_path`.
-- server function `getStoryPdfUrl(orderId)` يُعيد signed URL صالحًا 24 ساعة (يستخدمه العميل والإدارة).
+**التدفق:**
+1. شاشة `/auth` (مدمجة قبل `/create`): يدخل الاسم + رقم الهاتف → ضغط "إرسال رمز" → server fn `requestOtp` يُرسل رمز 6 خانات عبر WhatsApp (مع fallback SMS).
+2. إدخال الرمز → `verifyOtp` ينشئ/يحدّث `users` ويصدر جلسة (30 يوم).
+3. كل صفحات `/create`, `/preview`, طلبات المستخدم تتطلب الجلسة (middleware `requireUserSession`).
+4. الإدارة ترى قائمة `users` مع: الاسم، الهاتف، عدد الطلبات، آخر دخول، مجموع الإنفاق — صفحة `/admin/users` مع تصدير CSV للتسويق.
 
-## 4) واجهة العميل
-- **`/create`**: إضافة محدد عدد الصفحات (5 / 8 / 12 — أو slider 4–16) مع عرض السعر التقديري الحي لكل باقة. يُرسل `page_count` ضمن `createOrderDraft`.
-- **`/preview/$orderId`**:
-  - يعرض الغلاف + الفقرة الأولى أثناء التوليد، ثم يبدأ بعرض الصفحات تباعًا (polling كل 3 ثوانٍ على endpoint جديد `getStoryProgress`).
-  - بعد اختيار الباقة وتأكيد واتساب: يظهر زر **"تحميل PDF"** يفتح `getStoryPdfUrl`.
-  - رابط PDF يُدرج تلقائيًا داخل نص رسالة واتساب المُعدّ مسبقًا.
-- العرض في الواجهة يظل بعلامة مائية حتى يتم الدفع/التأكيد (نُبقي class `watermark-overlay` الحالي).
+**الحدود:** 3 رموز/ساعة لكل رقم، صلاحية الرمز 10 دقائق، 5 محاولات قصوى.
 
-## 5) لوحة الإدارة
-- في `admin.orders.$id.tsx`:
-  - قسم جديد **"صفحات القصة"**: شبكة لكل صفحة (صورة + نص + رقم الصفحة).
-  - زر **"تحميل PDF"** يستدعي `getStoryPdfUrl`.
-  - زر **"إعادة توليد الصفحة"** لكل صفحة (server fn `regeneratePage(orderId, page_number)`) — يفيد لإصلاح صورة سيئة.
-- في `admin.settings.tsx`: إضافة حقول `per_page_iqd_*` ضمن نموذج التسعير.
-- في `admin.tsx` (القائمة): إضافة عمود `page_count`.
+---
 
-## 6) التسعير الديناميكي
-- الصيغة: `amount_iqd = tier_base_iqd + max(0, page_count - 5) * per_page_iqd_<tier>`
-- يُحتسب في:
-  - الواجهة (`/create` و `/preview`) للعرض اللحظي.
-  - `confirmTierAndPrepareWhatsapp` كمصدر الحقيقة قبل تخزين `orders.amount_iqd`.
+### 2) عدة شخصيات في الطلب الواحد + تسعير ديناميكي
 
-## 7) ملاحظات تقنية
-- `pdf-lib` نقي JS — متوافق مع Worker. تحميل ملف الخط مرة واحدة عبر `import font from "@fontsource/tajawal/files/tajawal-arabic-400-normal.woff"` ثم تحويله إلى ttf bytes (سنستخدم نسخة ttf من الحزمة).
-- تعزيز اتساق الشخصية: نُولّد "بطاقة شخصية" نصية مرة واحدة من اسم/عمر/مزاج المستخدم وصورته (وصف بصري)، ونُدرجها في كل `image_prompt` لتجنّب اختلاف ملامح البطل بين الصفحات.
-- التوليد المتوازي محدود (3) لتفادي rate-limit على AI Gateway.
-- لا تغييرات على نظام الجلسة/المصادقة.
+**تعديل الجدول:** `characters` يُحوّل إلى `order_characters` بعلاقة many-to-one مع `orders`:
+- `order_characters` (id, order_id, name, age, role enum: protagonist|friend|family|pet|other, description text)
+- إزالة `character_id` من `orders`، تبقى بيانات العميل المُوحّدة على `users`.
+- إضافة `extra_characters_count` (محسوبة من العدد - 1) و `companions_brief` على `orders`.
 
-## التسليمات
-- هجرة DB + bucket جديد.
-- `src/lib/orders.functions.ts`: تعديل `createOrderDraft`، استبدال `generatePreview` بـ `generateFullStory` + `getStoryProgress` + `buildStoryPdf` + `getStoryPdfUrl` + `regeneratePage`.
-- `src/lib/pdf.server.ts` جديد (بناء PDF).
-- تعديل `create.tsx` و `preview.$orderId.tsx` و `admin.orders.$id.tsx` و `admin.settings.tsx` و `admin.tsx`.
-- ترجمات i18n للمفاتيح الجديدة (عدد الصفحات، تحميل PDF، صفحات القصة…).
+**الحدود والتسعير:**
+- شخصية رئيسية واحدة إلزامية (مجانية ضمن السعر الأساس) + حتى 4 شخصيات إضافية.
+- إضافة حقول إلى `pricing_settings`: `per_character_iqd_pdf` (default 1500)، `per_character_iqd_printed` (default 3000)، `per_character_iqd_video` (default 6000) — قابلة للتعديل من `/admin/settings`.
+- `computeTierAmount(tier, pageCount, characterCount, p)` يضيف `(characterCount - 1) * per_character_iqd_{tier}`.
+
+**واجهة `/create`:** قسم "الشخصيات" — بطاقة لكل شخصية مع زر "+ إضافة شخصية" و"حذف"، وعرض السعر اللحظي يتحدّث مع كل إضافة.
+
+---
+
+### 3) "جو الكتابة" متعدد + تعليمات نصية مخصصة
+
+**تعديل `orders`:** إضافة `moods text[]` (بدل `mood` المفرد على `characters`) و `custom_instructions text` (اختياري، حد 500 حرف).
+
+**واجهة:** البطاقات الحالية للأجواء تصبح اختيار متعدد (toggle)، مع حد 1–3 أجواء. تحت الاختيار يظهر `<textarea>` "تعليمات إضافية للقصة (اختياري)" مع placeholder: "مثال: الأحداث في كركوك، البطل يحب كرة القدم، أضف عبرة عن الصدق…".
+
+**الدمج في توليد القصة:** الـ system prompt يضمّ:
+```
+أجواء القصة: {moods.join(", ")}
+تعليمات المؤلف: {custom_instructions || "—"}
+الشخصيات: {characters.map(...)}
+```
+
+---
+
+### 4) معاينة بدون صور — الصور تُولَّد بعد تأكيد الدفع
+
+**تغيير جوهري في دورة الحياة:**
+
+```text
+draft → preview_ready (نص فقط) → tier_chosen → payment_pending
+      → payment_confirmed (الإدارة) → images_generating → ready_for_delivery
+```
+
+**التنفيذ:**
+1. `generateFullStory` يُولّد فقط: العنوان + ملخص الشخصية + نص كل صفحة + `image_prompt` لكل صفحة (يُحفظ بدون توليد صورة). تكلفة AI تنخفض ~95٪ في المعاينة.
+2. `/preview/$orderId` يعرض: عنوان، ملخص، قائمة نصوص الصفحات (بدون صور)، أزرار الباقات.
+3. عند اختيار باقة → `confirmTierAndPrepareWhatsapp` يضع الطلب في `payment_pending` ويفتح واتساب (بدون PDF بعد).
+4. في `/admin/orders/$id` زر **"تأكيد الدفع وبدء توليد الصور"** → server fn `confirmPaymentAndGenerateImages`:
+   - يولّد الغلاف + صور الصفحات بالتوازي
+   - يبني PDF
+   - يحدّث الحالة إلى `ready_for_delivery` ويحفظ `pdf_path`
+5. المستخدم في `/preview/$orderId` (polling مستمر) يرى لمّا يصير `ready_for_delivery`: تظهر الصور + زر "تحميل PDF" + رسالة "تم تأكيد الدفع — قصتك جاهزة".
+6. صفحة `/my-orders` للمستخدم المسجّل تعرض كل طلباته وحالاتها.
+
+---
+
+### المخطط التقني المختصر
+
+| ملف | التغيير |
+|---|---|
+| Migration | جداول `users`, `otp_codes`, `user_sessions`, `order_characters`; إضافة `moods`, `custom_instructions`, حقول التسعير; تعديل `orders` enum للحالات الجديدة |
+| `src/lib/twilio.server.ts` | جديد — إرسال WhatsApp/SMS عبر Connector Gateway |
+| `src/lib/user-session.server.ts` | جديد — كوكي جلسة المستخدم + `requireUserSession` middleware |
+| `src/lib/auth.functions.ts` | جديد — `requestOtp`, `verifyOtp`, `logout`, `getCurrentUser` |
+| `src/lib/pricing.ts` | تحديث `computeTierAmount` ليضيف تكلفة الشخصيات |
+| `src/lib/orders.functions.ts` | فصل `generateFullStory` (نص فقط) عن `confirmPaymentAndGenerateImages` (صور+PDF)؛ دعم عدة شخصيات وأجواء |
+| `src/routes/auth.tsx` | جديد — شاشة تسجيل الدخول OTP |
+| `src/routes/create.tsx` | بناء الشخصيات الديناميكي، اختيار أجواء متعدد، textarea تعليمات، سعر لحظي |
+| `src/routes/preview.$orderId.tsx` | إزالة عرض الصور، عرض النص فقط، polling لحالة `ready_for_delivery` |
+| `src/routes/my-orders.tsx` | جديد — طلبات المستخدم |
+| `src/routes/admin.users.tsx` | جديد — قائمة العملاء + تصدير CSV |
+| `src/routes/admin.orders.$id.tsx` | زر "تأكيد الدفع وبدء التوليد"، عرض الشخصيات والأجواء والتعليمات |
+| `src/routes/admin.settings.tsx` | حقول تسعير الشخصيات الإضافية |
+| `src/lib/i18n.tsx` | مفاتيح ترجمة جديدة |
+
+**ما يحتاج من المستخدم قبل التنفيذ:**
+- ربط **Twilio** من قائمة الـ Connectors (للـ OTP عبر WhatsApp/SMS). إن لم يتوفر الآن، نبدأ بـ "وضع التطوير" يطبع الرمز في console الإدارة ويُستبدل بـ Twilio لاحقاً بدون تغييرات.
+
+**ما لن يتغيّر:**
+- تدفق الدفع اليدوي عبر واتساب
+- صلاحيات الإدارة (07733570130 / 7979)
+- شعار وألوان العلامة
