@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -14,6 +14,9 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { LanguageProvider, useT } from "../lib/i18n";
 import { Toaster } from "../components/ui/sonner";
 import { brandLogoUrl } from "../lib/brand";
+import { useServerFn } from "@tanstack/react-start";
+import { getCurrentUser } from "../lib/auth.functions";
+import { UserCircle } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -87,6 +90,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function Header() {
   const { lang, setLang, t } = useT();
+  const meFn = useServerFn(getCurrentUser);
+  const meQ = useQuery({ queryKey: ["me"], queryFn: () => meFn(), staleTime: 30_000 });
+  const me = meQ.data;
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
@@ -98,6 +104,14 @@ function Header() {
         </Link>
         <nav className="flex items-center gap-1.5 text-sm">
           <Link to="/create" className="rounded-md px-3 py-1.5 hover:bg-secondary font-medium">{t("nav_create")}</Link>
+          {me ? (
+            <Link to="/my-orders" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary font-medium">
+              <UserCircle className="size-4" />
+              {t("nav_my_orders")}
+            </Link>
+          ) : (
+            <Link to="/auth" className="rounded-md px-3 py-1.5 hover:bg-secondary font-medium">{t("nav_login")}</Link>
+          )}
           <Link to="/admin" className="rounded-md px-3 py-1.5 hover:bg-secondary text-muted-foreground">{t("nav_admin")}</Link>
           <button
             onClick={() => setLang(lang === "ar" ? "en" : "ar")}

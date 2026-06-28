@@ -1,20 +1,28 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Upload, Loader2 } from "lucide-react";
+import { Loader2, Trash2, Plus, UserCircle } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { createOrderDraft, getPublicPricing } from "../lib/orders.functions";
-import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES } from "../lib/pricing";
+import { getCurrentUser } from "../lib/auth.functions";
+import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
       { title: "ابدأ حكايتك — بصمة حكاية" },
-      { name: "description", content: "ارفع صورتك واختر جوّ القصة لإنشاء حكاية مخصصة بملامحك." },
+      { name: "description", content: "أنشئ قصة فريدة بشخصياتك وأجوائك المفضلة." },
     ],
   }),
+  beforeLoad: async ({ location }) => {
+    const me = await getCurrentUser();
+    if (!me) {
+      throw redirect({ to: "/auth", search: { redirect: location.href } });
+    }
+    return { me };
+  },
   component: CreatePage,
 });
 
@@ -27,65 +35,87 @@ const MOODS = [
   { value: "mystery", key: "mood_mystery", emoji: "🔎" },
 ] as const;
 
-async function fileToDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-}
+const ROLES = ["protagonist", "friend", "family", "pet", "other"] as const;
+type Role = (typeof ROLES)[number];
+
+type CharacterDraft = {
+  name: string;
+  age: string;
+  role: Role;
+  description: string;
+};
 
 function CreatePage() {
   const { t, lang } = useT();
   const navigate = useNavigate();
+  const { me } = Route.useRouteContext();
   const create = useServerFn(createOrderDraft);
   const pricingFn = useServerFn(getPublicPricing);
   const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
 
-  const [name, setName] = useState("");
-  const [age, setAge] = useState<number | "">("");
-  const [phone, setPhone] = useState("");
-  const [mood, setMood] = useState<string>("adventure");
+  const [characters, setCharacters] = useState<CharacterDraft[]>([
+    { name: me?.name ?? "", age: "", role: "protagonist", description: "" },
+  ]);
+  const [moods, setMoods] = useState<string[]>(["adventure"]);
+  const [instructions, setInstructions] = useState("");
   const [pages, setPages] = useState<number>(5);
-  const [imgPreview, setImgPreview] = useState<string | null>(null);
-  const [imgDataUrl, setImgDataUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
-  const estimates = useMemo(() => ({
-    pdf: computeTierAmount("pdf", pages, pricing),
-    printed: computeTierAmount("printed", pages, pricing),
-    video: computeTierAmount("video", pages, pricing),
-  }), [pages, pricing]);
+  const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
 
-  async function onPick(file: File | null) {
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("الصورة كبيرة جداً (الحد 8MB)");
+  const estimates = useMemo(() => ({
+    pdf: computeTierAmount("pdf", pages, pricing, characters.length),
+    printed: computeTierAmount("printed", pages, pricing, characters.length),
+    video: computeTierAmount("video", pages, pricing, characters.length),
+  }), [pages, pricing, characters.length]);
+
+  function updateChar(i: number, patch: Partial<CharacterDraft>) {
+    setCharacters((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+  }
+  function addChar() {
+    if (characters.length >= maxChars) {
+      toast.error(`الحد الأقصى ${maxChars} شخصيات`);
       return;
     }
-    const url = await fileToDataURL(file);
-    setImgDataUrl(url);
-    setImgPreview(url);
+    setCharacters((cs) => [...cs, { name: "", age: "", role: "friend", description: "" }]);
+  }
+  function removeChar(i: number) {
+    if (i === 0) return;
+    setCharacters((cs) => cs.filter((_, idx) => idx !== i));
+  }
+
+  function toggleMood(value: string) {
+    setMoods((cur) => {
+      if (cur.includes(value)) {
+        return cur.length === 1 ? cur : cur.filter((m) => m !== value);
+      }
+      if (cur.length >= 3) {
+        toast.error("الحد الأقصى 3 أجواء");
+        return cur;
+      }
+      return [...cur, value];
+    });
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!imgDataUrl) return toast.error(t("field_image"));
-    if (!name.trim() || !phone.trim() || !age) return toast.error("املأ كل الحقول");
+    if (!characters[0].name.trim()) return toast.error("اكتب اسم البطل الرئيسي");
+    if (moods.length === 0) return toast.error("اختر جواً واحداً على الأقل");
     setSubmitting(true);
     try {
       const res = await create({
         data: {
-          customer_name: name.trim(),
-          customer_phone: phone.trim(),
-          age: Number(age),
-          mood,
+          characters: characters.map((c) => ({
+            name: c.name.trim(),
+            age: c.age ? Number(c.age) : null,
+            role: c.role,
+            description: c.description.trim(),
+          })),
+          moods,
+          custom_instructions: instructions.trim(),
           language: lang,
           page_count: pages,
-          image_data_url: imgDataUrl,
         },
       });
       navigate({ to: "/preview/$orderId", params: { orderId: res.orderId } });
@@ -102,92 +132,95 @@ function CreatePage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("form_subtitle")}</p>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-5 rounded-2xl border bg-card p-6 shadow-sm">
-        {/* Image */}
+      <form onSubmit={onSubmit} className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
+        {/* Characters */}
         <div>
-          <label className="block text-sm font-medium mb-2">{t("field_image")}</label>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => onPick(e.target.files?.[0] ?? null)}
-          />
-          {imgPreview ? (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="group relative block w-full overflow-hidden rounded-xl border"
-            >
-              <img src={imgPreview} alt="" className="aspect-square w-full max-w-xs mx-auto object-cover" />
-              <div className="absolute inset-0 flex items-center justify-center bg-foreground/45 opacity-0 transition group-hover:opacity-100">
-                <span className="font-medium text-primary-foreground">تغيير الصورة</span>
+          <div className="mb-2 flex items-baseline justify-between">
+            <label className="block text-sm font-bold">{t("characters_title")}</label>
+            <span className="text-xs text-muted-foreground">{characters.length} / {maxChars}</span>
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">{t("characters_hint")}</p>
+
+          <div className="space-y-3">
+            {characters.map((c, i) => (
+              <div key={i} className="rounded-xl border bg-background/60 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary">
+                    <UserCircle className="size-4" />
+                    {i === 0 ? t("character_main") : `${t("character_n")} ${i + 1}`}
+                  </div>
+                  {i > 0 && (
+                    <button type="button" onClick={() => removeChar(i)} className="inline-flex items-center gap-1 text-xs text-destructive hover:underline">
+                      <Trash2 className="size-3" /> {t("remove_character")}
+                    </button>
+                  )}
+                </div>
+                <div className="grid gap-2 md:grid-cols-3">
+                  <div className="md:col-span-2">
+                    <input
+                      placeholder={t("character_name")}
+                      value={c.name}
+                      onChange={(e) => updateChar(i, { name: e.target.value })}
+                      maxLength={60}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                      required={i === 0}
+                    />
+                  </div>
+                  <input
+                    placeholder={t("character_age")}
+                    type="number"
+                    min={1}
+                    max={120}
+                    value={c.age}
+                    onChange={(e) => updateChar(i, { age: e.target.value })}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                {i > 0 && (
+                  <select
+                    value={c.role}
+                    onChange={(e) => updateChar(i, { role: e.target.value as Role })}
+                    className="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>{t(`role_${r}` as never)}</option>
+                    ))}
+                  </select>
+                )}
+                <textarea
+                  placeholder={t("character_description_ph")}
+                  value={c.description}
+                  onChange={(e) => updateChar(i, { description: e.target.value })}
+                  maxLength={300}
+                  rows={2}
+                  className="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
-            </button>
-          ) : (
+            ))}
+          </div>
+
+          {characters.length < maxChars && (
             <button
               type="button"
-              onClick={() => fileRef.current?.click()}
-              className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/40 px-4 py-10 text-muted-foreground hover:bg-secondary"
+              onClick={addChar}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 py-2.5 text-sm font-medium text-primary hover:bg-primary/10"
             >
-              <Upload className="size-7 text-primary" />
-              <span className="font-medium text-foreground">اضغط لرفع الصورة</span>
-              <span className="text-xs">{t("field_image_hint")}</span>
+              <Plus className="size-4" /> {t("add_character")}
             </button>
           )}
         </div>
 
-        {/* Name + Age */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="block text-sm font-medium mb-2">{t("field_name")}</label>
-            <input
-              className="w-full rounded-lg border bg-background px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-primary"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={60}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">{t("field_age")}</label>
-            <input
-              type="number"
-              min={1}
-              max={120}
-              className="w-full rounded-lg border bg-background px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-primary"
-              value={age}
-              onChange={(e) => setAge(e.target.value ? Number(e.target.value) : "")}
-              required
-            />
-          </div>
-        </div>
-
-        {/* Phone */}
+        {/* Moods */}
         <div>
-          <label className="block text-sm font-medium mb-2">{t("field_phone")}</label>
-          <input
-            type="tel"
-            className="w-full rounded-lg border bg-background px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-primary"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="07XXXXXXXXX"
-            required
-          />
-          <p className="mt-1 text-xs text-muted-foreground">{t("field_phone_hint")}</p>
-        </div>
-
-        {/* Mood */}
-        <div>
-          <label className="block text-sm font-medium mb-2">{t("field_mood")}</label>
+          <label className="mb-2 block text-sm font-bold">{t("field_mood")}</label>
           <div className="grid grid-cols-3 gap-2">
             {MOODS.map((m) => (
               <button
                 key={m.value}
                 type="button"
-                onClick={() => setMood(m.value)}
+                onClick={() => toggleMood(m.value)}
                 className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition ${
-                  mood === m.value
+                  moods.includes(m.value)
                     ? "border-primary bg-primary/10 font-semibold"
                     : "hover:bg-secondary"
                 }`}
@@ -197,12 +230,27 @@ function CreatePage() {
               </button>
             ))}
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">{t("field_mood_limit")}</p>
         </div>
 
-        {/* Page count */}
+        {/* Custom instructions */}
+        <div>
+          <label className="mb-2 block text-sm font-bold">{t("field_instructions")}</label>
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            placeholder={t("field_instructions_placeholder")}
+            maxLength={500}
+            rows={3}
+            className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+          />
+          <div className="mt-1 text-end text-xs text-muted-foreground">{instructions.length}/500</div>
+        </div>
+
+        {/* Pages */}
         <div>
           <div className="flex items-baseline justify-between mb-2">
-            <label className="block text-sm font-medium">{t("field_pages")}</label>
+            <label className="block text-sm font-bold">{t("field_pages")}</label>
             <span className="text-lg font-extrabold text-primary">{pages} <span className="text-xs font-medium text-muted-foreground">{t("pages_label")}</span></span>
           </div>
           <input

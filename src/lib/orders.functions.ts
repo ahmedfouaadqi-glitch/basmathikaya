@@ -1,15 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { computeTierAmount, MIN_PAGES, MAX_PAGES, type PricingLike, type Tier } from "./pricing";
+import {
+  computeTierAmount,
+  MIN_PAGES,
+  MAX_PAGES,
+  MIN_CHARACTERS,
+  MAX_CHARACTERS,
+  type PricingLike,
+  type Tier,
+} from "./pricing";
+
+const CharacterInput = z.object({
+  name: z.string().trim().min(1).max(60),
+  age: z.coerce.number().int().min(1).max(120).optional().nullable(),
+  role: z.enum(["protagonist", "friend", "family", "pet", "other"]).default("protagonist"),
+  description: z.string().trim().max(300).optional().default(""),
+});
 
 const CreateInput = z.object({
-  customer_name: z.string().trim().min(1).max(60),
-  customer_phone: z.string().trim().min(5).max(30),
-  age: z.coerce.number().int().min(1).max(120),
-  mood: z.string().trim().min(1).max(40),
+  characters: z.array(CharacterInput).min(MIN_CHARACTERS).max(MAX_CHARACTERS),
+  moods: z.array(z.string().trim().min(1).max(40)).min(1).max(3),
+  custom_instructions: z.string().trim().max(500).optional().default(""),
   language: z.enum(["ar", "en"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
-  image_data_url: z.string().min(20).max(20_000_000),
 });
 
 type PricingRow = PricingLike & {
@@ -67,6 +80,10 @@ async function getPricing(): Promise<PricingRow> {
       per_page_iqd_pdf: 400,
       per_page_iqd_printed: 1200,
       per_page_iqd_video: 2500,
+      per_character_iqd_pdf: 1500,
+      per_character_iqd_printed: 3000,
+      per_character_iqd_video: 6000,
+      max_characters: 5,
       print_cost_iqd: 0,
       shipping_cost_iqd: 0,
     };
@@ -74,50 +91,40 @@ async function getPricing(): Promise<PricingRow> {
   return data as PricingRow;
 }
 
+// === Create draft (text-only flow: requires authenticated user) ===
 export const createOrderDraft = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => CreateInput.parse(d))
   .handler(async ({ data }) => {
+    const { requireUserSession } = await import("./user-session.server");
+    const session = await requireUserSession();
+    const userId = session.data.userId!;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const m = data.image_data_url.match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
-    if (!m) throw new Error("Invalid image data URL");
-    const mime = m[1];
-    const ext = mime.split("/")[1].replace("jpeg", "jpg").split("+")[0];
-    const buffer = Buffer.from(m[2], "base64");
-    if (buffer.byteLength > 8 * 1024 * 1024) throw new Error("Image too large (max 8MB)");
-
-    const id = crypto.randomUUID();
-    const path = `uploads/${id}.${ext}`;
-    const up = await supabaseAdmin.storage
-      .from("story-uploads")
-      .upload(path, buffer, { contentType: mime, upsert: false });
-    if (up.error) throw new Error(up.error.message);
-
-    const { data: ch, error: chErr } = await supabaseAdmin
-      .from("characters")
-      .insert({
-        customer_name: data.customer_name,
-        customer_phone: data.customer_phone,
-        age: data.age,
-        mood: data.mood,
-        image_path: path,
-        language: data.language,
-      })
-      .select("id")
-      .single();
-    if (chErr || !ch) throw new Error(chErr?.message || "Failed to create character");
 
     const { data: ord, error: ordErr } = await supabaseAdmin
       .from("orders")
       .insert({
-        character_id: ch.id,
-        customer_phone: data.customer_phone,
+        user_id: userId,
+        customer_phone: session.data.phone ?? "",
         status: "pending",
         page_count: data.page_count,
+        moods: data.moods,
+        custom_instructions: data.custom_instructions || null,
       })
       .select("id, order_number")
       .single();
     if (ordErr || !ord) throw new Error(ordErr?.message || "Failed to create order");
+
+    const rows = data.characters.map((c, i) => ({
+      order_id: ord.id,
+      name: c.name,
+      age: c.age ?? null,
+      role: c.role,
+      description: c.description ?? "",
+      is_primary: i === 0,
+      position: i,
+    }));
+    const { error: chErr } = await supabaseAdmin.from("order_characters").insert(rows);
+    if (chErr) throw new Error(chErr.message);
 
     return { orderId: ord.id as string, orderNumber: ord.order_number as number };
   });
@@ -132,12 +139,10 @@ type StoryPlan = {
 };
 
 function safeParseJson(text: string): StoryPlan | null {
-  // Strip code fences
   const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   try {
     return JSON.parse(cleaned) as StoryPlan;
   } catch {
-    // try to extract first {...}
     const m = cleaned.match(/\{[\s\S]*\}/);
     if (m) {
       try { return JSON.parse(m[0]) as StoryPlan; } catch { return null; }
@@ -207,8 +212,8 @@ async function runWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
 }
 
 /**
- * Generate the full multi-page story: text plan + cover + page images.
- * Idempotent: if already generated, returns existing data quickly.
+ * Generate the story TEXT only (title, character visual, page texts, image prompts).
+ * No images are generated here — that happens after admin confirms payment.
  */
 export const generateFullStory = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => OrderIdInput.parse(d))
@@ -218,187 +223,153 @@ export const generateFullStory = createServerFn({ method: "POST" })
 
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, character_id, page_count, title, character_brief, characters(customer_name, age, mood, language)")
+      .select("id, page_count, title, character_brief, moods, custom_instructions, characters(language)")
       .eq("id", data.orderId)
       .single();
     if (!order) throw new Error("Order not found");
-    const ch = order.characters as { customer_name: string; age: number; mood: string; language: string } | null;
-    if (!ch) throw new Error("Character not found");
 
+    const { data: chars } = await supabaseAdmin
+      .from("order_characters")
+      .select("name, age, role, description, is_primary, position")
+      .eq("order_id", data.orderId)
+      .order("position");
+    if (!chars || chars.length === 0) throw new Error("لا توجد شخصيات في الطلب");
+
+    const legacyCh = (order.characters as { language?: string } | null) ?? null;
+    const language = (legacyCh?.language ?? "ar") as "ar" | "en";
+    const isAr = language === "ar";
     const pageCount = order.page_count ?? 5;
-    const isAr = ch.language === "ar";
+    const moods = (order.moods as string[]) ?? [];
+    const customInstructions = (order.custom_instructions as string | null) ?? "";
+
     const pricing = await getPricing();
 
-    // === Step 1: story plan (JSON) ===
-    const { data: existingGen } = await supabaseAdmin
-      .from("generations")
-      .select("*")
-      .eq("order_id", data.orderId)
-      .maybeSingle();
+    // Skip work if already produced
     const { data: existingPages } = await supabaseAdmin
       .from("story_pages")
       .select("page_number, text, image_prompt")
       .eq("order_id", data.orderId)
       .order("page_number");
 
-    let title = order.title as string | null;
-    let characterBrief = order.character_brief as string | null;
-    let coverPrompt = "";
-    let pagesPlan: Array<{ text: string; image_prompt: string }> = [];
+    if (existingPages && existingPages.length === pageCount && order.title) {
+      return { ok: true as const, alreadyDone: true };
+    }
 
-    if (existingPages && existingPages.length === pageCount && title && characterBrief) {
-      pagesPlan = existingPages.map((p) => ({ text: p.text ?? "", image_prompt: p.image_prompt ?? "" }));
-      coverPrompt = ""; // not re-needed
-    } else {
-      const textModel = "google/gemini-3-flash-preview";
-      const sys = isAr
-        ? "أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي."
-        : "You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it.";
-      const userPrompt = isAr
-        ? `اكتب قصة من ${pageCount} صفحات لبطل اسمه "${ch.customer_name}" عمره ${ch.age} سنة، بجو "${ch.mood}".
-استخدم لغة بسيطة دافئة مناسبة للطفل. كل صفحة 2-3 جمل قصيرة.
+    const charsText = chars
+      .map((c, i) => `${i + 1}. ${c.name}${c.age ? ` (عمر ${c.age})` : ""} — ${c.role}${c.description ? `: ${c.description}` : ""}${c.is_primary ? " [البطل الرئيسي]" : ""}`)
+      .join("\n");
+    const charsTextEn = chars
+      .map((c, i) => `${i + 1}. ${c.name}${c.age ? ` (age ${c.age})` : ""} — ${c.role}${c.description ? `: ${c.description}` : ""}${c.is_primary ? " [main hero]" : ""}`)
+      .join("\n");
+
+    const textModel = "google/gemini-3-flash-preview";
+    const sys = isAr
+      ? "أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي."
+      : "You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it.";
+
+    const userPrompt = isAr
+      ? `اكتب قصة من ${pageCount} صفحات لمجموعة الشخصيات التالية:
+${charsText}
+
+أجواء القصة: ${moods.join("، ")}.
+${customInstructions ? `تعليمات إضافية من صاحب القصة: ${customInstructions}` : ""}
+
+استخدم لغة بسيطة دافئة مناسبة للأطفال. كل صفحة 2-4 جمل قصيرة. أدمج كل الشخصيات في الأحداث بشكل طبيعي.
+
 أعد JSON بهذا الشكل بالضبط:
 {
   "title": "...",
-  "character_visual": "وصف بصري ثابت للبطل (الملابس، الشعر، اللون، الميزات) لاستخدامه في كل صورة لضمان الاتساق",
-  "cover_prompt": "وصف مشهد الغلاف بالإنجليزية",
-  "pages": [ { "text": "نص الصفحة بالعربية", "image_prompt": "وصف المشهد بالإنجليزية" }, ... ${pageCount} عنصر ]
+  "character_visual": "وصف بصري ثابت لكل الشخصيات (ملابس، شعر، ألوان، ميزات مميزة) لاستخدامه في كل صورة لضمان الاتساق",
+  "cover_prompt": "وصف مشهد الغلاف بالإنجليزية يضم كل الشخصيات",
+  "pages": [ { "text": "نص الصفحة بالعربية", "image_prompt": "وصف مشهد الصفحة بالإنجليزية" } ، ... ${pageCount} عنصر ]
 }`
-        : `Write a ${pageCount}-page story for a hero named "${ch.customer_name}", age ${ch.age}, with a "${ch.mood}" vibe.
-Use warm, simple language suitable for a child. Each page is 2-3 short sentences.
+      : `Write a ${pageCount}-page story for this cast:
+${charsTextEn}
+
+Story vibes: ${moods.join(", ")}.
+${customInstructions ? `Author's notes: ${customInstructions}` : ""}
+
+Use warm simple language for children. Each page 2-4 short sentences. Weave all characters into the events naturally.
+
 Return JSON exactly like:
 {
   "title": "...",
-  "character_visual": "Persistent visual description of the hero (clothing, hair, color, features) to reuse in every image prompt",
-  "cover_prompt": "Cover scene description in English",
+  "character_visual": "Persistent visual description of every character (clothing, hair, color, distinctive features) to reuse in every image prompt for consistency",
+  "cover_prompt": "Cover scene description in English featuring all characters",
   "pages": [ { "text": "page text in English", "image_prompt": "scene description in English" }, ... ${pageCount} items ]
 }`;
-      const chat = await callChat({
-        model: textModel,
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-      });
-      await logEvent(
-        data.orderId,
-        "story_plan",
-        textModel,
-        "chat",
-        chat.meta,
-        estimateTextCostUsd(textModel, chat.meta.usage),
-        0,
-        pricing,
-      );
-      const plan = safeParseJson(chat.content);
-      if (!plan || !plan.pages || plan.pages.length === 0) {
-        throw new Error("Failed to parse story plan");
-      }
-      title = plan.title;
-      characterBrief = plan.character_visual;
-      coverPrompt = plan.cover_prompt;
-      pagesPlan = plan.pages.slice(0, pageCount);
-      while (pagesPlan.length < pageCount) {
-        pagesPlan.push({ text: "", image_prompt: characterBrief ?? "" });
-      }
 
-      // Persist title + brief + first paragraph
-      await supabaseAdmin
-        .from("orders")
-        .update({ title, character_brief: characterBrief })
-        .eq("id", data.orderId);
+    const chat = await callChat({
+      model: textModel,
+      messages: [
+        { role: "system", content: sys },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+    });
+    await logEvent(
+      data.orderId,
+      "story_plan",
+      textModel,
+      "chat",
+      chat.meta,
+      estimateTextCostUsd(textModel, chat.meta.usage),
+      0,
+      pricing,
+    );
+    const plan = safeParseJson(chat.content);
+    if (!plan || !plan.pages || plan.pages.length === 0) {
+      throw new Error("Failed to parse story plan");
+    }
+    const pagesPlan = plan.pages.slice(0, pageCount);
+    while (pagesPlan.length < pageCount) {
+      pagesPlan.push({ text: "", image_prompt: plan.character_visual ?? "" });
+    }
 
-      await supabaseAdmin.from("generations").upsert(
+    await supabaseAdmin
+      .from("orders")
+      .update({ title: plan.title, character_brief: plan.character_visual })
+      .eq("id", data.orderId);
+
+    await supabaseAdmin.from("generations").upsert(
+      {
+        order_id: data.orderId,
+        first_paragraph: pagesPlan[0]?.text ?? "",
+        full_story: JSON.stringify(plan),
+      },
+      { onConflict: "order_id" },
+    );
+
+    for (const [i, p] of pagesPlan.entries()) {
+      await supabaseAdmin.from("story_pages").upsert(
         {
           order_id: data.orderId,
-          first_paragraph: pagesPlan[0]?.text ?? "",
-          full_story: JSON.stringify(plan),
-          cover_image_path: existingGen?.cover_image_path ?? null,
+          page_number: i + 1,
+          text: p.text,
+          image_prompt: p.image_prompt,
         },
-        { onConflict: "order_id" },
+        { onConflict: "order_id,page_number" },
       );
-
-      // Upsert story pages (text only)
-      for (const [i, p] of pagesPlan.entries()) {
-        await supabaseAdmin.from("story_pages").upsert(
-          {
-            order_id: data.orderId,
-            page_number: i + 1,
-            text: p.text,
-            image_prompt: p.image_prompt,
-          },
-          { onConflict: "order_id,page_number" },
-        );
-      }
     }
 
-    const style = "warm storybook illustration, soft watercolor, vibrant colors, cinematic lighting, child-friendly";
-    const consistencyTag = characterBrief
-      ? `Consistent hero across all pages — ${characterBrief}. `
-      : "";
-
-    // === Step 2: cover image (if missing) ===
-    let coverPath = existingGen?.cover_image_path as string | null;
-    if (!coverPath) {
-      const cp = coverPrompt || `Book cover for "${title}" featuring the hero. ${consistencyTag}${style}.`;
-      coverPath = await generateOneImage({
-        orderId: data.orderId,
-        step: "cover_image",
-        prompt: cp,
-        storagePath: `covers/${data.orderId}.png`,
-        pricing,
-      });
-      if (coverPath) {
-        await supabaseAdmin
-          .from("generations")
-          .update({ cover_image_path: coverPath })
-          .eq("order_id", data.orderId);
-      }
-    }
-
-    // === Step 3: page images (only those missing) ===
-    const { data: existingImgs } = await supabaseAdmin
-      .from("story_pages")
-      .select("page_number, image_path")
-      .eq("order_id", data.orderId);
-    const haveImg = new Map((existingImgs ?? []).map((r) => [r.page_number, r.image_path]));
-
-    const todo = pagesPlan
-      .map((p, i) => ({ p, n: i + 1 }))
-      .filter(({ n }) => !haveImg.get(n));
-
-    await runWithConcurrency(todo, 3, async ({ p, n }) => {
-      const prompt = `${consistencyTag}Scene: ${p.image_prompt}. ${style}. No text or letters in the image.`;
-      const path = await generateOneImage({
-        orderId: data.orderId,
-        step: `page_${n}_image`,
-        prompt,
-        storagePath: `pages/${data.orderId}/${n}.png`,
-        pricing,
-      });
-      if (path) {
-        await supabaseAdmin
-          .from("story_pages")
-          .update({ image_path: path })
-          .eq("order_id", data.orderId)
-          .eq("page_number", n);
-      }
-    });
+    // Also remember the cover prompt for later — we stash it in generations.full_story (already done above)
 
     return { ok: true as const };
   });
 
-/** Returns progressive state for the preview page. Cheap to poll. */
+/** Returns text-only progress for the preview page. */
 export const getStoryProgress = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => OrderIdInput.parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, page_count, title, characters(customer_name, language)")
+      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path")
       .eq("id", data.orderId)
       .maybeSingle();
+    const { data: user } = order?.user_id
+      ? await supabaseAdmin.from("users").select("full_name").eq("id", order.user_id).maybeSingle()
+      : { data: null };
     const { data: gen } = await supabaseAdmin
       .from("generations")
       .select("first_paragraph, cover_image_path")
@@ -410,35 +381,44 @@ export const getStoryProgress = createServerFn({ method: "GET" })
       .eq("order_id", data.orderId)
       .order("page_number");
 
+    const imagesReady = order?.images_status === "ready";
+
     let cover_url: string | null = null;
-    if (gen?.cover_image_path) {
+    if (imagesReady && gen?.cover_image_path) {
       const s = await supabaseAdmin.storage.from("story-covers").createSignedUrl(gen.cover_image_path, 3600);
       cover_url = s.data?.signedUrl ?? null;
     }
     const pagesOut = await Promise.all(
       (pages ?? []).map(async (p) => {
         let url: string | null = null;
-        if (p.image_path) {
+        if (imagesReady && p.image_path) {
           const s = await supabaseAdmin.storage.from("story-covers").createSignedUrl(p.image_path, 3600);
           url = s.data?.signedUrl ?? null;
         }
-        return { page_number: p.page_number, text: p.text, image_url: url };
+        return { page_number: p.page_number, text: p.text ?? "", image_url: url };
       }),
     );
 
-    const totalImages = (order?.page_count ?? 0);
-    const readyImages = pagesOut.filter((p) => p.image_url).length;
+    let pdf_url: string | null = null;
+    if (imagesReady && order?.pdf_path) {
+      const s = await supabaseAdmin.storage.from("story-pdfs").createSignedUrl(order.pdf_path, 60 * 60 * 24);
+      pdf_url = s.data?.signedUrl ?? null;
+    }
+
     return {
       title: order?.title ?? null,
       page_count: order?.page_count ?? 5,
-      customer_name: (order?.characters as { customer_name?: string } | null)?.customer_name ?? "",
-      language: (order?.characters as { language?: string } | null)?.language ?? "ar",
+      customer_name: user?.full_name ?? "",
       first_paragraph: gen?.first_paragraph ?? "",
       cover_url,
       pages: pagesOut,
-      ready: pagesOut.length >= totalImages && readyImages >= totalImages && !!cover_url,
-      ready_images: readyImages,
-      total_images: totalImages,
+      pages_ready: pagesOut.length >= (order?.page_count ?? 0),
+      images_status: (order?.images_status as string) ?? "idle",
+      order_status: (order?.status as string) ?? "pending",
+      tier: (order?.tier as string | null) ?? null,
+      amount_iqd: order?.amount_iqd ?? 0,
+      pdf_url,
+      ready: imagesReady,
     };
   });
 
@@ -447,66 +427,7 @@ const ConfirmInput = z.object({
   tier: z.enum(["pdf", "printed", "video"]),
 });
 
-async function ensurePdf(orderId: string): Promise<string> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: order } = await supabaseAdmin
-    .from("orders")
-    .select("pdf_path, title, characters(customer_name, language)")
-    .eq("id", orderId)
-    .single();
-  if (order?.pdf_path) return order.pdf_path as string;
-
-  const { data: gen } = await supabaseAdmin
-    .from("generations")
-    .select("cover_image_path")
-    .eq("order_id", orderId)
-    .maybeSingle();
-  const { data: pages } = await supabaseAdmin
-    .from("story_pages")
-    .select("page_number, text, image_path")
-    .eq("order_id", orderId)
-    .order("page_number");
-
-  async function fetchPng(path: string | null | undefined): Promise<Uint8Array | null> {
-    if (!path) return null;
-    const dl = await supabaseAdmin.storage.from("story-covers").download(path);
-    if (dl.error || !dl.data) return null;
-    const ab = await dl.data.arrayBuffer();
-    return new Uint8Array(ab);
-  }
-
-  const ch = order?.characters as { customer_name?: string; language?: string } | null;
-  const lang = (ch?.language ?? "ar") as "ar" | "en";
-  const title = (order?.title as string | null) ?? (lang === "ar" ? "حكايتي" : "My Story");
-
-  const coverPng = await fetchPng(gen?.cover_image_path);
-  const pageInputs = await Promise.all(
-    (pages ?? []).map(async (p) => ({
-      number: p.page_number,
-      text: p.text ?? "",
-      imagePng: await fetchPng(p.image_path),
-    })),
-  );
-
-  const { buildStoryPdfBytes } = await import("./pdf.server");
-  const bytes = await buildStoryPdfBytes({
-    title,
-    language: lang,
-    coverPng,
-    pages: pageInputs,
-    customerName: ch?.customer_name ?? "",
-  });
-
-  const pdfPath = `${orderId}.pdf`;
-  const up = await supabaseAdmin.storage
-    .from("story-pdfs")
-    .upload(pdfPath, Buffer.from(bytes), { contentType: "application/pdf", upsert: true });
-  if (up.error) throw new Error(up.error.message);
-
-  await supabaseAdmin.from("orders").update({ pdf_path: pdfPath }).eq("id", orderId);
-  return pdfPath;
-}
-
+/** User picks a tier. Updates amount + status, opens WhatsApp. NO image / PDF generation here. */
 export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ConfirmInput.parse(d))
   .handler(async ({ data }) => {
@@ -518,35 +439,31 @@ export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
       .eq("id", data.orderId)
       .single();
     const pageCount = o0?.page_count ?? 5;
-    const amount = computeTierAmount(data.tier as Tier, pageCount, pricing);
-
-    // Build PDF (for pdf & printed tiers we definitely need it; video tier benefits from a script too)
-    let pdfUrl: string | null = null;
-    try {
-      const pdfPath = await ensurePdf(data.orderId);
-      const s = await supabaseAdmin.storage.from("story-pdfs").createSignedUrl(pdfPath, 60 * 60 * 24);
-      pdfUrl = s.data?.signedUrl ?? null;
-    } catch (e) {
-      console.error("PDF build failed", e);
-    }
+    const { count: charCount } = await supabaseAdmin
+      .from("order_characters")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", data.orderId);
+    const characters = Math.max(1, charCount ?? 1);
+    const amount = computeTierAmount(data.tier as Tier, pageCount, pricing, characters);
 
     const { data: ord, error } = await supabaseAdmin
       .from("orders")
-      .update({ tier: data.tier, amount_iqd: amount, whatsapp_sent_at: new Date().toISOString() })
+      .update({
+        tier: data.tier,
+        amount_iqd: amount,
+        whatsapp_sent_at: new Date().toISOString(),
+      })
       .eq("id", data.orderId)
       .select("order_number, tier, amount_iqd, page_count")
       .single();
     if (error || !ord) throw new Error(error?.message || "Failed");
-    return { order_number: ord.order_number, tier: ord.tier, amount_iqd: ord.amount_iqd, page_count: ord.page_count, pdf_url: pdfUrl };
-  });
-
-export const getStoryPdfUrl = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => OrderIdInput.parse(d))
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const pdfPath = await ensurePdf(data.orderId);
-    const s = await supabaseAdmin.storage.from("story-pdfs").createSignedUrl(pdfPath, 60 * 60 * 24);
-    return { url: s.data?.signedUrl ?? null };
+    return {
+      order_number: ord.order_number,
+      tier: ord.tier,
+      amount_iqd: ord.amount_iqd,
+      page_count: ord.page_count,
+      character_count: characters,
+    };
   });
 
 export const getOrderPublic = createServerFn({ method: "GET" })
@@ -555,13 +472,13 @@ export const getOrderPublic = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: o } = await supabaseAdmin
       .from("orders")
-      .select("id, order_number, tier, amount_iqd, status, page_count, title, characters(customer_name, mood, language)")
+      .select("id, order_number, tier, amount_iqd, status, images_status, page_count, title, moods, custom_instructions, user_id, pdf_path")
       .eq("id", data.orderId)
       .maybeSingle();
     return o;
   });
 
-// Public pricing snapshot for use on /create and /preview
+// Public pricing snapshot for /create and /preview
 export const getPublicPricing = createServerFn({ method: "GET" }).handler(async () => {
   const p = await getPricing();
   return {
@@ -571,7 +488,25 @@ export const getPublicPricing = createServerFn({ method: "GET" }).handler(async 
     per_page_iqd_pdf: Number(p.per_page_iqd_pdf),
     per_page_iqd_printed: Number(p.per_page_iqd_printed),
     per_page_iqd_video: Number(p.per_page_iqd_video),
+    per_character_iqd_pdf: Number(p.per_character_iqd_pdf ?? 1500),
+    per_character_iqd_printed: Number(p.per_character_iqd_printed ?? 3000),
+    per_character_iqd_video: Number(p.per_character_iqd_video ?? 6000),
+    max_characters: Number(p.max_characters ?? 5),
   };
+});
+
+// List the current user's orders (for /my-orders)
+export const myOrders = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireUserSession } = await import("./user-session.server");
+  const s = await requireUserSession();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("orders")
+    .select("id, order_number, status, images_status, tier, amount_iqd, page_count, title, created_at")
+    .eq("user_id", s.data.userId!)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return data ?? [];
 });
 
 // ============ ADMIN ============
@@ -586,14 +521,28 @@ export const adminListOrders = createServerFn({ method: "GET" }).handler(async (
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: orders } = await supabaseAdmin
     .from("orders")
-    .select("id, order_number, tier, amount_iqd, status, customer_phone, page_count, created_at, characters(customer_name)")
+    .select("id, order_number, tier, amount_iqd, status, images_status, customer_phone, page_count, created_at, user_id, title, characters(customer_name)")
     .order("created_at", { ascending: false })
     .limit(200);
+  const userIds = Array.from(new Set((orders ?? []).map((o) => o.user_id).filter(Boolean) as string[]));
+  const { data: users } = userIds.length
+    ? await supabaseAdmin.from("users").select("id, full_name, phone").in("id", userIds)
+    : { data: [] };
+  const userById = new Map((users ?? []).map((u) => [u.id, u]));
   const { data: costs } = await supabaseAdmin
     .from("order_costs_v")
     .select("order_id, cost_iqd, gross_profit_iqd, margin_pct, total_tokens, images_generated, cost_credits, cost_usd");
   const byId = new Map((costs ?? []).map((c) => [c.order_id, c]));
-  return (orders ?? []).map((o) => ({ ...o, cost: byId.get(o.id) ?? null }));
+  return (orders ?? []).map((o) => {
+    const u = o.user_id ? userById.get(o.user_id) : null;
+    const legacy = (o.characters as { customer_name?: string } | null) ?? null;
+    return {
+      ...o,
+      customer_name: u?.full_name ?? legacy?.customer_name ?? null,
+      customer_phone: u?.phone ?? o.customer_phone,
+      cost: byId.get(o.id) ?? null,
+    };
+  });
 });
 
 export const adminGetOrder = createServerFn({ method: "GET" })
@@ -601,36 +550,23 @@ export const adminGetOrder = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ data: order }, { data: events }, { data: gen }, { data: cost }, { data: pages }] = await Promise.all([
-      supabaseAdmin
-        .from("orders")
-        .select("*, characters(*)")
-        .eq("id", data.orderId)
-        .single(),
-      supabaseAdmin
-        .from("generation_events")
-        .select("*")
-        .eq("order_id", data.orderId)
-        .order("created_at", { ascending: true }),
+    const [{ data: order }, { data: events }, { data: gen }, { data: cost }, { data: pages }, { data: chars }] = await Promise.all([
+      supabaseAdmin.from("orders").select("*").eq("id", data.orderId).single(),
+      supabaseAdmin.from("generation_events").select("*").eq("order_id", data.orderId).order("created_at", { ascending: true }),
       supabaseAdmin.from("generations").select("*").eq("order_id", data.orderId).maybeSingle(),
       supabaseAdmin.from("order_costs_v").select("*").eq("order_id", data.orderId).maybeSingle(),
-      supabaseAdmin
-        .from("story_pages")
-        .select("page_number, text, image_path")
-        .eq("order_id", data.orderId)
-        .order("page_number"),
+      supabaseAdmin.from("story_pages").select("page_number, text, image_path").eq("order_id", data.orderId).order("page_number"),
+      supabaseAdmin.from("order_characters").select("name, age, role, description, is_primary, position").eq("order_id", data.orderId).order("position"),
     ]);
+    const { data: user } = order?.user_id
+      ? await supabaseAdmin.from("users").select("id, full_name, phone, created_at").eq("id", order.user_id).maybeSingle()
+      : { data: null };
+
     let cover_url: string | null = null;
-    let upload_url: string | null = null;
     let pdf_url: string | null = null;
     if (gen?.cover_image_path) {
       const s = await supabaseAdmin.storage.from("story-covers").createSignedUrl(gen.cover_image_path, 60 * 60);
       cover_url = s.data?.signedUrl ?? null;
-    }
-    const ch = order?.characters as { image_path?: string | null } | null;
-    if (ch?.image_path) {
-      const s = await supabaseAdmin.storage.from("story-uploads").createSignedUrl(ch.image_path, 60 * 60);
-      upload_url = s.data?.signedUrl ?? null;
     }
     const pdfPath = (order as { pdf_path?: string | null } | null)?.pdf_path;
     if (pdfPath) {
@@ -647,7 +583,17 @@ export const adminGetOrder = createServerFn({ method: "GET" })
         return { page_number: p.page_number, text: p.text, image_url: url };
       }),
     );
-    return { order, events: events ?? [], gen, cost, cover_url, upload_url, pdf_url, pages: pageUrls };
+    return {
+      order,
+      user,
+      characters: chars ?? [],
+      events: events ?? [],
+      gen,
+      cost,
+      cover_url,
+      pdf_url,
+      pages: pageUrls,
+    };
   });
 
 export const adminUpdateStatus = createServerFn({ method: "POST" })
@@ -671,6 +617,155 @@ export const adminUpdateStatus = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/**
+ * Admin confirms payment → triggers cover + page image generation + PDF build.
+ * Sets images_status='generating' then 'ready' on success, 'failed' on error.
+ */
+export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        payment_confirmed_at: new Date().toISOString(),
+        images_status: "generating",
+        images_error: null,
+      })
+      .eq("id", data.orderId);
+
+    try {
+      const { data: order } = await supabaseAdmin
+        .from("orders")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, characters(language)")
+        .eq("id", data.orderId)
+        .single();
+      if (!order) throw new Error("Order missing");
+      const { data: gen } = await supabaseAdmin
+        .from("generations")
+        .select("full_story, cover_image_path")
+        .eq("order_id", data.orderId)
+        .maybeSingle();
+      const { data: pages } = await supabaseAdmin
+        .from("story_pages")
+        .select("page_number, image_prompt, image_path")
+        .eq("order_id", data.orderId)
+        .order("page_number");
+
+      const pricing = await getPricing();
+      const brief = (order.character_brief as string | null) ?? "";
+      const style = "warm storybook illustration, soft watercolor, vibrant colors, cinematic lighting, child-friendly";
+      const consistencyTag = brief ? `Consistent cast across all pages — ${brief}. ` : "";
+
+      // Cover
+      let coverPath = gen?.cover_image_path as string | null;
+      if (!coverPath) {
+        let coverPrompt = "";
+        try {
+          const parsed = gen?.full_story ? JSON.parse(gen.full_story as string) as { cover_prompt?: string } : null;
+          coverPrompt = parsed?.cover_prompt ?? "";
+        } catch { /* ignore */ }
+        const cp = coverPrompt
+          ? `${consistencyTag}${coverPrompt}. ${style}.`
+          : `${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}.`;
+        coverPath = await generateOneImage({
+          orderId: data.orderId,
+          step: "cover_image",
+          prompt: cp,
+          storagePath: `covers/${data.orderId}.png`,
+          pricing,
+        });
+        if (coverPath) {
+          await supabaseAdmin
+            .from("generations")
+            .upsert({ order_id: data.orderId, cover_image_path: coverPath }, { onConflict: "order_id" });
+        }
+      }
+
+      // Page images
+      const todo = (pages ?? []).filter((p) => !p.image_path);
+      await runWithConcurrency(todo, 3, async (p) => {
+        const prompt = `${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}. No text or letters in the image.`;
+        const path = await generateOneImage({
+          orderId: data.orderId,
+          step: `page_${p.page_number}_image`,
+          prompt,
+          storagePath: `pages/${data.orderId}/${p.page_number}.png`,
+          pricing,
+        });
+        if (path) {
+          await supabaseAdmin
+            .from("story_pages")
+            .update({ image_path: path })
+            .eq("order_id", data.orderId)
+            .eq("page_number", p.page_number);
+        }
+      });
+
+      // Build PDF
+      const ch = (order.characters as { language?: string } | null) ?? null;
+      const lang = (ch?.language ?? "ar") as "ar" | "en";
+      const customerName = order.user_id
+        ? (await supabaseAdmin.from("users").select("full_name").eq("id", order.user_id).maybeSingle()).data?.full_name ?? ""
+        : "";
+
+      const { data: pages2 } = await supabaseAdmin
+        .from("story_pages")
+        .select("page_number, text, image_path")
+        .eq("order_id", data.orderId)
+        .order("page_number");
+
+      async function fetchPng(path: string | null | undefined): Promise<Uint8Array | null> {
+        if (!path) return null;
+        const dl = await supabaseAdmin.storage.from("story-covers").download(path);
+        if (dl.error || !dl.data) return null;
+        const ab = await dl.data.arrayBuffer();
+        return new Uint8Array(ab);
+      }
+
+      const coverPng = await fetchPng(coverPath);
+      const pageInputs = await Promise.all(
+        (pages2 ?? []).map(async (p) => ({
+          number: p.page_number,
+          text: p.text ?? "",
+          imagePng: await fetchPng(p.image_path),
+        })),
+      );
+
+      const { buildStoryPdfBytes } = await import("./pdf.server");
+      const bytes = await buildStoryPdfBytes({
+        title: (order.title as string) ?? (lang === "ar" ? "حكايتي" : "My Story"),
+        language: lang,
+        coverPng,
+        pages: pageInputs,
+        customerName,
+      });
+      const pdfPath = `${data.orderId}.pdf`;
+      const up = await supabaseAdmin.storage
+        .from("story-pdfs")
+        .upload(pdfPath, Buffer.from(bytes), { contentType: "application/pdf", upsert: true });
+      if (up.error) throw new Error(up.error.message);
+
+      await supabaseAdmin
+        .from("orders")
+        .update({ pdf_path: pdfPath, images_status: "ready" })
+        .eq("id", data.orderId);
+
+      return { ok: true as const };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await supabaseAdmin
+        .from("orders")
+        .update({ images_status: "failed", images_error: msg })
+        .eq("id", data.orderId);
+      throw e;
+    }
+  });
+
 export const adminRegeneratePage = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ orderId: z.string().uuid(), pageNumber: z.coerce.number().int().min(1) }).parse(d))
   .handler(async ({ data }) => {
@@ -688,7 +783,7 @@ export const adminRegeneratePage = createServerFn({ method: "POST" })
       .eq("id", data.orderId)
       .single();
     const brief = order?.character_brief ?? "";
-    const prompt = `Consistent hero across all pages — ${brief}. Scene: ${page?.image_prompt ?? ""}. warm storybook illustration, soft watercolor, vibrant colors. No text in the image.`;
+    const prompt = `Consistent cast across all pages — ${brief}. Scene: ${page?.image_prompt ?? ""}. warm storybook illustration, soft watercolor, vibrant colors. No text in the image.`;
     const pricing = await getPricing();
     const path = await generateOneImage({
       orderId: data.orderId,
@@ -703,13 +798,27 @@ export const adminRegeneratePage = createServerFn({ method: "POST" })
         .update({ image_path: path })
         .eq("order_id", data.orderId)
         .eq("page_number", data.pageNumber);
-      // Invalidate cached PDF so a fresh one is built next time
       if (order?.pdf_path) {
         await supabaseAdmin.storage.from("story-pdfs").remove([order.pdf_path]);
         await supabaseAdmin.from("orders").update({ pdf_path: null }).eq("id", data.orderId);
       }
     }
     return { ok: true as const };
+  });
+
+export const getStoryPdfUrl = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("pdf_path")
+      .eq("id", data.orderId)
+      .single();
+    if (!order?.pdf_path) return { url: null };
+    const s = await supabaseAdmin.storage.from("story-pdfs").createSignedUrl(order.pdf_path, 60 * 60 * 24);
+    return { url: s.data?.signedUrl ?? null };
   });
 
 export const adminGetPricing = createServerFn({ method: "GET" }).handler(async () => {
@@ -728,6 +837,10 @@ const PricingInput = z.object({
   per_page_iqd_pdf: z.coerce.number().int().nonnegative(),
   per_page_iqd_printed: z.coerce.number().int().nonnegative(),
   per_page_iqd_video: z.coerce.number().int().nonnegative(),
+  per_character_iqd_pdf: z.coerce.number().int().nonnegative(),
+  per_character_iqd_printed: z.coerce.number().int().nonnegative(),
+  per_character_iqd_video: z.coerce.number().int().nonnegative(),
+  max_characters: z.coerce.number().int().min(1).max(10),
   print_cost_iqd: z.coerce.number().int().nonnegative(),
   shipping_cost_iqd: z.coerce.number().int().nonnegative(),
 });
@@ -768,4 +881,35 @@ export const adminAnalytics = createServerFn({ method: "GET" }).handler(async ()
       video: rows.filter((r) => r.tier === "video").length,
     },
   };
+});
+
+// === Users (admin) ===
+export const adminListUsers = createServerFn({ method: "GET" }).handler(async () => {
+  await gate();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: users } = await supabaseAdmin
+    .from("users")
+    .select("id, full_name, phone, marketing_consent, notes, last_login_at, created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  const ids = (users ?? []).map((u) => u.id);
+  const { data: orders } = ids.length
+    ? await supabaseAdmin
+        .from("orders")
+        .select("user_id, amount_iqd, status")
+        .in("user_id", ids)
+    : { data: [] };
+  const stats = new Map<string, { count: number; spent: number }>();
+  for (const o of orders ?? []) {
+    if (!o.user_id) continue;
+    const s = stats.get(o.user_id) ?? { count: 0, spent: 0 };
+    s.count++;
+    if (o.status === "paid" || o.status === "delivered") s.spent += Number(o.amount_iqd) || 0;
+    stats.set(o.user_id, s);
+  }
+  return (users ?? []).map((u) => ({
+    ...u,
+    order_count: stats.get(u.id)?.count ?? 0,
+    total_spent_iqd: stats.get(u.id)?.spent ?? 0,
+  }));
 });
