@@ -4,7 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck } from "lucide-react";
-import { adminGetOrder, adminRegeneratePage, getStoryPdfUrl, adminConfirmPaymentAndGenerate, adminUpdateStatus } from "../lib/orders.functions";
+import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress } from "../lib/orders.functions";
+import { getActiveTheme } from "../lib/themes.functions";
+import { buildAndDownloadStoryPdf } from "../lib/pdf-client";
 import { useT } from "../lib/i18n";
 import { supabase } from "../integrations/supabase/client";
 
@@ -14,11 +16,12 @@ export const Route = createFileRoute("/admin/orders/$id")({
 
 function OrderDetail() {
   const { id } = Route.useParams();
-  const { t } = useT();
+  const { t, lang } = useT();
   const qc = useQueryClient();
   const fn = useServerFn(adminGetOrder);
   const regenFn = useServerFn(adminRegeneratePage);
-  const pdfFn = useServerFn(getStoryPdfUrl);
+  const progressFn = useServerFn(getStoryProgress);
+  const themeFn = useServerFn(getActiveTheme);
   const confirmGenFn = useServerFn(adminConfirmPaymentAndGenerate);
   const updateStatusFn = useServerFn(adminUpdateStatus);
   const [regening, setRegening] = useState<number | null>(null);
@@ -67,9 +70,24 @@ function OrderDetail() {
   async function downloadPdf() {
     setBuildingPdf(true);
     try {
-      const r = await pdfFn({ data: { orderId: id } });
-      if (r.url) window.open(r.url, "_blank");
-      else toast.error("الملف غير جاهز بعد");
+      const [p, theme] = await Promise.all([
+        progressFn({ data: { orderId: id } }),
+        themeFn().catch(() => null),
+      ]);
+      if (!p.ready) {
+        toast.error(lang === "ar" ? "القصة غير جاهزة بعد" : "Story not ready yet");
+        return;
+      }
+      await buildAndDownloadStoryPdf({
+        title: p.title || (lang === "ar" ? "حكايتي" : "My Story"),
+        language: lang,
+        customerName: p.customer_name || user?.full_name || "",
+        moods: p.moods ?? [],
+        coverUrl: p.cover_url,
+        pages: p.pages.map((pg) => ({ number: pg.page_number, text: pg.text, imageUrl: pg.image_url })),
+        accentColor: theme?.accent_color ?? null,
+        orderNumber: p.order_number ?? order.order_number,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");
     } finally {

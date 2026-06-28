@@ -367,7 +367,7 @@ export const getStoryProgress = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path")
+      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path, order_number, moods")
       .eq("id", data.orderId)
       .maybeSingle();
     const { data: user } = order?.user_id
@@ -422,6 +422,8 @@ export const getStoryProgress = createServerFn({ method: "GET" })
       amount_iqd: order?.amount_iqd ?? 0,
       pdf_url,
       ready: imagesReady,
+      moods: (order?.moods as string[] | null) ?? [],
+      order_number: (order?.order_number as number | null) ?? null,
     };
   });
 
@@ -719,53 +721,11 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         }
       });
 
-      // Build PDF
-      const ch = (order.characters as { language?: string } | null) ?? null;
-      const lang = (ch?.language ?? "ar") as "ar" | "en";
-      const customerName = order.user_id
-        ? (await supabaseAdmin.from("users").select("full_name").eq("id", order.user_id).maybeSingle()).data?.full_name ?? ""
-        : "";
-
-      const { data: pages2 } = await supabaseAdmin
-        .from("story_pages")
-        .select("page_number, text, image_path")
-        .eq("order_id", data.orderId)
-        .order("page_number");
-
-      async function fetchPng(path: string | null | undefined): Promise<Uint8Array | null> {
-        if (!path) return null;
-        const dl = await supabaseAdmin.storage.from("story-covers").download(path);
-        if (dl.error || !dl.data) return null;
-        const ab = await dl.data.arrayBuffer();
-        return new Uint8Array(ab);
-      }
-
-      const coverPng = await fetchPng(coverPath);
-      const pageInputs = await Promise.all(
-        (pages2 ?? []).map(async (p) => ({
-          number: p.page_number,
-          text: p.text ?? "",
-          imagePng: await fetchPng(p.image_path),
-        })),
-      );
-
-      const { buildStoryPdfBytes } = await import("./pdf.server");
-      const bytes = await buildStoryPdfBytes({
-        title: (order.title as string) ?? (lang === "ar" ? "حكايتي" : "My Story"),
-        language: lang,
-        coverPng,
-        pages: pageInputs,
-        customerName,
-      });
-      const pdfPath = `${data.orderId}.pdf`;
-      const up = await supabaseAdmin.storage
-        .from("story-pdfs")
-        .upload(pdfPath, Buffer.from(bytes), { contentType: "application/pdf", upsert: true });
-      if (up.error) throw new Error(up.error.message);
-
+      // PDF is built in the browser (pdf-client.ts) on demand to avoid Worker bundler
+      // interop issues with @pdf-lib/fontkit; once all page images exist the story is "ready".
       await supabaseAdmin
         .from("orders")
-        .update({ pdf_path: pdfPath, images_status: "ready" })
+        .update({ images_status: "ready" })
         .eq("id", data.orderId);
 
       return { ok: true as const };

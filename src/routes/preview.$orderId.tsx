@@ -12,6 +12,8 @@ import {
   getOrderPublic,
   getPublicPricing,
 } from "../lib/orders.functions";
+import { getActiveTheme } from "../lib/themes.functions";
+import { buildAndDownloadStoryPdf } from "../lib/pdf-client";
 import { computeTierAmount, DEFAULT_PRICING } from "../lib/pricing";
 
 export const Route = createFileRoute("/preview/$orderId")({
@@ -30,10 +32,13 @@ function PreviewPage() {
   const confirmFn = useServerFn(confirmTierAndPrepareWhatsapp);
   const pricingFn = useServerFn(getPublicPricing);
 
+  const themeFn = useServerFn(getActiveTheme);
+
   const [confirming, setConfirming] = useState<string | null>(null);
   const [genStarted, setGenStarted] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [textReady, setTextReady] = useState(false);
+  const [building, setBuilding] = useState(false);
 
   const orderQ = useQuery({
     queryKey: ["order", orderId],
@@ -100,6 +105,28 @@ function PreviewPage() {
     }
   }
 
+  async function handleDownload() {
+    if (!progress) return;
+    setBuilding(true);
+    try {
+      const theme = await themeFn().catch(() => null);
+      await buildAndDownloadStoryPdf({
+        title: progress.title || (lang === "ar" ? "حكايتي" : "My Story"),
+        language: lang,
+        customerName: progress.customer_name || "",
+        moods: progress.moods ?? [],
+        coverUrl: progress.cover_url,
+        pages: progress.pages.map((pg) => ({ number: pg.page_number, text: pg.text, imageUrl: pg.image_url })),
+        accentColor: theme?.accent_color ?? null,
+        orderNumber: progress.order_number ?? order?.order_number ?? null,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    } finally {
+      setBuilding(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       {genError ? (
@@ -156,16 +183,17 @@ function PreviewPage() {
             </div>
           )}
 
-          {/* PDF download when ready */}
-          {progress.ready && progress.pdf_url && (
-            <a
-              href={progress.pdf_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm"
+          {/* PDF download when ready (built in the browser) */}
+          {progress.ready && (
+            <button
+              type="button"
+              disabled={building}
+              onClick={handleDownload}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
             >
-              <Download className="size-4" /> {t("download_pdf")}
-            </a>
+              {building ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              {building ? t("building_pdf") : t("download_pdf")}
+            </button>
           )}
 
           {/* Tier selection (only if not yet picked) */}
