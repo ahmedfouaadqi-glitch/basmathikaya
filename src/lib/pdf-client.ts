@@ -1,8 +1,7 @@
 // Client-only: build a beautifully laid-out, Arabic-shaped story PDF in the browser.
-// Avoids Cloudflare Worker bundler interop issues with @pdf-lib/fontkit + tslib.
+// Strategy: render real HTML (browser handles Arabic shaping/bidi natively),
+// snapshot each page with html2canvas-pro, assemble with jsPDF.
 import { brandLogoUrl } from "./brand";
-
-const ARABIC_RE = /[\u0600-\u06FF]/;
 
 export type StoryPdfAssets = {
   title: string;
@@ -11,406 +10,272 @@ export type StoryPdfAssets = {
   moods: string[];
   coverUrl: string | null;
   pages: Array<{ number: number; text: string; imageUrl: string | null }>;
-  accentColor?: string | null; // hex / css color of active seasonal theme
+  accentColor?: string | null;
   orderNumber?: number | null;
 };
 
-// ---------- helpers ----------
+// A4 at 96dpi: 794 x 1123 px
+const PAGE_W = 794;
+const PAGE_H = 1123;
 
-async function fetchBytes(url: string): Promise<Uint8Array> {
-  const r = await fetch(url, { credentials: "omit" });
-  if (!r.ok) throw new Error(`fetch ${url} ${r.status}`);
-  return new Uint8Array(await r.arrayBuffer());
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
-function hexToRgb(hex: string | null | undefined, fallback: [number, number, number]): [number, number, number] {
-  if (!hex) return fallback;
-  const s = hex.trim().replace("#", "");
-  if (!/^[0-9a-f]{6}$/i.test(s)) return fallback;
-  const n = parseInt(s, 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
-}
-
-let _shaper: { convertArabic: (s: string) => string } | null = null;
-async function loadShaper() {
-  if (_shaper) return _shaper;
-  const mod = (await import("arabic-persian-reshaper" as string)) as unknown as
-    | { ArabicShaper: { convertArabic: (s: string) => string } }
-    | { default: { ArabicShaper: { convertArabic: (s: string) => string } } };
-  const ns = (mod as { default?: unknown }).default ?? mod;
-  _shaper = (ns as { ArabicShaper: { convertArabic: (s: string) => string } }).ArabicShaper;
-  return _shaper;
-}
-
-function shapeArabicSync(text: string): string {
-  if (!_shaper) return text; // should be preloaded
-  const reshaped = _shaper.convertArabic(text);
-  // pdf-lib draws LTR; reverse so the visual order is right-to-left.
-  return reshaped.split("").reverse().join("");
-}
-
-function wrapText(
-  text: string,
-  font: import("pdf-lib").PDFFont,
-  size: number,
-  maxWidth: number,
-): string[] {
-  const paragraphs = text.split(/\n+/);
-  const lines: string[] = [];
-  for (const para of paragraphs) {
-    const words = para.split(/\s+/).filter(Boolean);
-    let current = "";
-    for (const w of words) {
-      const probe = current ? `${current} ${w}` : w;
-      const width = font.widthOfTextAtSize(probe, size);
-      if (width <= maxWidth) {
-        current = probe;
-      } else {
-        if (current) lines.push(current);
-        current = w;
-      }
-    }
-    if (current) lines.push(current);
-    lines.push("");
-  }
-  while (lines.length && lines[lines.length - 1] === "") lines.pop();
-  return lines;
-}
-
-async function urlToPngBytes(url: string): Promise<Uint8Array | null> {
+async function loadImageAsDataUrl(url: string): Promise<string | null> {
   try {
-    const bytes = await fetchBytes(url);
-    // pdf-lib accepts PNG or JPEG; we'll try PNG first then JPEG via dynamic embed call.
-    return bytes;
+    const r = await fetch(url, { credentials: "omit", mode: "cors" });
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    return await new Promise<string>((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result as string);
+      fr.onerror = () => rej(new Error("read"));
+      fr.readAsDataURL(blob);
+    });
   } catch {
     return null;
   }
 }
 
-// ---------- main entry ----------
+async function ensureTajawal(): Promise<void> {
+  if (document.getElementById("tajawal-pdf-font")) return;
+  const link = document.createElement("link");
+  link.id = "tajawal-pdf-font";
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap";
+  document.head.appendChild(link);
+  // Try to wait for fonts.
+  try {
+    await (document as any).fonts?.load?.('700 24px "Tajawal"');
+    await (document as any).fonts?.load?.('400 16px "Tajawal"');
+    await (document as any).fonts?.ready;
+  } catch { /* ignore */ }
+}
+
+function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; coverData: string | null }) {
+  const isAr = a.language === "ar";
+  const dir = isAr ? "rtl" : "ltr";
+  const title = escapeHtml(a.title || (isAr ? "حكايتي" : "My Story"));
+  const sub = a.customerName
+    ? (isAr ? `حكاية مخصّصة لـ ${a.customerName}` : `A story crafted for ${a.customerName}`)
+    : (isAr ? "حكاية مخصّصة لك" : "A story crafted for you");
+  const chips = (a.moods || []).map((m) => `<span style="background:${opts.gold}22;color:${opts.gold};padding:6px 12px;border-radius:999px;font-weight:700;font-size:13px;margin:0 4px;display:inline-block;">${escapeHtml(m)}</span>`).join("");
+  const brand = isAr ? "بصمة حكاية" : "Basma Hekaya";
+  const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
+  const cover = opts.coverData
+    ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
+  const logoImg = opts.logo
+    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:60px;height:60px;object-fit:contain;display:block;margin:0 auto 6px;" />`
+    : "";
+
+  return `
+  <div dir="${dir}" style="
+    width:${PAGE_W}px;height:${PAGE_H}px;
+    background:#FFFBF5;
+    font-family:'Tajawal',sans-serif;
+    color:#1a2128;
+    box-sizing:border-box;
+    position:relative;display:flex;flex-direction:column;
+  ">
+    <div style="height:18px;background:${opts.accent};"></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:36px 44px 0;">
+      <div style="
+        width:100%;height:560px;border-radius:18px;overflow:hidden;
+        border:4px solid ${opts.accent};
+        box-shadow:0 10px 28px rgba(0,0,0,.12);
+      ">
+        ${cover}
+      </div>
+      <h1 style="
+        margin:34px 0 8px;font-size:42px;font-weight:900;
+        color:${opts.accent};text-align:center;line-height:1.2;
+      ">${title}</h1>
+      <p style="margin:0 0 16px;font-size:16px;color:#6b7079;text-align:center;">${escapeHtml(sub)}</p>
+      <div style="text-align:center;">${chips}</div>
+    </div>
+    <div style="text-align:center;padding:16px 0 28px;">
+      ${logoImg}
+      <div style="font-size:14px;font-weight:700;color:${opts.accent};">${brand}</div>
+      <div style="font-size:11px;color:${opts.gold};margin-top:4px;">${tag}</div>
+    </div>
+    <div style="height:12px;background:${opts.gold};"></div>
+  </div>`;
+}
+
+function buildPageHtml(p: { number: number; text: string; imageUrl: string | null }, total: number, a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; imgData: string | null }) {
+  const isAr = a.language === "ar";
+  const dir = isAr ? "rtl" : "ltr";
+  const align = isAr ? "right" : "left";
+  const brand = isAr ? "بصمة حكاية" : "Basma Hekaya";
+  const pageLabel = isAr ? `صفحة ${p.number} من ${total}` : `Page ${p.number} of ${total}`;
+  const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
+  const img = opts.imgData
+    ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
+  const logoImg = opts.logo
+    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:22px;height:22px;object-fit:contain;display:inline-block;vertical-align:middle;margin:0 6px;" />`
+    : "";
+  const text = escapeHtml(p.text || "").replace(/\n+/g, "<br/>");
+
+  return `
+  <div dir="${dir}" style="
+    width:${PAGE_W}px;height:${PAGE_H}px;
+    background:#FFFBF5;
+    font-family:'Tajawal',sans-serif;
+    color:#1a2128;
+    box-sizing:border-box;
+    position:relative;display:flex;flex-direction:column;
+  ">
+    <div style="height:14px;background:${opts.accent};"></div>
+    <div style="flex:1;display:flex;flex-direction:column;padding:30px 44px 0;">
+      <div style="
+        width:100%;height:520px;border-radius:16px;overflow:hidden;
+        border:3px solid ${opts.accent};
+        box-shadow:0 8px 20px rgba(0,0,0,.10);
+        flex-shrink:0;
+      ">
+        ${img}
+      </div>
+      <div style="
+        margin-top:26px;
+        font-size:20px;line-height:1.95;font-weight:500;
+        text-align:${align};
+        color:#1a2128;
+        flex:1;
+      ">${text}</div>
+    </div>
+    <div style="
+      padding:10px 44px 0;
+      border-top:1px solid ${opts.accent}55;
+      display:flex;justify-content:space-between;align-items:center;
+      font-size:12px;color:#6b7079;
+    ">
+      <span>${pageLabel}</span>
+      <span style="font-weight:700;color:${opts.accent};display:inline-flex;align-items:center;">
+        ${logoImg}${brand}
+      </span>
+    </div>
+    <div style="text-align:center;font-size:10px;color:${opts.gold};padding:6px 0 10px;">${tag}</div>
+    <div style="height:10px;background:${opts.gold};"></div>
+  </div>`;
+}
+
+function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null }) {
+  const isAr = a.language === "ar";
+  const dir = isAr ? "rtl" : "ltr";
+  const thanks = isAr ? "شكراً لاختياركم بصمة حكاية" : "Thank you for choosing Basma Hekaya";
+  const note = isAr ? "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة." : "Follow us on TikTok and tell us your next story idea.";
+  const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
+  const logoImg = opts.logo
+    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:140px;height:140px;object-fit:contain;display:block;margin:0 auto 24px;" />`
+    : "";
+
+  return `
+  <div dir="${dir}" style="
+    width:${PAGE_W}px;height:${PAGE_H}px;
+    background:#FFFBF5;
+    font-family:'Tajawal',sans-serif;
+    color:#1a2128;
+    box-sizing:border-box;
+    display:flex;flex-direction:column;
+  ">
+    <div style="height:18px;background:${opts.accent};"></div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0 60px;text-align:center;">
+      ${logoImg}
+      <div style="font-size:32px;font-weight:900;color:${opts.accent};margin-bottom:14px;">${escapeHtml(thanks)}</div>
+      <div style="font-size:16px;color:#6b7079;margin-bottom:18px;">${escapeHtml(note)}</div>
+      <div style="font-size:16px;font-weight:700;color:${opts.gold};">@basmathikaya1 · tiktok.com</div>
+    </div>
+    <div style="text-align:center;font-size:13px;font-weight:700;color:${opts.accent};padding:14px 0;">${tag}</div>
+    <div style="height:12px;background:${opts.gold};"></div>
+  </div>`;
+}
 
 export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void> {
-  const [{ PDFDocument, rgb, StandardFonts }, fontkitMod] = await Promise.all([
-    import("pdf-lib"),
-    import("@pdf-lib/fontkit"),
-    loadShaper(),
-  ]);
-  const fontkit = (fontkitMod as unknown as { default?: unknown }).default ?? fontkitMod;
+  const accent = (a.accentColor && /^#[0-9a-fA-F]{6}$/.test(a.accentColor.trim())) ? a.accentColor.trim() : "#169CA3";
+  const gold = "#D4A537";
 
-  const isAr = a.language === "ar";
-  const accent = hexToRgb(a.accentColor ?? null, [0.087, 0.612, 0.639]); // #169CA3
-  const gold: [number, number, number] = [0.831, 0.647, 0.215]; // #D4A537
-  const ink: [number, number, number] = [0.10, 0.13, 0.16];
-  const muted: [number, number, number] = [0.45, 0.48, 0.52];
-  const cream: [number, number, number] = [1.0, 0.984, 0.961]; // #FFFBF5
+  await ensureTajawal();
 
-  // Load fonts.
-  const [tajawalReg, tajawalBold, logoBytes] = await Promise.all([
-    fetchBytes("/fonts/tajawal-400.ttf"),
-    fetchBytes("/fonts/tajawal-700.ttf"),
-    urlToPngBytes(brandLogoUrl),
+  // Preload images as data URLs (avoids CORS-tainted canvas).
+  const [coverData, logoData, ...pageImgs] = await Promise.all([
+    a.coverUrl ? loadImageAsDataUrl(a.coverUrl) : Promise.resolve(null),
+    loadImageAsDataUrl(brandLogoUrl),
+    ...a.pages.map((p) => (p.imageUrl ? loadImageAsDataUrl(p.imageUrl) : Promise.resolve(null))),
   ]);
 
-  const doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit as Parameters<typeof doc.registerFontkit>[0]);
+  // Offscreen host
+  const host = document.createElement("div");
+  host.setAttribute("aria-hidden", "true");
+  host.style.cssText = `
+    position:fixed;left:-100000px;top:0;
+    width:${PAGE_W}px;
+    background:#FFFBF5;
+    z-index:-1;pointer-events:none;
+    font-family:'Tajawal',sans-serif;
+  `;
+  document.body.appendChild(host);
 
-  const arRegular = await doc.embedFont(tajawalReg, { subset: true });
-  const arBold = await doc.embedFont(tajawalBold, { subset: true });
-  const enRegular = await doc.embedFont(StandardFonts.Helvetica);
-  const enBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  try {
+    const opts = { accent, gold, logo: logoData };
+    const htmlParts: string[] = [
+      buildCoverHtml(a, { ...opts, coverData }),
+      ...a.pages.map((p, i) => buildPageHtml(p, a.pages.length, a, { ...opts, imgData: pageImgs[i] })),
+      buildThanksHtml(a, opts),
+    ];
 
-  // Brand logo for footer / cover corner.
-  let logoImg: import("pdf-lib").PDFImage | null = null;
-  if (logoBytes) {
-    try {
-      logoImg = await doc.embedPng(logoBytes);
-    } catch {
-      try { logoImg = await doc.embedJpg(logoBytes); } catch { logoImg = null; }
-    }
-  }
+    host.innerHTML = htmlParts.map((h, i) => `<div data-pdf-page="${i}">${h}</div>`).join("");
 
-  // A4 portrait
-  const W = 595.28;
-  const H = 841.89;
-  const margin = 42;
-
-  function shape(text: string, ar: boolean): string {
-    return ar ? shapeArabicSync(text) : text;
-  }
-
-  // ---------- COVER ----------
-  {
-    const page = doc.addPage([W, H]);
-    // soft cream background
-    page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(cream[0], cream[1], cream[2]) });
-    // accent ribbon at top
-    page.drawRectangle({ x: 0, y: H - 14, width: W, height: 14, color: rgb(accent[0], accent[1], accent[2]) });
-    // gold underline ribbon at bottom
-    page.drawRectangle({ x: 0, y: 0, width: W, height: 10, color: rgb(gold[0], gold[1], gold[2]) });
-
-    // Cover image card
-    const cardX = margin;
-    const cardW = W - margin * 2;
-    const cardH = H * 0.55;
-    const cardY = H - 60 - cardH;
-    page.drawRectangle({
-      x: cardX - 2, y: cardY - 2, width: cardW + 4, height: cardH + 4,
-      color: rgb(accent[0], accent[1], accent[2]),
-    });
-    if (a.coverUrl) {
-      const bytes = await urlToPngBytes(a.coverUrl);
-      if (bytes) {
-        try {
-          let img: import("pdf-lib").PDFImage;
-          try { img = await doc.embedPng(bytes); } catch { img = await doc.embedJpg(bytes); }
-          const scale = Math.min(cardW / img.width, cardH / img.height);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          page.drawImage(img, { x: cardX + (cardW - w) / 2, y: cardY + (cardH - h) / 2, width: w, height: h });
-        } catch { /* ignore */ }
-      }
-    } else {
-      page.drawRectangle({ x: cardX, y: cardY, width: cardW, height: cardH, color: rgb(0.94, 0.91, 0.84) });
-    }
-
-    // Title
-    const titleSize = 30;
-    const titleFont = isAr ? arBold : enBold;
-    const titleShaped = shape(a.title || (isAr ? "حكايتي" : "My Story"), isAr);
-    const titleW = titleFont.widthOfTextAtSize(titleShaped, titleSize);
-    page.drawText(titleShaped, {
-      x: (W - titleW) / 2,
-      y: cardY - 50,
-      size: titleSize,
-      font: titleFont,
-      color: rgb(accent[0], accent[1], accent[2]),
-    });
-
-    // Subtitle
-    const sub = a.customerName
-      ? (isAr ? `حكاية مخصّصة لـ ${a.customerName}` : `A story crafted for ${a.customerName}`)
-      : (isAr ? "حكاية مخصّصة لك" : "A story crafted for you");
-    const subFont = isAr ? arRegular : enRegular;
-    const subSize = 14;
-    const subShaped = shape(sub, isAr);
-    const subW = subFont.widthOfTextAtSize(subShaped, subSize);
-    page.drawText(subShaped, {
-      x: (W - subW) / 2,
-      y: cardY - 78,
-      size: subSize,
-      font: subFont,
-      color: rgb(muted[0], muted[1], muted[2]),
-    });
-
-    // Mood chips
-    if (a.moods && a.moods.length) {
-      const chipFont = isAr ? arBold : enBold;
-      const chipSize = 10;
-      const gap = 8;
-      const padX = 10, padY = 5;
-      const shapedChips = a.moods.map((m) => shape(m, isAr || ARABIC_RE.test(m)));
-      const widths = shapedChips.map((s) => chipFont.widthOfTextAtSize(s, chipSize) + padX * 2);
-      const totalW = widths.reduce((s, w) => s + w, 0) + gap * (shapedChips.length - 1);
-      let x = (W - totalW) / 2;
-      const y = cardY - 120;
-      shapedChips.forEach((s, i) => {
-        const w = widths[i];
-        const h = chipSize + padY * 2;
-        page.drawRectangle({
-          x, y: y - padY, width: w, height: h,
-          color: rgb(gold[0], gold[1], gold[2]),
-          opacity: 0.18,
-        });
-        page.drawText(s, {
-          x: x + padX, y, size: chipSize, font: chipFont,
-          color: rgb(gold[0] * 0.55, gold[1] * 0.55, gold[2] * 0.55),
-        });
-        x += w + gap;
+    // Wait one paint frame.
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    // Wait for any remaining images inside the host to fully decode.
+    const allImgs = Array.from(host.querySelectorAll("img"));
+    await Promise.all(allImgs.map((img) => {
+      if ((img as HTMLImageElement).complete) return Promise.resolve();
+      return new Promise((res) => {
+        img.addEventListener("load", () => res(null), { once: true });
+        img.addEventListener("error", () => res(null), { once: true });
       });
+    }));
+
+    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+      import("jspdf"),
+      import("html2canvas-pro"),
+    ]);
+
+    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = pdf.internal.pageSize.getHeight();
+
+    const pageEls = Array.from(host.querySelectorAll<HTMLElement>("[data-pdf-page]"));
+    for (let i = 0; i < pageEls.length; i++) {
+      const el = pageEls[i];
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#FFFBF5",
+        logging: false,
+        width: PAGE_W,
+        height: PAGE_H,
+        windowWidth: PAGE_W,
+        windowHeight: PAGE_H,
+      });
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      if (i > 0) pdf.addPage();
+      pdf.addImage(dataUrl, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
     }
 
-    // Brand block at bottom
-    if (logoImg) {
-      const lw = 36;
-      const scale = lw / logoImg.width;
-      const lh = logoImg.height * scale;
-      page.drawImage(logoImg, { x: (W - lw) / 2, y: 32, width: lw, height: lh });
-    }
-    const brandLine = isAr ? "بصمة حكاية" : "Basma Hekaya";
-    const bs = shape(brandLine, isAr);
-    const bf = isAr ? arBold : enBold;
-    const bw = bf.widthOfTextAtSize(bs, 12);
-    page.drawText(bs, {
-      x: (W - bw) / 2, y: 20, size: 12, font: bf,
-      color: rgb(accent[0], accent[1], accent[2]),
-    });
+    const safeTitle = (a.title || "story").replace(/[^\p{L}\p{N}\s-]+/gu, "").trim().slice(0, 40) || "story";
+    const filename = `basma-hekaya-${a.orderNumber ?? ""}-${safeTitle}.pdf`;
+    pdf.save(filename);
+  } finally {
+    host.remove();
   }
-
-  // ---------- STORY PAGES ----------
-  const total = a.pages.length;
-  for (const p of a.pages) {
-    const page = doc.addPage([W, H]);
-    page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(cream[0], cream[1], cream[2]) });
-
-    // Image card (top half)
-    const imgCardY = H - margin - H * 0.46;
-    const imgCardH = H * 0.46;
-    const imgCardW = W - margin * 2;
-    page.drawRectangle({
-      x: margin - 2, y: imgCardY - 2, width: imgCardW + 4, height: imgCardH + 4,
-      color: rgb(accent[0], accent[1], accent[2]),
-    });
-    if (p.imageUrl) {
-      const bytes = await urlToPngBytes(p.imageUrl);
-      if (bytes) {
-        try {
-          let img: import("pdf-lib").PDFImage;
-          try { img = await doc.embedPng(bytes); } catch { img = await doc.embedJpg(bytes); }
-          const scale = Math.min(imgCardW / img.width, imgCardH / img.height);
-          const w = img.width * scale;
-          const h = img.height * scale;
-          page.drawImage(img, {
-            x: margin + (imgCardW - w) / 2,
-            y: imgCardY + (imgCardH - h) / 2,
-            width: w, height: h,
-          });
-        } catch {
-          page.drawRectangle({ x: margin, y: imgCardY, width: imgCardW, height: imgCardH, color: rgb(0.94, 0.91, 0.84) });
-        }
-      }
-    } else {
-      page.drawRectangle({ x: margin, y: imgCardY, width: imgCardW, height: imgCardH, color: rgb(0.94, 0.91, 0.84) });
-    }
-
-    // Text below image
-    const textSize = 14;
-    const lineGap = 8;
-    const usesArabic = isAr || ARABIC_RE.test(p.text);
-    const font = usesArabic ? arRegular : enRegular;
-
-    const rawLines = wrapText(p.text || "", font, textSize, W - margin * 2);
-    const shapedLines = rawLines.map((l) => shape(l, usesArabic));
-
-    let y = imgCardY - 28;
-    const textBottom = 70; // leave room for footer
-    for (const line of shapedLines) {
-      if (y < textBottom) break;
-      const w = font.widthOfTextAtSize(line, textSize);
-      const x = usesArabic ? W - margin - w : margin;
-      page.drawText(line, { x, y, size: textSize, font, color: rgb(ink[0], ink[1], ink[2]) });
-      y -= textSize + lineGap;
-    }
-
-    // Footer separator
-    page.drawLine({
-      start: { x: margin, y: 56 },
-      end: { x: W - margin, y: 56 },
-      thickness: 0.7,
-      color: rgb(accent[0], accent[1], accent[2]),
-      opacity: 0.45,
-    });
-
-    // Page number (left in AR layout = end of reading)
-    const numLabel = isAr ? `صفحة ${p.number} من ${total}` : `Page ${p.number} of ${total}`;
-    const numFont = isAr ? arRegular : enRegular;
-    const numShaped = shape(numLabel, isAr);
-    page.drawText(numShaped, {
-      x: margin, y: 40, size: 10, font: numFont,
-      color: rgb(muted[0], muted[1], muted[2]),
-    });
-
-    // Brand corner (logo + name)
-    let bx = W - margin;
-    const brandTxt = isAr ? "بصمة حكاية" : "Basma Hekaya";
-    const bts = shape(brandTxt, isAr);
-    const btf = isAr ? arBold : enBold;
-    const btw = btf.widthOfTextAtSize(bts, 10);
-    bx -= btw;
-    page.drawText(bts, {
-      x: bx, y: 40, size: 10, font: btf,
-      color: rgb(accent[0], accent[1], accent[2]),
-    });
-    if (logoImg) {
-      const lw = 18;
-      const scale = lw / logoImg.width;
-      const lh = logoImg.height * scale;
-      bx -= (lw + 4);
-      page.drawImage(logoImg, { x: bx, y: 36, width: lw, height: lh });
-    }
-
-    // Tagline under footer
-    const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
-    const tagShaped = shape(tag, isAr);
-    const tagFont = isAr ? arRegular : enRegular;
-    const tagW = tagFont.widthOfTextAtSize(tagShaped, 8);
-    page.drawText(tagShaped, {
-      x: (W - tagW) / 2, y: 22, size: 8, font: tagFont,
-      color: rgb(gold[0] * 0.7, gold[1] * 0.7, gold[2] * 0.7),
-    });
-  }
-
-  // ---------- THANK YOU ----------
-  {
-    const page = doc.addPage([W, H]);
-    page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: rgb(cream[0], cream[1], cream[2]) });
-    page.drawRectangle({ x: 0, y: H - 14, width: W, height: 14, color: rgb(accent[0], accent[1], accent[2]) });
-    page.drawRectangle({ x: 0, y: 0, width: W, height: 10, color: rgb(gold[0], gold[1], gold[2]) });
-
-    if (logoImg) {
-      const lw = 110;
-      const scale = lw / logoImg.width;
-      const lh = logoImg.height * scale;
-      page.drawImage(logoImg, { x: (W - lw) / 2, y: H * 0.62, width: lw, height: lh });
-    }
-    const thanks = isAr ? "شكراً لاختياركم بصمة حكاية" : "Thank you for choosing Basma Hekaya";
-    const tf = isAr ? arBold : enBold;
-    const ts = shape(thanks, isAr);
-    const tw = tf.widthOfTextAtSize(ts, 22);
-    page.drawText(ts, {
-      x: (W - tw) / 2, y: H * 0.52, size: 22, font: tf,
-      color: rgb(accent[0], accent[1], accent[2]),
-    });
-
-    const note = isAr
-      ? "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة."
-      : "Follow us on TikTok and tell us your next story idea.";
-    const nf = isAr ? arRegular : enRegular;
-    const ns = shape(note, isAr);
-    const nw = nf.widthOfTextAtSize(ns, 12);
-    page.drawText(ns, {
-      x: (W - nw) / 2, y: H * 0.46, size: 12, font: nf,
-      color: rgb(muted[0], muted[1], muted[2]),
-    });
-
-    const tk = "@basmathikaya1 · tiktok.com";
-    const tkW = enBold.widthOfTextAtSize(tk, 12);
-    page.drawText(tk, {
-      x: (W - tkW) / 2, y: H * 0.42, size: 12, font: enBold,
-      color: rgb(gold[0] * 0.6, gold[1] * 0.6, gold[2] * 0.6),
-    });
-
-    const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
-    const tagShaped = shape(tag, isAr);
-    const tagFont = isAr ? arBold : enBold;
-    const tagW = tagFont.widthOfTextAtSize(tagShaped, 11);
-    page.drawText(tagShaped, {
-      x: (W - tagW) / 2, y: 50, size: 11, font: tagFont,
-      color: rgb(accent[0], accent[1], accent[2]),
-    });
-  }
-
-  const bytes = await doc.save();
-  // Wrap underlying ArrayBuffer with a slice into a fresh ArrayBuffer to satisfy DOM types.
-  const ab = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(ab).set(bytes);
-  const blob = new Blob([ab], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  const safeTitle = (a.title || "story").replace(/[^\p{L}\p{N}\s-]+/gu, "").trim().slice(0, 40) || "story";
-  link.download = `basma-hekaya-${a.orderNumber ?? ""}-${safeTitle}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }

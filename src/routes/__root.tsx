@@ -7,7 +7,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Menu, X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -20,6 +21,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getCurrentUser } from "../lib/auth.functions";
 import { getActiveTheme } from "../lib/themes.functions";
 import { UserCircle } from "lucide-react";
+import { useLocation } from "@tanstack/react-router";
 
 function NotFoundComponent() {
   return (
@@ -131,24 +133,40 @@ function Header() {
   const meFn = useServerFn(getCurrentUser);
   const meQ = useQuery({ queryKey: ["me"], queryFn: () => meFn(), staleTime: 30_000 });
   const me = meQ.data;
-  return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-2.5 font-bold text-lg">
-          <img src={brandLogoUrl} alt="" className="h-14 w-14 object-contain md:h-16 md:w-16 drop-shadow-sm" />
-          <span className="text-foreground text-base md:text-lg">{t("brand")}</span>
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+
+  const links = (
+    <>
+      <Link to="/create" className="rounded-md px-3 py-2 hover:bg-secondary font-medium">{t("nav_create")}</Link>
+      {me ? (
+        <Link to="/my-orders" className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 hover:bg-secondary font-medium">
+          <UserCircle className="size-4" />
+          {t("nav_my_orders")}
         </Link>
-        <nav className="flex items-center gap-1.5 text-sm">
-          <Link to="/create" className="rounded-md px-3 py-1.5 hover:bg-secondary font-medium">{t("nav_create")}</Link>
-          {me ? (
-            <Link to="/my-orders" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary font-medium">
-              <UserCircle className="size-4" />
-              {t("nav_my_orders")}
-            </Link>
-          ) : (
-            <Link to="/auth" className="rounded-md px-3 py-1.5 hover:bg-secondary font-medium">{t("nav_login")}</Link>
-          )}
-          <Link to="/admin" className="rounded-md px-3 py-1.5 hover:bg-secondary text-muted-foreground">{t("nav_admin")}</Link>
+      ) : (
+        <Link to="/auth" className="rounded-md px-3 py-2 hover:bg-secondary font-medium">{t("nav_login")}</Link>
+      )}
+      <Link to="/admin" className="rounded-md px-3 py-2 hover:bg-secondary text-muted-foreground">{t("nav_admin")}</Link>
+    </>
+  );
+
+  return (
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-3">
+        <Link to="/" className="flex min-w-0 items-center gap-2 font-bold">
+          <img
+            src={brandLogoUrl}
+            alt=""
+            className="h-10 w-10 shrink-0 object-contain drop-shadow-sm sm:h-12 sm:w-12 md:h-14 md:w-14"
+          />
+          <span className="truncate text-sm text-foreground sm:text-base md:text-lg">{t("brand")}</span>
+        </Link>
+
+        {/* Desktop nav */}
+        <nav className="hidden items-center gap-1 text-sm md:flex">
+          {links}
           <button
             onClick={() => setLang(lang === "ar" ? "en" : "ar")}
             className="rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-secondary"
@@ -157,7 +175,35 @@ function Header() {
             {lang === "ar" ? "EN" : "ع"}
           </button>
         </nav>
+
+        {/* Mobile actions */}
+        <div className="flex items-center gap-1 md:hidden">
+          <button
+            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+            className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-secondary"
+            aria-label="Toggle language"
+          >
+            {lang === "ar" ? "EN" : "ع"}
+          </button>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-md border p-2 hover:bg-secondary"
+            aria-label="Menu"
+            aria-expanded={open}
+          >
+            {open ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile dropdown */}
+      {open && (
+        <div className="border-t bg-background md:hidden">
+          <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-3 py-2 text-sm">
+            {links}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
