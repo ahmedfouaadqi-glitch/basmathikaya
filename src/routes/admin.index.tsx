@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { adminListOrders } from "../lib/orders.functions";
 import { useT } from "../lib/i18n";
 import { supabase } from "../integrations/supabase/client";
-import { Eye } from "lucide-react";
+import { Eye, Search, FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminOrders,
@@ -31,6 +31,7 @@ function AdminOrders() {
   const { t } = useT();
   const qc = useQueryClient();
   const listFn = useServerFn(adminListOrders);
+  const [search, setSearch] = useState("");
 
   const q = useQuery({
     queryKey: ["admin-orders"],
@@ -51,11 +52,34 @@ function AdminOrders() {
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
 
-  const rows = q.data ?? [];
+  const allRows = q.data ?? [];
+  const rows = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return allRows;
+    return allRows.filter((o) => {
+      const name = (o as { customer_name?: string | null }).customer_name ?? "";
+      return (
+        String(o.order_number).includes(s) ||
+        name.toLowerCase().includes(s) ||
+        (o.customer_phone ?? "").toLowerCase().includes(s) ||
+        (o.title ?? "").toLowerCase().includes(s)
+      );
+    });
+  }, [allRows, search]);
 
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">{t("admin_orders")}</h1>
+
+      <div className="mb-3 relative">
+        <Search className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3 size-4 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_orders")}
+          className="w-full rounded-xl border bg-card ps-9 pe-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+        />
+      </div>
 
       <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">
         <table className="min-w-full text-sm">
@@ -69,15 +93,17 @@ function AdminOrders() {
               <th className="px-3 py-2.5 text-end">{t("col_cost")}</th>
               <th className="px-3 py-2.5 text-end">{t("col_profit")}</th>
               <th className="px-3 py-2.5 text-end">{t("col_margin")}</th>
+              <th className="px-3 py-2.5 text-center">PDF</th>
               <th className="px-3 py-2.5 text-center">{t("col_actions")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">{t("no_orders")}</td></tr>
+              <tr><td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">{t("no_orders")}</td></tr>
             )}
             {rows.map((o) => {
               const customerName = (o as { customer_name?: string | null }).customer_name ?? "—";
+              const hasPdf = (o as { pdf_path?: string | null }).pdf_path != null;
               return (
                 <tr key={o.id} className="border-t hover:bg-secondary/30">
                   <td className="px-3 py-2.5 font-mono font-medium">#{o.order_number}</td>
@@ -91,6 +117,9 @@ function AdminOrders() {
                   <td className="px-3 py-2.5 text-end font-mono text-destructive">{fmt(o.cost?.cost_iqd)}</td>
                   <td className="px-3 py-2.5 text-end font-mono text-primary">{fmt(o.cost?.gross_profit_iqd)}</td>
                   <td className="px-3 py-2.5 text-end font-mono">{o.cost?.margin_pct != null ? `${o.cost.margin_pct}%` : "—"}</td>
+                  <td className="px-3 py-2.5 text-center">
+                    {hasPdf ? <FileDown className="inline size-4 text-primary" /> : <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center justify-center gap-1">
                       <Link to="/admin/orders/$id" params={{ id: o.id }} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-secondary">

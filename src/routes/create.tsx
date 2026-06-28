@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, Plus, UserCircle } from "lucide-react";
+import { Loader2, Trash2, Plus, UserCircle, Camera, X } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { createOrderDraft, getPublicPricing } from "../lib/orders.functions";
+import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
 
@@ -43,18 +44,38 @@ type CharacterDraft = {
   age: string;
   role: Role;
   description: string;
+  photoPath: string | null;
+  photoPreview: string | null;
+  uploading: boolean;
 };
+
+function newDraftId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `d-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(fr.error);
+    fr.onload = () => resolve(String(fr.result));
+    fr.readAsDataURL(file);
+  });
+}
 
 function CreatePage() {
   const { t, lang } = useT();
   const navigate = useNavigate();
   const { me } = Route.useRouteContext();
   const create = useServerFn(createOrderDraft);
+  const uploadPhoto = useServerFn(uploadCharacterPhoto);
   const pricingFn = useServerFn(getPublicPricing);
   const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
 
+  const draftIdRef = useRef<string>(newDraftId());
+
   const [characters, setCharacters] = useState<CharacterDraft[]>([
-    { name: me?.name ?? "", age: "", role: "protagonist", description: "" },
+    { name: me?.name ?? "", age: "", role: "protagonist", description: "", photoPath: null, photoPreview: null, uploading: false },
   ]);
   const [moods, setMoods] = useState<string[]>(["adventure"]);
   const [instructions, setInstructions] = useState("");
@@ -78,11 +99,28 @@ function CreatePage() {
       toast.error(`الحد الأقصى ${maxChars} شخصيات`);
       return;
     }
-    setCharacters((cs) => [...cs, { name: "", age: "", role: "friend", description: "" }]);
+    setCharacters((cs) => [...cs, { name: "", age: "", role: "friend", description: "", photoPath: null, photoPreview: null, uploading: false }]);
   }
   function removeChar(i: number) {
     if (i === 0) return;
     setCharacters((cs) => cs.filter((_, idx) => idx !== i));
+  }
+
+  async function onPickPhoto(i: number, file: File | null) {
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("حجم الصورة كبير جداً (الحد 4MB)");
+      return;
+    }
+    updateChar(i, { uploading: true });
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const res = await uploadPhoto({ data: { draftId: draftIdRef.current, characterIndex: i, dataUrl } });
+      updateChar(i, { photoPath: res.path, photoPreview: res.previewUrl ?? dataUrl, uploading: false });
+    } catch (e) {
+      updateChar(i, { uploading: false });
+      toast.error(e instanceof Error ? e.message : "فشل رفع الصورة");
+    }
   }
 
   function toggleMood(value: string) {
@@ -111,11 +149,13 @@ function CreatePage() {
             age: c.age ? Number(c.age) : null,
             role: c.role,
             description: c.description.trim(),
+            photo_path: c.photoPath,
           })),
           moods,
           custom_instructions: instructions.trim(),
           language: lang,
           page_count: pages,
+          draft_id: draftIdRef.current,
         },
       });
       navigate({ to: "/preview/$orderId", params: { orderId: res.orderId } });
@@ -155,38 +195,77 @@ function CreatePage() {
                     </button>
                   )}
                 </div>
-                <div className="grid gap-2 md:grid-cols-3">
-                  <div className="md:col-span-2">
+
+                <div className="flex gap-3">
+                  {/* Photo uploader */}
+                  <label className="relative flex h-20 w-20 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-primary hover:bg-primary/10">
+                    {c.photoPreview ? (
+                      <>
+                        <img src={c.photoPreview} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            updateChar(i, { photoPath: null, photoPreview: null });
+                          }}
+                          className="absolute top-1 end-1 z-10 grid size-5 place-items-center rounded-full bg-background/90 text-destructive shadow"
+                          aria-label={t("remove_photo")}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </>
+                    ) : c.uploading ? (
+                      <Loader2 className="size-5 animate-spin" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-0.5 text-[10px] font-medium">
+                        <Camera className="size-5" />
+                        <span>{t("upload_photo")}</span>
+                      </div>
+                    )}
                     <input
-                      placeholder={t("character_name")}
-                      value={c.name}
-                      onChange={(e) => updateChar(i, { name: e.target.value })}
-                      maxLength={60}
-                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                      required={i === 0}
+                      type="file"
+                      accept="image/*"
+                      className="absolute inset-0 z-0 cursor-pointer opacity-0"
+                      onChange={(e) => onPickPhoto(i, e.target.files?.[0] ?? null)}
                     />
+                  </label>
+
+                  <div className="flex-1 space-y-2">
+                    <div className="grid gap-2 md:grid-cols-3">
+                      <div className="md:col-span-2">
+                        <input
+                          placeholder={t("character_name")}
+                          value={c.name}
+                          onChange={(e) => updateChar(i, { name: e.target.value })}
+                          maxLength={60}
+                          className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                          required={i === 0}
+                        />
+                      </div>
+                      <input
+                        placeholder={t("character_age")}
+                        type="number"
+                        min={1}
+                        max={120}
+                        value={c.age}
+                        onChange={(e) => updateChar(i, { age: e.target.value })}
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    {i > 0 && (
+                      <select
+                        value={c.role}
+                        onChange={(e) => updateChar(i, { role: e.target.value as Role })}
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>{t(`role_${r}` as never)}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
-                  <input
-                    placeholder={t("character_age")}
-                    type="number"
-                    min={1}
-                    max={120}
-                    value={c.age}
-                    onChange={(e) => updateChar(i, { age: e.target.value })}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                  />
                 </div>
-                {i > 0 && (
-                  <select
-                    value={c.role}
-                    onChange={(e) => updateChar(i, { role: e.target.value as Role })}
-                    className="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>{t(`role_${r}` as never)}</option>
-                    ))}
-                  </select>
-                )}
+
                 <textarea
                   placeholder={t("character_description_ph")}
                   value={c.description}

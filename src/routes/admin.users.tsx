@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { adminListUsers } from "../lib/orders.functions";
 import { useT } from "../lib/i18n";
-import { Download } from "lucide-react";
+import { Download, Search } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsersPage,
@@ -14,7 +14,18 @@ function AdminUsersPage() {
   const { t } = useT();
   const fn = useServerFn(adminListUsers);
   const q = useQuery({ queryKey: ["admin-users"], queryFn: () => fn(), refetchInterval: 30_000 });
-  const rows = q.data ?? [];
+  const allRows = q.data ?? [];
+  const [search, setSearch] = useState("");
+
+  const rows = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return allRows;
+    return allRows.filter((u) =>
+      (u.full_name ?? "").toLowerCase().includes(s) ||
+      (u.phone ?? "").toLowerCase().includes(s) ||
+      (u.notes ?? "").toLowerCase().includes(s),
+    );
+  }, [allRows, search]);
 
   const csvHref = useMemo(() => {
     const header = ["name", "phone", "orders", "total_spent_iqd", "marketing_consent", "last_login_at", "created_at", "notes"];
@@ -36,11 +47,21 @@ function AdminUsersPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{t("admin_users")}</h1>
         <a href={csvHref} download="basma-customers.csv" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary">
           <Download className="size-4" /> {t("export_csv")}
         </a>
+      </div>
+
+      <div className="mb-3 relative">
+        <Search className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3 size-4 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("search_customers")}
+          className="w-full rounded-xl border bg-card ps-9 pe-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+        />
       </div>
 
       <div className="overflow-x-auto rounded-2xl border bg-card shadow-sm">

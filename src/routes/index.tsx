@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useT } from "../lib/i18n";
 import { Sparkles, BookOpen, Truck } from "lucide-react";
 import { brandLogoUrl } from "../lib/brand";
+import { BrandIntroVideo } from "../components/BrandIntroVideo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,7 +31,7 @@ function Home() {
             {t("brand")}
           </span>
         </h1>
-        <img src={brandLogoUrl} alt="شعار بصمة حكاية" className="mx-auto mt-6 h-36 w-36 object-contain md:h-44 md:w-44" />
+        <img src={brandLogoUrl} alt="شعار بصمة حكاية" className="mx-auto mt-6 h-48 w-48 object-contain md:h-64 md:w-64 drop-shadow-md" />
         <p className="mx-auto mt-5 max-w-xl text-base md:text-lg text-muted-foreground text-balance">
           {t("hero_lead")}
         </p>
@@ -45,15 +46,12 @@ function Home() {
         </div>
       </section>
 
-      {/* Showcase mock */}
+      {/* Brand intro videos — sequential loop */}
       <section className="mt-16 md:mt-24">
         <div className="relative mx-auto max-w-2xl">
           <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-primary/20 via-transparent to-accent/25 blur-2xl" />
-          <div className="relative aspect-[3/4] max-w-sm mx-auto rounded-2xl bg-gradient-to-br from-primary/25 via-background to-accent/30 p-1 shadow-2xl">
-            <div className="watermark-overlay flex h-full w-full flex-col items-center justify-end rounded-xl bg-gradient-to-b from-transparent via-primary/10 to-foreground/70 p-6 text-center text-primary-foreground">
-              <div className="text-3xl font-extrabold drop-shadow-lg">حكاية البطل</div>
-              <div className="mt-1 text-sm opacity-80">قصة فريدة — معاينة</div>
-            </div>
+          <div className="relative aspect-[3/4] max-w-sm mx-auto rounded-2xl bg-gradient-to-br from-primary/25 via-background to-accent/30 p-1 shadow-2xl overflow-hidden">
+            <BrandIntroVideo className="h-full w-full rounded-xl object-cover bg-background" />
           </div>
         </div>
       </section>
