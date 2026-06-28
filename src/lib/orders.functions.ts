@@ -607,7 +607,7 @@ export const adminUpdateStatus = createServerFn({ method: "POST" })
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const now = new Date().toISOString();
-    const patch: Record<string, unknown> = {
+    const patch = {
       status: data.status,
       ...(data.status === "paid" ? { paid_at: now } : {}),
       ...(data.status === "delivered" ? { delivered_at: now } : {}),
