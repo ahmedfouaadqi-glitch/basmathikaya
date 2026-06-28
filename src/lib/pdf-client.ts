@@ -34,7 +34,7 @@ function hexToRgb(hex: string | null | undefined, fallback: [number, number, num
 let _shaper: { convertArabic: (s: string) => string } | null = null;
 async function loadShaper() {
   if (_shaper) return _shaper;
-  const mod = (await import("arabic-persian-reshaper")) as unknown as
+  const mod = (await import("arabic-persian-reshaper" as string)) as unknown as
     | { ArabicShaper: { convertArabic: (s: string) => string } }
     | { default: { ArabicShaper: { convertArabic: (s: string) => string } } };
   const ns = (mod as { default?: unknown }).default ?? mod;
@@ -134,7 +134,7 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
   const margin = 42;
 
   function shape(text: string, ar: boolean): string {
-    return ar ? shapeArabic(text) : text;
+    return ar ? shapeArabicSync(text) : text;
   }
 
   // ---------- COVER ----------
