@@ -177,6 +177,30 @@ const D: Dict = {
   download_cover: { ar: "تحميل الغلاف", en: "Download cover" },
   download_all_images: { ar: "تحميل كل الصور", en: "Download all images" },
   customer_photos: { ar: "صور العميل المرفقة", en: "Customer reference photos" },
+
+  // Install gate
+  install_title: { ar: "ثبّت تطبيق بصمة حكاية", en: "Install Basma Hekaya" },
+  install_subtitle: {
+    ar: "لتجربة أفضل وأسرع، ثبّت التطبيق على شاشتك الرئيسية وتمتّع بحكاياتك في أي وقت.",
+    en: "For the best experience, install the app to your home screen and enjoy your stories anytime.",
+  },
+  install_button: { ar: "تثبيت التطبيق الآن", en: "Install the app now" },
+  install_installing: { ar: "جاري التثبيت…", en: "Installing…" },
+  install_hint_menu: {
+    ar: "افتح قائمة المتصفح (⋮) ثم اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».",
+    en: "Open your browser menu (⋮) and tap “Install app” or “Add to Home screen”.",
+  },
+  install_desktop_hint: {
+    ar: "أو افتح الموقع من جهاز كمبيوتر لتجربته دون تثبيت.",
+    en: "Or open this site on a desktop to use it without installing.",
+  },
+  install_benefit_fast: { ar: "أسرع", en: "Faster" },
+  install_benefit_app: { ar: "كتطبيق", en: "App-like" },
+  install_benefit_home: { ar: "أيقونة على شاشتك", en: "On your home" },
+  install_ios_title: { ar: "للتثبيت على iPhone / iPad", en: "Install on iPhone / iPad" },
+  install_ios_step1: { ar: "اضغط زر المشاركة", en: "Tap the Share button" },
+  install_ios_step2: { ar: "اختر «إضافة إلى الشاشة الرئيسية»", en: "Choose “Add to Home Screen”" },
+  install_ios_step3: { ar: "ثم اضغط «إضافة» في الأعلى.", en: "Then tap “Add” at the top." },
 };
 
 type Ctx = {
