@@ -105,6 +105,28 @@ function PreviewPage() {
     }
   }
 
+  async function handleDownload() {
+    if (!progress) return;
+    setBuilding(true);
+    try {
+      const theme = await themeFn().catch(() => null);
+      await buildAndDownloadStoryPdf({
+        title: progress.title || (lang === "ar" ? "حكايتي" : "My Story"),
+        language: lang,
+        customerName: progress.customer_name || "",
+        moods: progress.moods ?? [],
+        coverUrl: progress.cover_url,
+        pages: progress.pages.map((pg) => ({ number: pg.page_number, text: pg.text, imageUrl: pg.image_url })),
+        accentColor: theme?.accent_color ?? null,
+        orderNumber: progress.order_number ?? order?.order_number ?? null,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    } finally {
+      setBuilding(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       {genError ? (
