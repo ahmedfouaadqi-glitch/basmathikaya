@@ -2,11 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { toast } from "sonner";
-import { adminListOrders, adminUpdateStatus } from "../lib/orders.functions";
+import { adminListOrders } from "../lib/orders.functions";
 import { useT } from "../lib/i18n";
 import { supabase } from "../integrations/supabase/client";
-import { CheckCircle2, Truck, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminOrders,
@@ -32,7 +31,6 @@ function AdminOrders() {
   const { t } = useT();
   const qc = useQueryClient();
   const listFn = useServerFn(adminListOrders);
-  const updateFn = useServerFn(adminUpdateStatus);
 
   const q = useQuery({
     queryKey: ["admin-orders"],
@@ -40,7 +38,6 @@ function AdminOrders() {
     refetchInterval: 15_000,
   });
 
-  // Realtime: invalidate on any change to orders or generation_events
   useEffect(() => {
     const ch = supabase
       .channel("admin-orders-rt")
@@ -53,16 +50,6 @@ function AdminOrders() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
-
-  async function setStatus(orderId: string, status: "paid" | "delivered" | "cancelled") {
-    try {
-      await updateFn({ data: { orderId, status } });
-      toast.success("تم التحديث");
-      qc.invalidateQueries({ queryKey: ["admin-orders"] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "خطأ");
-    }
-  }
 
   const rows = q.data ?? [];
 
@@ -90,12 +77,12 @@ function AdminOrders() {
               <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">{t("no_orders")}</td></tr>
             )}
             {rows.map((o) => {
-              const ch = o.characters as { customer_name?: string } | null;
+              const customerName = (o as { customer_name?: string | null }).customer_name ?? "—";
               return (
                 <tr key={o.id} className="border-t hover:bg-secondary/30">
                   <td className="px-3 py-2.5 font-mono font-medium">#{o.order_number}</td>
                   <td className="px-3 py-2.5">
-                    <div className="font-medium">{ch?.customer_name ?? "—"}</div>
+                    <div className="font-medium">{customerName}</div>
                     <div className="text-xs text-muted-foreground" dir="ltr">{o.customer_phone}</div>
                   </td>
                   <td className="px-3 py-2.5">{o.tier ?? "—"}</td>
@@ -109,16 +96,6 @@ function AdminOrders() {
                       <Link to="/admin/orders/$id" params={{ id: o.id }} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-secondary">
                         <Eye className="size-3.5" /> {t("view")}
                       </Link>
-                      {o.status === "pending" && (
-                        <button onClick={() => setStatus(o.id, "paid")} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90">
-                          <CheckCircle2 className="size-3.5" /> {t("mark_paid")}
-                        </button>
-                      )}
-                      {o.status === "paid" && (
-                        <button onClick={() => setStatus(o.id, "delivered")} className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-accent-foreground hover:bg-accent/90">
-                          <Truck className="size-3.5" /> {t("mark_delivered")}
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>

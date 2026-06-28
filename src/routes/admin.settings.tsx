@@ -15,6 +15,8 @@ type Form = {
   usd_per_credit: number; iqd_per_usd: number;
   tier_pdf_iqd: number; tier_printed_iqd: number; tier_video_iqd: number;
   per_page_iqd_pdf: number; per_page_iqd_printed: number; per_page_iqd_video: number;
+  per_character_iqd_pdf: number; per_character_iqd_printed: number; per_character_iqd_video: number;
+  max_characters: number;
   print_cost_iqd: number; shipping_cost_iqd: number;
 };
 
@@ -37,6 +39,10 @@ function SettingsPage() {
         per_page_iqd_pdf: q.data.per_page_iqd_pdf ?? 400,
         per_page_iqd_printed: q.data.per_page_iqd_printed ?? 1200,
         per_page_iqd_video: q.data.per_page_iqd_video ?? 2500,
+        per_character_iqd_pdf: (q.data as { per_character_iqd_pdf?: number }).per_character_iqd_pdf ?? 1500,
+        per_character_iqd_printed: (q.data as { per_character_iqd_printed?: number }).per_character_iqd_printed ?? 3000,
+        per_character_iqd_video: (q.data as { per_character_iqd_video?: number }).per_character_iqd_video ?? 6000,
+        max_characters: (q.data as { max_characters?: number }).max_characters ?? 5,
         print_cost_iqd: q.data.print_cost_iqd,
         shipping_cost_iqd: q.data.shipping_cost_iqd,
       });
@@ -79,7 +85,14 @@ function SettingsPage() {
           <Row label="Printed / صفحة" type="number" value={form.per_page_iqd_printed} onChange={(v) => set("per_page_iqd_printed", v)} />
           <Row label="Video / صفحة" type="number" value={form.per_page_iqd_video} onChange={(v) => set("per_page_iqd_video", v)} />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="text-xs font-semibold text-muted-foreground mt-2">سعر كل شخصية إضافية (فوق الشخصية الأولى)</div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Row label="PDF / شخصية" type="number" value={form.per_character_iqd_pdf} onChange={(v) => set("per_character_iqd_pdf", v)} />
+          <Row label="Printed / شخصية" type="number" value={form.per_character_iqd_printed} onChange={(v) => set("per_character_iqd_printed", v)} />
+          <Row label="Video / شخصية" type="number" value={form.per_character_iqd_video} onChange={(v) => set("per_character_iqd_video", v)} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Row label="الحد الأقصى لعدد الشخصيات" type="number" value={form.max_characters} onChange={(v) => set("max_characters", v)} />
           <Row label="تكلفة الطباعة (د.ع)" type="number" value={form.print_cost_iqd} onChange={(v) => set("print_cost_iqd", v)} />
           <Row label="تكلفة الشحن (د.ع)" type="number" value={form.shipping_cost_iqd} onChange={(v) => set("shipping_cost_iqd", v)} />
         </div>
