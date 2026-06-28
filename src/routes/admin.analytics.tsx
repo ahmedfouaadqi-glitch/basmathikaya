@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { adminAnalytics } from "../lib/orders.functions";
 import { useT } from "../lib/i18n";
+import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/admin/analytics")({
   component: AnalyticsPage,
@@ -13,9 +15,31 @@ function AnalyticsPage() {
   const fn = useServerFn(adminAnalytics);
   const q = useQuery({ queryKey: ["admin-analytics"], queryFn: () => fn(), refetchInterval: 30_000 });
   const a = q.data;
+
+  const csvHref = useMemo(() => {
+    if (!a) return "#";
+    const lines = [
+      "metric,value",
+      `total_revenue_iqd,${a.total_revenue_iqd}`,
+      `total_cost_iqd,${a.total_cost_iqd}`,
+      `total_profit_iqd,${a.total_profit_iqd}`,
+      `total_orders,${a.total_orders}`,
+      `pdf_orders,${a.by_tier.pdf}`,
+      `printed_orders,${a.by_tier.printed}`,
+      `video_orders,${a.by_tier.video}`,
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    return URL.createObjectURL(blob);
+  }, [a]);
+
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-bold">{t("admin_analytics")}</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">{t("admin_analytics")}</h1>
+        <a href={csvHref} download="basma-analytics.csv" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary">
+          <Download className="size-4" /> {t("export_csv")}
+        </a>
+      </div>
       <div className="grid gap-3 md:grid-cols-4">
         <Card label={t("total_revenue")} value={`${Number(a?.total_revenue_iqd ?? 0).toLocaleString()} ${t("iqd")}`} />
         <Card label={t("total_cost")} value={`${Number(a?.total_cost_iqd ?? 0).toLocaleString()} ${t("iqd")}`} tone="rose" />

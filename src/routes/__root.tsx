@@ -14,8 +14,10 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { LanguageProvider, useT } from "../lib/i18n";
 import { Toaster } from "../components/ui/sonner";
 import { brandLogoUrl } from "../lib/brand";
+import { SiteFooter } from "../components/SiteFooter";
 import { useServerFn } from "@tanstack/react-start";
 import { getCurrentUser } from "../lib/auth.functions";
+import { getActiveTheme } from "../lib/themes.functions";
 import { UserCircle } from "lucide-react";
 
 function NotFoundComponent() {
@@ -88,6 +90,34 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function ThemeBanner() {
+  const { lang } = useT();
+  const fn = useServerFn(getActiveTheme);
+  const q = useQuery({ queryKey: ["active-theme"], queryFn: () => fn(), staleTime: 5 * 60_000 });
+  const theme = q.data;
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (theme?.accent_color) {
+      document.documentElement.style.setProperty("--accent", theme.accent_color);
+    } else {
+      document.documentElement.style.removeProperty("--accent");
+    }
+  }, [theme?.accent_color]);
+  if (!theme) return null;
+  const text = lang === "ar" ? theme.banner_text_ar : theme.banner_text_en;
+  if (!text) return null;
+  return (
+    <div className="bg-gradient-to-r from-accent/30 via-primary/15 to-accent/30 border-b text-center text-xs font-medium text-foreground py-1.5 px-3">
+      {text}{" "}
+      {theme.banner_url && (
+        <a href={theme.banner_url} className="underline text-primary" target="_blank" rel="noopener noreferrer">
+          {lang === "ar" ? "اعرف أكثر" : "Learn more"}
+        </a>
+      )}
+    </div>
+  );
+}
+
 function Header() {
   const { lang, setLang, t } = useT();
   const meFn = useServerFn(getCurrentUser);
@@ -96,11 +126,9 @@ function Header() {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-2 font-bold text-lg">
-          <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-card shadow-sm ring-1 ring-border">
-            <img src={brandLogoUrl} alt="" className="h-9 w-9 object-contain" />
-          </span>
-          <span className="text-foreground">{t("brand")}</span>
+        <Link to="/" className="flex items-center gap-2.5 font-bold text-lg">
+          <img src={brandLogoUrl} alt="" className="h-14 w-14 object-contain md:h-16 md:w-16 drop-shadow-sm" />
+          <span className="text-foreground text-base md:text-lg">{t("brand")}</span>
         </Link>
         <nav className="flex items-center gap-1.5 text-sm">
           <Link to="/create" className="rounded-md px-3 py-1.5 hover:bg-secondary font-medium">{t("nav_create")}</Link>
@@ -131,10 +159,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <ThemeBanner />
         <Header />
-        <main>
+        <main className="min-h-[calc(100vh-220px)]">
           <Outlet />
         </main>
+        <SiteFooter />
         <Toaster richColors position="top-center" />
       </LanguageProvider>
     </QueryClientProvider>
