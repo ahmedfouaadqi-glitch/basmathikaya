@@ -190,24 +190,39 @@ function OrderDetail() {
 
           {chars.length > 0 && (
             <div className="rounded-2xl border bg-card p-4">
-              <div className="mb-2 text-sm font-semibold">الشخصيات ({chars.length})</div>
+              <div className="mb-2 text-sm font-semibold">{t("customer_photos")} · {chars.length}</div>
               <ul className="space-y-2 text-sm">
-                {chars.map((c, i) => (
-                  <li key={i} className="rounded-lg border p-2">
-                    <div className="font-medium">{c.name} {c.is_primary && <span className="text-[10px] text-primary">★</span>}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {c.role}{c.age ? ` · ${c.age}` : ""}
-                    </div>
-                    {c.description && <p className="mt-1 text-xs">{c.description}</p>}
-                  </li>
-                ))}
+                {chars.map((c, i) => {
+                  const ch = c as typeof c & { photo_url?: string | null };
+                  return (
+                    <li key={i} className="flex gap-2 rounded-lg border p-2">
+                      {ch.photo_url ? (
+                        <a href={ch.photo_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                          <img src={ch.photo_url} alt="" className="h-16 w-16 rounded-md object-cover ring-1 ring-border" />
+                        </a>
+                      ) : (
+                        <div className="h-16 w-16 shrink-0 rounded-md bg-secondary/50 grid place-items-center text-[10px] text-muted-foreground">—</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{c.name} {c.is_primary && <span className="text-[10px] text-primary">★</span>}</div>
+                        <div className="text-xs text-muted-foreground">{c.role}{c.age ? ` · ${c.age}` : ""}</div>
+                        {c.description && <p className="mt-1 text-xs line-clamp-2">{c.description}</p>}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
 
           {q.data.cover_url && (
             <div className="rounded-2xl border bg-card p-2">
-              <div className="text-xs text-muted-foreground p-2">الغلاف</div>
+              <div className="flex items-center justify-between p-2">
+                <div className="text-xs text-muted-foreground">الغلاف</div>
+                <a href={q.data.cover_url} download={`order-${order.order_number}-cover.png`} className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] hover:bg-secondary">
+                  <Download className="size-3" /> {t("download_cover")}
+                </a>
+              </div>
               <img src={q.data.cover_url} alt="cover" className="w-full aspect-[3/4] object-cover rounded-xl" />
             </div>
           )}
@@ -236,18 +251,29 @@ function OrderDetail() {
                       </div>
                     )}
                     <div className="p-3">
-                      <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center justify-between mb-1 gap-1">
                         <div className="text-xs font-bold text-primary">{t("page_n")} {p.page_number}</div>
-                        {imagesReady && (
-                          <button
-                            onClick={() => regen(p.page_number)}
-                            disabled={regening === p.page_number}
-                            className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-secondary disabled:opacity-60"
-                          >
-                            {regening === p.page_number ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
-                            {t("regenerate_image")}
-                          </button>
-                        )}
+                        <div className="inline-flex gap-1">
+                          {p.image_url && (
+                            <a
+                              href={p.image_url}
+                              download={`order-${order.order_number}-page-${p.page_number}.png`}
+                              className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-secondary"
+                            >
+                              <Download className="size-3" />
+                            </a>
+                          )}
+                          {imagesReady && (
+                            <button
+                              onClick={() => regen(p.page_number)}
+                              disabled={regening === p.page_number}
+                              className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-secondary disabled:opacity-60"
+                            >
+                              {regening === p.page_number ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+                              {t("regenerate_image")}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">{p.text}</p>
                     </div>
