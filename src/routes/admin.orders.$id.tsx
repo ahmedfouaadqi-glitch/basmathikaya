@@ -3,8 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Download, RefreshCw, Loader2 } from "lucide-react";
-import { adminGetOrder, adminRegeneratePage, getStoryPdfUrl } from "../lib/orders.functions";
+import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck } from "lucide-react";
+import { adminGetOrder, adminRegeneratePage, getStoryPdfUrl, adminConfirmPaymentAndGenerate, adminUpdateStatus } from "../lib/orders.functions";
 import { useT } from "../lib/i18n";
 import { supabase } from "../integrations/supabase/client";
 
@@ -19,8 +19,11 @@ function OrderDetail() {
   const fn = useServerFn(adminGetOrder);
   const regenFn = useServerFn(adminRegeneratePage);
   const pdfFn = useServerFn(getStoryPdfUrl);
+  const confirmGenFn = useServerFn(adminConfirmPaymentAndGenerate);
+  const updateStatusFn = useServerFn(adminUpdateStatus);
   const [regening, setRegening] = useState<number | null>(null);
   const [buildingPdf, setBuildingPdf] = useState(false);
+  const [confirmingPay, setConfirmingPay] = useState(false);
 
   const q = useQuery({
     queryKey: ["admin-order", id],
@@ -49,15 +52,16 @@ function OrderDetail() {
 
   const order = q.data.order as {
     order_number: number; tier: string | null; amount_iqd: number; status: string; page_count?: number;
-    customer_phone: string; title?: string | null;
-    characters?: { customer_name?: string; age?: number; mood?: string };
+    customer_phone: string; title?: string | null; moods?: string[]; custom_instructions?: string | null;
+    images_status?: string; images_error?: string | null;
   };
+  const user = q.data.user as { full_name?: string; phone?: string } | null;
+  const chars = q.data.characters ?? [];
   const cost = q.data.cost as {
     cost_iqd?: number; cost_usd?: number; cost_credits?: number; gross_profit_iqd?: number;
-    margin_pct?: number; total_tokens?: number; images_generated?: number;
+    margin_pct?: number;
   } | null;
   const events = q.data.events ?? [];
-  const ch = order.characters;
   const pages = q.data.pages ?? [];
 
   async function downloadPdf() {
@@ -65,7 +69,7 @@ function OrderDetail() {
     try {
       const r = await pdfFn({ data: { orderId: id } });
       if (r.url) window.open(r.url, "_blank");
-      else toast.error("فشل تجهيز الملف");
+      else toast.error("الملف غير جاهز بعد");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");
     } finally {
@@ -86,6 +90,31 @@ function OrderDetail() {
     }
   }
 
+  async function confirmPayment() {
+    setConfirmingPay(true);
+    try {
+      await confirmGenFn({ data: { orderId: id } });
+      toast.success("تم تأكيد الدفع وبدأ توليد الصور");
+      qc.invalidateQueries({ queryKey: ["admin-order", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    } finally {
+      setConfirmingPay(false);
+    }
+  }
+
+  async function markDelivered() {
+    try {
+      await updateStatusFn({ data: { orderId: id, status: "delivered" } });
+      toast.success("تم");
+      qc.invalidateQueries({ queryKey: ["admin-order", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    }
+  }
+
+  const imagesReady = order.images_status === "ready";
+
   return (
     <div>
       <Link to="/admin" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3">
@@ -93,40 +122,98 @@ function OrderDetail() {
       </Link>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Customer + cover */}
+        {/* Left column */}
         <div className="space-y-4 lg:col-span-1">
           <div className="rounded-2xl border bg-card p-5">
             <div className="text-xs text-muted-foreground">{t("col_order")}</div>
             <div className="font-mono text-lg font-bold">#{order.order_number}</div>
             {order.title && <div className="mt-2 text-sm font-bold">{order.title}</div>}
-            <div className="mt-3 text-sm">{ch?.customer_name} • {ch?.age} • {ch?.mood}</div>
-            <div className="mt-1 text-xs text-muted-foreground" dir="ltr">{order.customer_phone}</div>
-            <div className="mt-3">{order.tier ?? "—"} · {order.amount_iqd?.toLocaleString()} {t("iqd")} · {order.page_count ?? 5} {t("pages_label")}</div>
+            <div className="mt-3 text-sm">{user?.full_name ?? "—"}</div>
+            <div className="mt-0.5 text-xs text-muted-foreground" dir="ltr">{user?.phone ?? order.customer_phone}</div>
+            <div className="mt-3 text-sm">{order.tier ?? "—"} · {order.amount_iqd?.toLocaleString()} {t("iqd")} · {order.page_count ?? 5} {t("pages_label")}</div>
+            {order.moods && order.moods.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {order.moods.map((m) => (
+                  <span key={m} className="rounded-full bg-primary/10 text-primary text-[10px] px-2 py-0.5">{m}</span>
+                ))}
+              </div>
+            )}
+            {order.custom_instructions && (
+              <div className="mt-3 rounded-lg border bg-secondary/30 p-2 text-xs">
+                <div className="text-muted-foreground mb-0.5">تعليمات العميل</div>
+                <p className="whitespace-pre-wrap">{order.custom_instructions}</p>
+              </div>
+            )}
 
-            <button
-              onClick={downloadPdf}
-              disabled={buildingPdf}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
-            >
-              {buildingPdf ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              {buildingPdf ? t("building_pdf") : t("download_pdf")}
-            </button>
+            {/* Action buttons by state */}
+            {order.status === "pending" && order.tier && (
+              <button
+                onClick={confirmPayment}
+                disabled={confirmingPay}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3 text-sm font-bold text-primary-foreground shadow-warm disabled:opacity-60"
+              >
+                {confirmingPay ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                {t("mark_paid_generate")}
+              </button>
+            )}
+            {order.images_status === "generating" && (
+              <div className="mt-4 inline-flex items-center gap-2 text-sm text-primary">
+                <Loader2 className="size-4 animate-spin" /> {t("images_generating")}
+              </div>
+            )}
+            {order.images_status === "failed" && order.images_error && (
+              <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                {order.images_error}
+              </div>
+            )}
+            {imagesReady && (
+              <>
+                <button
+                  onClick={downloadPdf}
+                  disabled={buildingPdf}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {buildingPdf ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {buildingPdf ? t("building_pdf") : t("download_pdf")}
+                </button>
+                {order.status !== "delivered" && (
+                  <button
+                    onClick={markDelivered}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium hover:bg-secondary"
+                  >
+                    <Truck className="size-4" /> {t("mark_delivered")}
+                  </button>
+                )}
+              </>
+            )}
           </div>
-          {q.data.upload_url && (
-            <div className="rounded-2xl border bg-card p-2">
-              <div className="text-xs text-muted-foreground p-2">صورة المستخدم</div>
-              <img src={q.data.upload_url} alt="upload" className="w-full aspect-square object-cover rounded-xl" />
+
+          {chars.length > 0 && (
+            <div className="rounded-2xl border bg-card p-4">
+              <div className="mb-2 text-sm font-semibold">الشخصيات ({chars.length})</div>
+              <ul className="space-y-2 text-sm">
+                {chars.map((c, i) => (
+                  <li key={i} className="rounded-lg border p-2">
+                    <div className="font-medium">{c.name} {c.is_primary && <span className="text-[10px] text-primary">★</span>}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {c.role}{c.age ? ` · ${c.age}` : ""}
+                    </div>
+                    {c.description && <p className="mt-1 text-xs">{c.description}</p>}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
+
           {q.data.cover_url && (
             <div className="rounded-2xl border bg-card p-2">
-              <div className="text-xs text-muted-foreground p-2">الغلاف المولَّد</div>
+              <div className="text-xs text-muted-foreground p-2">الغلاف</div>
               <img src={q.data.cover_url} alt="cover" className="w-full aspect-[3/4] object-cover rounded-xl" />
             </div>
           )}
         </div>
 
-        {/* Pages + cost + events */}
+        {/* Right column */}
         <div className="lg:col-span-2 space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label={t("total_revenue")} value={`${order.amount_iqd?.toLocaleString() ?? 0} ${t("iqd")}`} />
@@ -135,7 +222,6 @@ function OrderDetail() {
             <Stat label={t("col_margin")} value={cost?.margin_pct != null ? `${cost.margin_pct}%` : "—"} />
           </div>
 
-          {/* Story pages grid */}
           {pages.length > 0 && (
             <div className="rounded-2xl border bg-card p-4">
               <div className="mb-3 text-sm font-semibold">{t("story_pages")}</div>
@@ -145,19 +231,23 @@ function OrderDetail() {
                     {p.image_url ? (
                       <img src={p.image_url} alt={`page-${p.page_number}`} className="aspect-square w-full object-cover" />
                     ) : (
-                      <div className="aspect-square w-full flex items-center justify-center bg-secondary/30 text-muted-foreground">…</div>
+                      <div className="aspect-square w-full flex items-center justify-center bg-secondary/30 text-muted-foreground text-xs">
+                        {imagesReady ? "—" : "بانتظار الدفع"}
+                      </div>
                     )}
                     <div className="p-3">
                       <div className="flex items-center justify-between mb-1">
                         <div className="text-xs font-bold text-primary">{t("page_n")} {p.page_number}</div>
-                        <button
-                          onClick={() => regen(p.page_number)}
-                          disabled={regening === p.page_number}
-                          className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-secondary disabled:opacity-60"
-                        >
-                          {regening === p.page_number ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
-                          {t("regenerate_image")}
-                        </button>
+                        {imagesReady && (
+                          <button
+                            onClick={() => regen(p.page_number)}
+                            disabled={regening === p.page_number}
+                            className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-secondary disabled:opacity-60"
+                          >
+                            {regening === p.page_number ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+                            {t("regenerate_image")}
+                          </button>
+                        )}
                       </div>
                       <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">{p.text}</p>
                     </div>
