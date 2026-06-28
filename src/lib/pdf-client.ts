@@ -31,11 +31,20 @@ function hexToRgb(hex: string | null | undefined, fallback: [number, number, num
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 }
 
-function shapeArabic(text: string): string {
-  // Lazy import to keep main bundle slim.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const mod = require("arabic-persian-reshaper") as { ArabicShaper: { convertArabic: (s: string) => string } };
-  const reshaped = mod.ArabicShaper.convertArabic(text);
+let _shaper: { convertArabic: (s: string) => string } | null = null;
+async function loadShaper() {
+  if (_shaper) return _shaper;
+  const mod = (await import("arabic-persian-reshaper")) as unknown as
+    | { ArabicShaper: { convertArabic: (s: string) => string } }
+    | { default: { ArabicShaper: { convertArabic: (s: string) => string } } };
+  const ns = (mod as { default?: unknown }).default ?? mod;
+  _shaper = (ns as { ArabicShaper: { convertArabic: (s: string) => string } }).ArabicShaper;
+  return _shaper;
+}
+
+function shapeArabicSync(text: string): string {
+  if (!_shaper) return text; // should be preloaded
+  const reshaped = _shaper.convertArabic(text);
   // pdf-lib draws LTR; reverse so the visual order is right-to-left.
   return reshaped.split("").reverse().join("");
 }
