@@ -5,6 +5,8 @@ export type Tier = "pdf" | "printed" | "video";
 export const DEFAULT_BASE_PAGES = 5;
 export const MIN_PAGES = 4;
 export const MAX_PAGES = 16;
+export const MIN_CHARACTERS = 1;
+export const MAX_CHARACTERS = 5;
 
 export type PricingLike = {
   tier_pdf_iqd: number | string;
@@ -13,19 +15,36 @@ export type PricingLike = {
   per_page_iqd_pdf: number | string;
   per_page_iqd_printed: number | string;
   per_page_iqd_video: number | string;
+  per_character_iqd_pdf?: number | string;
+  per_character_iqd_printed?: number | string;
+  per_character_iqd_video?: number | string;
+  max_characters?: number | string;
   print_cost_iqd?: number | string;
   shipping_cost_iqd?: number | string;
 };
 
-export function computeTierAmount(tier: Tier, pageCount: number, p: PricingLike): number {
-  const extra = Math.max(0, pageCount - DEFAULT_BASE_PAGES);
+export function computeTierAmount(
+  tier: Tier,
+  pageCount: number,
+  p: PricingLike,
+  characterCount: number = 1,
+): number {
+  const extraPages = Math.max(0, pageCount - DEFAULT_BASE_PAGES);
+  const extraChars = Math.max(0, characterCount - 1);
   const base = Number(
     tier === "pdf" ? p.tier_pdf_iqd : tier === "printed" ? p.tier_printed_iqd : p.tier_video_iqd,
   );
   const perPage = Number(
     tier === "pdf" ? p.per_page_iqd_pdf : tier === "printed" ? p.per_page_iqd_printed : p.per_page_iqd_video,
   );
-  return Math.round(base + extra * perPage);
+  const perChar = Number(
+    tier === "pdf"
+      ? p.per_character_iqd_pdf ?? 1500
+      : tier === "printed"
+        ? p.per_character_iqd_printed ?? 3000
+        : p.per_character_iqd_video ?? 6000,
+  );
+  return Math.round(base + extraPages * perPage + extraChars * perChar);
 }
 
 export const DEFAULT_PRICING: PricingLike = {
@@ -35,6 +54,10 @@ export const DEFAULT_PRICING: PricingLike = {
   per_page_iqd_pdf: 400,
   per_page_iqd_printed: 1200,
   per_page_iqd_video: 2500,
+  per_character_iqd_pdf: 1500,
+  per_character_iqd_printed: 3000,
+  per_character_iqd_video: 6000,
+  max_characters: 5,
   print_cost_iqd: 0,
   shipping_cost_iqd: 0,
 };
