@@ -93,6 +93,7 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
   const [{ PDFDocument, rgb, StandardFonts }, fontkitMod] = await Promise.all([
     import("pdf-lib"),
     import("@pdf-lib/fontkit"),
+    loadShaper(),
   ]);
   const fontkit = (fontkitMod as unknown as { default?: unknown }).default ?? fontkitMod;
 
