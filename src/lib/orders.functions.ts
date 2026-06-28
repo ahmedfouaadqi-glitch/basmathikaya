@@ -15,6 +15,7 @@ const CharacterInput = z.object({
   age: z.coerce.number().int().min(1).max(120).optional().nullable(),
   role: z.enum(["protagonist", "friend", "family", "pet", "other"]).default("protagonist"),
   description: z.string().trim().max(300).optional().default(""),
+  photo_path: z.string().trim().max(500).optional().nullable(),
 });
 
 const CreateInput = z.object({
@@ -23,6 +24,7 @@ const CreateInput = z.object({
   custom_instructions: z.string().trim().max(500).optional().default(""),
   language: z.enum(["ar", "en"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
+  draft_id: z.string().trim().min(1).max(64).optional(),
 });
 
 type PricingRow = PricingLike & {
@@ -120,6 +122,7 @@ export const createOrderDraft = createServerFn({ method: "POST" })
       age: c.age ?? null,
       role: c.role,
       description: c.description ?? "",
+      photo_path: c.photo_path ?? null,
       is_primary: i === 0,
       position: i,
     }));
@@ -556,7 +559,7 @@ export const adminGetOrder = createServerFn({ method: "GET" })
       supabaseAdmin.from("generations").select("*").eq("order_id", data.orderId).maybeSingle(),
       supabaseAdmin.from("order_costs_v").select("*").eq("order_id", data.orderId).maybeSingle(),
       supabaseAdmin.from("story_pages").select("page_number, text, image_path").eq("order_id", data.orderId).order("page_number"),
-      supabaseAdmin.from("order_characters").select("name, age, role, description, is_primary, position").eq("order_id", data.orderId).order("position"),
+      supabaseAdmin.from("order_characters").select("name, age, role, description, is_primary, position, photo_path").eq("order_id", data.orderId).order("position"),
     ]);
     const { data: user } = order?.user_id
       ? await supabaseAdmin.from("users").select("id, full_name, phone, created_at").eq("id", order.user_id).maybeSingle()
@@ -583,10 +586,20 @@ export const adminGetOrder = createServerFn({ method: "GET" })
         return { page_number: p.page_number, text: p.text, image_url: url };
       }),
     );
+    const charactersWithUrls = await Promise.all(
+      (chars ?? []).map(async (c) => {
+        let photo_url: string | null = null;
+        if (c.photo_path) {
+          const s = await supabaseAdmin.storage.from("story-uploads").createSignedUrl(c.photo_path, 60 * 60);
+          photo_url = s.data?.signedUrl ?? null;
+        }
+        return { ...c, photo_url };
+      }),
+    );
     return {
       order,
       user,
-      characters: chars ?? [],
+      characters: charactersWithUrls,
       events: events ?? [],
       gen,
       cost,

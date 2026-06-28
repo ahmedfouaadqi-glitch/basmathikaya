@@ -149,15 +149,26 @@ export async function buildStoryPdfBytes(input: StoryPdfInput): Promise<Uint8Arr
       y -= textSize + lineGap;
     }
 
-    // Footer
+    // Footer — page number + brand line
     const footer = isAr ? `صفحة ${p.number}` : `Page ${p.number}`;
     const footerShaped = shapeLine(footer, isAr);
     page.drawText(footerShaped, {
       x: (W - regular.widthOfTextAtSize(footerShaped, 10)) / 2,
-      y: 24,
+      y: 34,
       size: 10,
       font: regular,
       color: rgb(0.55, 0.55, 0.55),
+    });
+    const brandLine = isAr
+      ? "بصمة حكاية — جزء من نظام معروف"
+      : "Basma Hekaya — part of the Maaroof system";
+    const brandShaped = shapeLine(brandLine, true);
+    page.drawText(brandShaped, {
+      x: (W - bold.widthOfTextAtSize(brandShaped, 9)) / 2,
+      y: 18,
+      size: 9,
+      font: bold,
+      color: rgb(0.09, 0.61, 0.64),
     });
   }
 
