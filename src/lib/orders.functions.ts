@@ -112,6 +112,7 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         page_count: data.page_count,
         moods: data.moods,
         custom_instructions: data.custom_instructions || null,
+        image_quality_tier: data.image_quality_tier,
       })
       .select("id, order_number")
       .single();
