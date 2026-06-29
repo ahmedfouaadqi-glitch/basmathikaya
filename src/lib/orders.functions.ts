@@ -162,12 +162,14 @@ async function generateOneImage(args: {
   prompt: string;
   storagePath: string;
   pricing: PricingRow;
+  model?: string;
+  referenceImages?: string[];
 }): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { callImage, estimateImageCostUsd } = await import("./ai-gateway.server");
-  const imgModel = "google/gemini-3.1-flash-image";
+  const imgModel = args.model ?? "google/gemini-3.1-flash-image";
   try {
-    const img = await callImage({ model: imgModel, prompt: args.prompt });
+    const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
     const buf = Buffer.from(img.b64, "base64");
     const up = await supabaseAdmin.storage
       .from("story-covers")
@@ -198,6 +200,48 @@ async function generateOneImage(args: {
       "error",
       msg,
     );
+    return null;
+  }
+}
+
+/** Download a stored character photo and return a base64 data URL. Caps at ~1MB. */
+async function photoToDataUrl(path: string): Promise<string | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const dl = await supabaseAdmin.storage.from("story-uploads").download(path);
+    if (dl.error || !dl.data) return null;
+    const buf = Buffer.from(await dl.data.arrayBuffer());
+    if (buf.byteLength > 2_000_000) return null; // skip if too big; vision still gets brief
+    const mime = dl.data.type || "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Run Gemini vision over the uploaded photo to extract a stable visual brief. */
+async function analyzeCharacterPhoto(args: {
+  dataUrl: string;
+  name: string;
+  language: "ar" | "en";
+}): Promise<string | null> {
+  try {
+    const { callChat } = await import("./ai-gateway.server");
+    const isAr = args.language === "ar";
+    const prompt = isAr
+      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (4-6 أسطر، عربي) مايلي: الجنس التقريبي، الفئة العمرية، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، الملابس البارزة، أي ميزات مميزة. لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.`
+      : `Analyze this person (${args.name}) and describe in 4-6 short lines: apparent gender, age group, skin tone, hair (length/color/style), eye color, notable clothing, distinctive features. No real names. Pure visual brief for drawing a consistent cartoon character.`;
+    const r = await callChat({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "user", content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: args.dataUrl } },
+        ] },
+      ],
+    });
+    return r.content.trim().slice(0, 800);
+  } catch {
     return null;
   }
 }
