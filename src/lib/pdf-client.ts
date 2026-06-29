@@ -312,12 +312,13 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
     const pdfH = pdf.internal.pageSize.getHeight();
 
     const pageEls = Array.from(host.querySelectorAll<HTMLElement>("[data-pdf-page]"));
+    // Adaptive raster scale per device. iOS Safari has a hard ~16MP/canvas cap.
+    const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
+    const scale = isIOS ? 1.4 : isMobile ? Math.min(1.6, dpr) : 2;
+    const jpegQuality = isIOS ? 0.82 : 0.9;
+
     for (let i = 0; i < pageEls.length; i++) {
       const el = pageEls[i];
-      // Cap scale on mobile to avoid iOS Safari memory crashes; use 2 on desktop.
-      const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
-      const isMobile = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches;
-      const scale = isMobile ? Math.min(1.5, dpr) : 2;
       const canvas = await html2canvas(el, {
         scale,
         useCORS: true,
@@ -327,10 +328,15 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
         height: PAGE_H,
         windowWidth: PAGE_W,
         windowHeight: PAGE_H,
+        imageTimeout: 15000,
       });
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      const dataUrl = canvas.toDataURL("image/jpeg", jpegQuality);
+      // Free canvas memory immediately (matters on iOS for ≥5 pages).
+      canvas.width = 0; canvas.height = 0;
       if (i > 0) pdf.addPage();
       pdf.addImage(dataUrl, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
+      // Yield to the event loop so Safari can reclaim memory between pages.
+      await new Promise((r) => setTimeout(r, 0));
     }
 
     const safeTitle = (a.title || "story").replace(/[^\p{L}\p{N}\s-]+/gu, "").trim().slice(0, 40) || "story";
