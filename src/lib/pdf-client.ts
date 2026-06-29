@@ -43,6 +43,43 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Pre-decode + downscale + JPEG-compress a large remote image so html2canvas
+ * doesn't blow up iOS memory. Keeps native aspect ratio (no cropping).
+ */
+async function loadAndCompressImage(
+  url: string | null,
+  opts: { maxEdge: number; quality: number },
+): Promise<string | null> {
+  if (!url) return null;
+  const raw = await loadImageAsDataUrl(url);
+  if (!raw) return null;
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.crossOrigin = "anonymous";
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error("img"));
+      i.src = raw;
+    });
+    const { width: w, height: h } = img;
+    const scale = Math.min(1, opts.maxEdge / Math.max(w, h));
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    if (scale >= 1 && raw.length < 600_000) return raw; // already small enough
+    const c = document.createElement("canvas");
+    c.width = tw; c.height = th;
+    const ctx = c.getContext("2d");
+    if (!ctx) return raw;
+    ctx.fillStyle = "#F0E6D2";
+    ctx.fillRect(0, 0, tw, th);
+    ctx.drawImage(img, 0, 0, tw, th);
+    return c.toDataURL("image/jpeg", opts.quality);
+  } catch {
+    return raw;
+  }
+}
+
 async function ensureTajawal(): Promise<void> {
   if (!document.getElementById("tajawal-pdf-font")) {
     const link = document.createElement("link");
