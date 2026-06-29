@@ -80,6 +80,7 @@ function CreatePage() {
   const [moods, setMoods] = useState<string[]>(["adventure"]);
   const [instructions, setInstructions] = useState("");
   const [pages, setPages] = useState<number>(5);
+  const [qualityTier, setQualityTier] = useState<"fast" | "standard" | "premium">("standard");
   const [submitting, setSubmitting] = useState(false);
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
