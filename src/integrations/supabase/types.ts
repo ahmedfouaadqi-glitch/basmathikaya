@@ -191,6 +191,7 @@ export type Database = {
           photo_path: string | null
           position: number
           role: string
+          visual_brief: string | null
         }
         Insert: {
           age?: number | null
@@ -203,6 +204,7 @@ export type Database = {
           photo_path?: string | null
           position?: number
           role?: string
+          visual_brief?: string | null
         }
         Update: {
           age?: number | null
@@ -215,6 +217,7 @@ export type Database = {
           photo_path?: string | null
           position?: number
           role?: string
+          visual_brief?: string | null
         }
         Relationships: [
           {
@@ -243,6 +246,7 @@ export type Database = {
           customer_phone: string
           delivered_at: string | null
           id: string
+          image_quality_tier: string | null
           images_error: string | null
           images_status: string
           moods: string[]
@@ -268,6 +272,7 @@ export type Database = {
           customer_phone: string
           delivered_at?: string | null
           id?: string
+          image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
           moods?: string[]
@@ -293,6 +298,7 @@ export type Database = {
           customer_phone?: string
           delivered_at?: string | null
           id?: string
+          image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
           moods?: string[]
@@ -359,6 +365,7 @@ export type Database = {
       pricing_settings: {
         Row: {
           id: number
+          image_quality_tier: string
           iqd_per_usd: number
           max_characters: number
           per_character_iqd_pdf: number
@@ -369,7 +376,9 @@ export type Database = {
           per_page_iqd_video: number
           print_cost_iqd: number
           shipping_cost_iqd: number
+          tier_fast_extra_iqd: number
           tier_pdf_iqd: number
+          tier_premium_extra_iqd: number
           tier_printed_iqd: number
           tier_video_iqd: number
           updated_at: string
@@ -377,6 +386,7 @@ export type Database = {
         }
         Insert: {
           id?: number
+          image_quality_tier?: string
           iqd_per_usd?: number
           max_characters?: number
           per_character_iqd_pdf?: number
@@ -387,7 +397,9 @@ export type Database = {
           per_page_iqd_video?: number
           print_cost_iqd?: number
           shipping_cost_iqd?: number
+          tier_fast_extra_iqd?: number
           tier_pdf_iqd?: number
+          tier_premium_extra_iqd?: number
           tier_printed_iqd?: number
           tier_video_iqd?: number
           updated_at?: string
@@ -395,6 +407,7 @@ export type Database = {
         }
         Update: {
           id?: number
+          image_quality_tier?: string
           iqd_per_usd?: number
           max_characters?: number
           per_character_iqd_pdf?: number
@@ -405,7 +418,9 @@ export type Database = {
           per_page_iqd_video?: number
           print_cost_iqd?: number
           shipping_cost_iqd?: number
+          tier_fast_extra_iqd?: number
           tier_pdf_iqd?: number
+          tier_premium_extra_iqd?: number
           tier_printed_iqd?: number
           tier_video_iqd?: number
           updated_at?: string
@@ -454,6 +469,48 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      story_fingerprints: {
+        Row: {
+          created_at: string
+          hash: string
+          opening: string | null
+          order_id: string | null
+          plan_seed: string
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          hash: string
+          opening?: string | null
+          order_id?: string | null
+          plan_seed: string
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          hash?: string
+          opening?: string | null
+          order_id?: string | null
+          plan_seed?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_fingerprints_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "story_fingerprints_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       story_pages: {
         Row: {

@@ -1,83 +1,86 @@
+## الخطة
 
-## الأهداف
+### 1) تحسين توليد PDF (وضوح + ضغط ذكي بدون قص أو تبعثر)
 
-تنفيذ سبع مهام: اختبار PDF فعلي على محاكي iPhone/Android، ضبط الهيدر على كل المقاسات، تحسين تخزين PWA المؤقت، إخفاء بوابة الإدارة من واجهة المستخدم وحصرها برقمين هاتف، موازنة النص مع الصورة في صفحات القصة، تكبير وتحريك الشعار، وتكبير أيقونة التثبيت.
+`src/lib/pdf-client.ts` يُعاد ضبطه ليكون متكيّفاً مع الجهاز:
 
----
+- **اكتشاف الجهاز**: تحديد iOS/Android/Desktop عبر `userAgent` + `devicePixelRatio` + `deviceMemory` (إن توفّر).
+- **مقياس Canvas تكيّفي**: 
+  - Desktop: `scale = 2`
+  - Android (>=4GB ذاكرة): `scale = 1.75`
+  - iPhone/iPad: `scale = 1.5` (لمنع كراش WebKit)
+  - أجهزة ضعيفة (<3GB): `scale = 1.25`
+- **ضغط الصور قبل html2canvas**: كل صورة تُمرَّر عبر canvas مساعد لإعادة قياسها إلى الحد الأقصى المطلوب (مثلاً 1400px على الجانب الأطول للغلاف، 1100px للصفحات) ثم تُحوَّل إلى JPEG/WebP بجودة 0.85. هذا يمنع تمدّد PNG العملاقة في الذاكرة على iOS.
+- **منع القص**: حاوية الصورة تستخدم `object-fit: contain` مع نسبة عرض ثابتة (4:3 للصفحة، 3:4 للغلاف) وخلفية كريمية متناسقة بدل قطع جزء من الصورة.
+- **إطارات مناسبة**: لكل صفحة إطار مزخرف خفيف بلون الثيم (accent) + ظل ناعم + زوايا مستديرة. الغلاف يأخذ إطاراً مزدوجاً (ذهبي + لون رئيسي) مع زخرفة زاوية بسيطة.
+- **جودة JPEG النهائية للـPDF**: 0.88 على الموبايل و0.94 على الديسكتوب، مع `compress: true` في jsPDF.
+- **معالجة الصفحة صفحة-بصفحة**: بناء كل صفحة في host ثم إزالتها قبل بناء التالية → يخفّض ذروة الذاكرة جذرياً على iOS.
+- **انتظار تحميل الخطوط والصور**: `document.fonts.ready` + `img.decode()` لكل صورة قبل اللقطة.
 
-## 1) اختبار PDF على iPhone وAndroid
+### 2) توليد صور مطابقة للشخصيات المرفوعة
 
-- تشغيل Playwright بمحاكاة `iPhone 14 Pro` و`Pixel 7` على مسار `/preview/$orderId` لطلب تجريبي جاهز.
-- فتح PDF المُولَّد، تحويله إلى صور صفحة-بصفحة عبر `pdftoppm`، ومعاينة:
-  - عدم اقتطاع الصور (الإطار الكامل ضمن A4).
-  - تشكيل الحروف العربية (لا حروف منفصلة ولا انعكاس).
-  - عدم تبعثر الفقرات (سطر فارغ بين الفقرات، محاذاة يمين سليمة).
-- إصلاحات متوقعة في `src/lib/pdf-client.ts`:
-  - استبدال `object-fit: cover` بـ `contain` على غلاف وصفحات القصة لمنع قص الصور على الشاشات الصغيرة.
-  - استخدام `html2canvas-pro` بـ `scale: window.devicePixelRatio >= 2 ? 2 : 1.5` لتقليل استهلاك الذاكرة على iOS.
-  - انتظار `document.fonts.ready` + تأخير `requestAnimationFrame` مزدوج قبل الالتقاط لضمان تحميل خط Tajawal فعلياً قبل snapshot (مصدر شائع لتبعثر النص على iOS).
-  - تثبيت `lang="ar"` و`dir="rtl"` على عنصر الـhost لا على الأطفال فقط حتى يتحول bidi بشكل صحيح.
+حالياً الصور تُولَّد من وصف نصي فقط بدون تحليل صور المستخدم. التحديث:
 
-## 2) ضبط الهيدر على جميع المقاسات (وموازنة الموازنة بين نص وصورة)
+**أ. تحليل الصور (Vision) قبل كتابة القصة** — في `generateFullStory`:
+- بعد جلب الشخصيات، إذا كان `photo_path` موجوداً، تُحمَّل الصورة من Supabase storage وتُرسَل إلى `google/gemini-2.5-pro` (multimodal) مع طلب JSON يصف: الجنس، الفئة العمرية التقريبية، لون البشرة، الشعر (طول/لون/تسريحة)، العينين، الملابس، ملامح مميزة. يُحفظ الناتج في `order_characters.visual_brief` (عمود جديد).
+- ناتج التحليل يُدمَج في `character_visual` بدل الاعتماد على وصف المستخدم النصي وحده → الشخصية تظهر متطابقة في كل صفحة.
 
-- في `src/routes/__root.tsx`:
-  - تحويل صف الهيدر إلى `grid grid-cols-[auto_minmax(0,1fr)_auto]` على الموبايل/التابلت، وflex على ≥`lg`، مع `min-w-0` و`truncate` للعنوان و`shrink-0` للشعار وأزرار اللغة/القائمة.
-  - رفع نقطة كسر القائمة من `md` إلى `lg` لأن التابلت (768–1023px) لا يتسع للروابط الثلاثة + اسم العلامة + زر اللغة.
-  - تقليل padding على ≤sm وزيادة الفجوات على ≥md لمنع التراكب أثناء انتقال إطار PWA.
+**ب. توليد صور عالية الجودة باستخدام كل النماذج**:
+- إعداد جديد في `pricing_settings`: `image_quality_tier` (fast/standard/premium).
+- **standard (افتراضي)**: `google/gemini-3.1-flash-image` (الحالي).
+- **premium**: `google/gemini-3-pro-image` للغلاف، `google/gemini-3.1-flash-image` للصفحات الداخلية.
+- **fast**: `openai/gpt-image-1-mini`.
+- التكلفة الإضافية تظهر في الأدمن ويختار المستخدم المستوى عند الطلب.
 
-## 3) تحسين تخزين PWA المؤقت ومنع تراكب الهيدر بعد التثبيت
+**ج. إعادة استخدام صورة الشخصية في طلب التوليد** — multimodal image input لـ Gemini image models: يُمرَّر `image_url` (data URL لصورة المستخدم) كمرجع بصري داخل `messages` → الناتج يحاكي ملامح الشخص. `callImage` في `src/lib/ai-gateway.server.ts` يُمدَّد ليقبل `referenceImages?: string[]`.
 
-- إنشاء/تحديث `public/manifest.webmanifest`: `display: "standalone"`, `start_url: "/?source=pwa"`, `theme_color: "#169CA3"`, `background_color: "#FFFBF5"`.
-- عدم إدخال service worker جديد (لا أوفلاين مطلوب) — الإبقاء على المنهج manifest-only كي لا تُكسر معاينة Lovable.
-- معالجة تراكب الهيدر بعد التثبيت: إضافة `padding-top: env(safe-area-inset-top)` على الهيدر + `viewport-fit=cover` (موجود) لتجنّب اختفاء العناوين خلف notch iOS، وضبط ارتفاع ثابت أدنى للهيدر `min-h-[56px]` لمنع القفز بعد تحميل الشعار.
+**د. أسلوب إطار الصور داخل الـPDF**:
+- الغلاف: عنوان كبير فوق الصورة بإطار ذهبي مزدوج، اسم البطل، شارات الأجواء.
+- الصفحات: الصورة في إطار accent 3px + ظل، يليها فاصل ذهبي، ثم النص.
+- صفحة شكر ختامية: شعار + تيكتوك (موجودة بالفعل، يُحسَّن تصميمها).
 
-## 4) إخفاء الإدارة من الكود وحصرها برقمين
+### 3) منع تكرار القصص والنصوص
 
-- حذف رابط "الإدارة" من قائمة الهيدر (سطح المكتب والموبايل) في `src/routes/__root.tsx`.
-- إبقاء مسار `/admin/login` يعمل لكن غير مكتشف من الواجهة — الدخول فقط لمن يعرف الرابط.
-- في `src/lib/admin-session.server.ts`:
-  - تغيير التحقق إلى قائمة بيضاء `["07733570130", "07705828333"]` مع الرمز المشترك `7979`.
-  - مقارنة عبر `timingSafeEqual` على كل من رقم الهاتف ورمز الدخول.
-- إزالة أي ذكر نصي للوحة الإدارة من `i18n.tsx` في واجهة المستخدم العام.
+- **بصمة محتوى**: عند توليد الخطة، نحسب hash من (mood + custom_instructions + character_names normalized) ونحفظه في `story_fingerprints (hash text primary key, order_id, plan_seed text, created_at)`.
+- **بذرة تنويع**: قبل استدعاء Gemini للنص، نضيف إلى الـuser prompt: 
+  - رقم عشوائي `creative_seed` (8 أرقام)
+  - قائمة بعناوين/افتتاحيات آخر 5 طلبات لنفس البصمة مع تعليمة صريحة: "تجنّب هذه الافتتاحيات والحبكات السابقة".
+- **فحص تشابه بعد التوليد**: إذا أول 200 حرف من القصة الجديدة تطابق سابقتها (Jaccard على المفردات > 0.7) نُعيد التوليد مرة واحدة بـseed مختلف.
+- نفس الفكرة على مستوى الصفحة: prompts الصور تأخذ `style_seed` يختلف لكل قصة (مثلاً نوع الإضاءة/الزاوية) لتنويع الشكل البصري.
 
-## 5) موازنة النص والصورة في صفحات PDF
+### 4) قاعدة البيانات (Migration)
 
-- في `buildPageHtml` ضمن `src/lib/pdf-client.ts`:
-  - تقليل ارتفاع كتلة الصورة من `520px` إلى `420px` لإفساح المجال للنص.
-  - زيادة `font-size` من 20 إلى 22 و`line-height` من 1.95 إلى 2.1، وإضافة `text-align: justify` مع `text-justify: inter-word`.
-  - زيادة الـpadding أسفل الصورة قبل النص إلى 32px، وإضافة فاصل ذهبي خفيف.
-- تحديث `generateFullStory` في `src/lib/orders.functions.ts`: رفع الحد الأدنى المطلوب من Gemini لكل صفحة من ~2-3 جمل إلى **4-6 جمل (60-90 كلمة عربية)** ليتوازن النص بصرياً مع الصورة.
+```sql
+alter table public.order_characters add column visual_brief text;
+alter table public.pricing_settings add column image_quality_tier text 
+  not null default 'standard' check (image_quality_tier in ('fast','standard','premium'));
+alter table public.orders add column image_quality_tier text;
 
-## 6) تكبير وتحريك الشعار
+create table public.story_fingerprints (
+  hash text primary key,
+  order_id uuid references public.orders(id) on delete cascade,
+  plan_seed text not null,
+  title text,
+  opening text,
+  created_at timestamptz not null default now()
+);
+grant select, insert on public.story_fingerprints to authenticated;
+grant all on public.story_fingerprints to service_role;
+alter table public.story_fingerprints enable row level security;
+create policy "service only" on public.story_fingerprints for all using (false);
+```
 
-- الصفحة الرئيسية `src/routes/index.tsx`: تكبير الشعار البطل إلى `h-48 md:h-64` وإضافة فئة `animate-logo-float` (حركة عائمة + توهج مائي تحته).
-- الهيدر: زيادة الحجم إلى `h-12 sm:h-14 md:h-16` مع تطبيق أنيميشن خفيف (`animate-spin-slow` عند hover فقط حتى لا يشتت).
-- إضافة keyframes في `src/styles.css`:
-  - `@keyframes logo-float` — حركة up/down 6s.
-  - `@keyframes water-ripple` — موجة شفافة `::after` تحت الشعار.
-  - `@keyframes spin-slow` — دوران 12s.
+### 5) ملفات ستُعدَّل
 
-## 7) تكبير أيقونة التثبيت
+- `src/lib/pdf-client.ts` — إعادة كتابة منطق Canvas/ضغط/إطارات.
+- `src/lib/ai-gateway.server.ts` — دعم `referenceImages` في `callImage` + إضافة pricing للنماذج الجديدة.
+- `src/lib/orders.functions.ts` — تحليل صور الشخصيات، seed التنويع، فحص البصمة، تمرير صور مرجعية للمولّد، اختيار النموذج حسب الـtier.
+- `src/routes/create.tsx` — اختيار مستوى الجودة (سريع/قياسي/متميّز) مع عرض السعر الإضافي.
+- `src/routes/admin.settings.tsx` — ضبط أسعار الـtiers.
+- `supabase/migrations/*` — الجداول/الأعمدة أعلاه.
 
-- إعادة توليد الأيقونات بحدّ أدنى للحشوة (padding) أصغر وأقصى استخدام للإطار:
-  - `public/icons/icon-192.png`، `icon-512.png`، `icon-maskable-512.png`، `apple-touch-icon.png` (180px).
-- تحديث `manifest.webmanifest`:
-  - إضافة `purpose: "any"` و`purpose: "maskable"` بأيقونات منفصلة.
-  - رفع `sizes` ليشمل 192/256/384/512.
-- على Android: ضمان أن منطقة "الأمان" داخل maskable تستخدم ~90% من المساحة (بدلاً من 60-70% الحالية) ليظهر الشعار أكبر على الشاشة الرئيسية.
+### نقاط فنية
 
----
-
-## ملفات ستُعدَّل
-- `src/lib/pdf-client.ts` (موازنة + جودة + iOS fonts)
-- `src/lib/orders.functions.ts` (طول النص في كل صفحة)
-- `src/routes/__root.tsx` (هيدر متجاوب + حذف رابط الإدارة + safe-area)
-- `src/routes/index.tsx` (تكبير شعار البطل + الأنيميشن)
-- `src/styles.css` (keyframes)
-- `src/lib/admin-session.server.ts` (قائمة أرقام بيضاء)
-- `src/lib/i18n.tsx` (إزالة nav_admin من الواجهة)
-- `public/manifest.webmanifest` + إعادة توليد أيقونات `public/icons/*`
-
-## التحقق
-- بناء Vite ناجح + Playwright على iPhone/Pixel: لقطات لصفحة PDF + الهيدر في وضعَي portrait/landscape.
-- اختبار يدوي لتدفق `/admin/login` بالرقمين الجديدين، والتأكد من اختفاء الرابط نهائياً من قوائم الموقع.
+- استدعاءات Gemini multimodal تُمرَّر بصيغة `messages[].content[]` بعناصر `{type:"image_url", image_url:{url:"data:image/...;base64,..."}}` للتحليل، وبصيغة OpenRouter image generation للتوليد (`modalities:["image","text"]`).
+- تكلفة كل صورة تُسجَّل في `generation_events` (موجود) بالنموذج المستخدم فعلاً → الأدمن يرى تكلفة دقيقة لكل tier.
+- صور المرجع تُحدَّد سقف حجمها 1024×1024 قبل الإرسال لتقليل token cost.
