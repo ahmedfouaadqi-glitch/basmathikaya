@@ -383,6 +383,7 @@ function CreatePage() {
           </div>
         </div>
 
+        <button
           type="submit"
           disabled={submitting}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 text-base font-bold text-primary-foreground shadow-warm disabled:opacity-60"
