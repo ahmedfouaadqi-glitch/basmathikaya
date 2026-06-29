@@ -270,8 +270,12 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
     const pageEls = Array.from(host.querySelectorAll<HTMLElement>("[data-pdf-page]"));
     for (let i = 0; i < pageEls.length; i++) {
       const el = pageEls[i];
+      // Cap scale on mobile to avoid iOS Safari memory crashes; use 2 on desktop.
+      const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
+      const isMobile = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches;
+      const scale = isMobile ? Math.min(1.5, dpr) : 2;
       const canvas = await html2canvas(el, {
-        scale: 2,
+        scale,
         useCORS: true,
         backgroundColor: "#FFFBF5",
         logging: false,
