@@ -156,6 +156,7 @@ function CreatePage() {
           custom_instructions: instructions.trim(),
           language: lang,
           page_count: pages,
+          image_quality_tier: qualityTier,
           draft_id: draftIdRef.current,
         },
       });
