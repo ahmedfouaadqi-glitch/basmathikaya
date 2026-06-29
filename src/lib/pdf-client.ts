@@ -43,6 +43,43 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Pre-decode + downscale + JPEG-compress a large remote image so html2canvas
+ * doesn't blow up iOS memory. Keeps native aspect ratio (no cropping).
+ */
+async function loadAndCompressImage(
+  url: string | null,
+  opts: { maxEdge: number; quality: number },
+): Promise<string | null> {
+  if (!url) return null;
+  const raw = await loadImageAsDataUrl(url);
+  if (!raw) return null;
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.crossOrigin = "anonymous";
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error("img"));
+      i.src = raw;
+    });
+    const { width: w, height: h } = img;
+    const scale = Math.min(1, opts.maxEdge / Math.max(w, h));
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    if (scale >= 1 && raw.length < 600_000) return raw; // already small enough
+    const c = document.createElement("canvas");
+    c.width = tw; c.height = th;
+    const ctx = c.getContext("2d");
+    if (!ctx) return raw;
+    ctx.fillStyle = "#F0E6D2";
+    ctx.fillRect(0, 0, tw, th);
+    ctx.drawImage(img, 0, 0, tw, th);
+    return c.toDataURL("image/jpeg", opts.quality);
+  } catch {
+    return raw;
+  }
+}
+
 async function ensureTajawal(): Promise<void> {
   if (!document.getElementById("tajawal-pdf-font")) {
     const link = document.createElement("link");
@@ -217,11 +254,18 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
 
   await ensureTajawal();
 
-  // Preload images as data URLs (avoids CORS-tainted canvas).
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isMobile = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches;
+  // Per-device caps to keep canvas memory under iOS Safari's ~224MB limit.
+  const imgMaxEdge = isIOS ? 1100 : isMobile ? 1300 : 1600;
+  const imgQuality = isIOS ? 0.82 : 0.9;
+
+  // Preload images (compressed) as data URLs.
   const [coverData, logoData, ...pageImgs] = await Promise.all([
-    a.coverUrl ? loadImageAsDataUrl(a.coverUrl) : Promise.resolve(null),
+    loadAndCompressImage(a.coverUrl, { maxEdge: imgMaxEdge, quality: imgQuality }),
     loadImageAsDataUrl(brandLogoUrl),
-    ...a.pages.map((p) => (p.imageUrl ? loadImageAsDataUrl(p.imageUrl) : Promise.resolve(null))),
+    ...a.pages.map((p) => loadAndCompressImage(p.imageUrl, { maxEdge: imgMaxEdge, quality: imgQuality })),
   ]);
 
   // Offscreen host
@@ -268,12 +312,13 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
     const pdfH = pdf.internal.pageSize.getHeight();
 
     const pageEls = Array.from(host.querySelectorAll<HTMLElement>("[data-pdf-page]"));
+    // Adaptive raster scale per device. iOS Safari has a hard ~16MP/canvas cap.
+    const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
+    const scale = isIOS ? 1.4 : isMobile ? Math.min(1.6, dpr) : 2;
+    const jpegQuality = isIOS ? 0.82 : 0.9;
+
     for (let i = 0; i < pageEls.length; i++) {
       const el = pageEls[i];
-      // Cap scale on mobile to avoid iOS Safari memory crashes; use 2 on desktop.
-      const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
-      const isMobile = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches;
-      const scale = isMobile ? Math.min(1.5, dpr) : 2;
       const canvas = await html2canvas(el, {
         scale,
         useCORS: true,
@@ -283,10 +328,15 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
         height: PAGE_H,
         windowWidth: PAGE_W,
         windowHeight: PAGE_H,
+        imageTimeout: 15000,
       });
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      const dataUrl = canvas.toDataURL("image/jpeg", jpegQuality);
+      // Free canvas memory immediately (matters on iOS for ≥5 pages).
+      canvas.width = 0; canvas.height = 0;
       if (i > 0) pdf.addPage();
       pdf.addImage(dataUrl, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
+      // Yield to the event loop so Safari can reclaim memory between pages.
+      await new Promise((r) => setTimeout(r, 0));
     }
 
     const safeTitle = (a.title || "story").replace(/[^\p{L}\p{N}\s-]+/gu, "").trim().slice(0, 40) || "story";

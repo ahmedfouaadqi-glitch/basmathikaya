@@ -25,6 +25,7 @@ const CreateInput = z.object({
   language: z.enum(["ar", "en"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
+  image_quality_tier: z.enum(["fast", "standard", "premium"]).default("standard"),
 });
 
 type PricingRow = PricingLike & {
@@ -111,6 +112,7 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         page_count: data.page_count,
         moods: data.moods,
         custom_instructions: data.custom_instructions || null,
+        image_quality_tier: data.image_quality_tier,
       })
       .select("id, order_number")
       .single();
@@ -160,12 +162,14 @@ async function generateOneImage(args: {
   prompt: string;
   storagePath: string;
   pricing: PricingRow;
+  model?: string;
+  referenceImages?: string[];
 }): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { callImage, estimateImageCostUsd } = await import("./ai-gateway.server");
-  const imgModel = "google/gemini-3.1-flash-image";
+  const imgModel = args.model ?? "google/gemini-3.1-flash-image";
   try {
-    const img = await callImage({ model: imgModel, prompt: args.prompt });
+    const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
     const buf = Buffer.from(img.b64, "base64");
     const up = await supabaseAdmin.storage
       .from("story-covers")
@@ -196,6 +200,48 @@ async function generateOneImage(args: {
       "error",
       msg,
     );
+    return null;
+  }
+}
+
+/** Download a stored character photo and return a base64 data URL. Caps at ~1MB. */
+async function photoToDataUrl(path: string): Promise<string | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const dl = await supabaseAdmin.storage.from("story-uploads").download(path);
+    if (dl.error || !dl.data) return null;
+    const buf = Buffer.from(await dl.data.arrayBuffer());
+    if (buf.byteLength > 2_000_000) return null; // skip if too big; vision still gets brief
+    const mime = dl.data.type || "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Run Gemini vision over the uploaded photo to extract a stable visual brief. */
+async function analyzeCharacterPhoto(args: {
+  dataUrl: string;
+  name: string;
+  language: "ar" | "en";
+}): Promise<string | null> {
+  try {
+    const { callChat } = await import("./ai-gateway.server");
+    const isAr = args.language === "ar";
+    const prompt = isAr
+      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (4-6 أسطر، عربي) مايلي: الجنس التقريبي، الفئة العمرية، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، الملابس البارزة، أي ميزات مميزة. لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.`
+      : `Analyze this person (${args.name}) and describe in 4-6 short lines: apparent gender, age group, skin tone, hair (length/color/style), eye color, notable clothing, distinctive features. No real names. Pure visual brief for drawing a consistent cartoon character.`;
+    const r = await callChat({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "user", content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: args.dataUrl } },
+        ] },
+      ],
+    });
+    return r.content.trim().slice(0, 800);
+  } catch {
     return null;
   }
 }
@@ -233,7 +279,7 @@ export const generateFullStory = createServerFn({ method: "POST" })
 
     const { data: chars } = await supabaseAdmin
       .from("order_characters")
-      .select("name, age, role, description, is_primary, position")
+      .select("id, name, age, role, description, is_primary, position, photo_path, visual_brief")
       .eq("order_id", data.orderId)
       .order("position");
     if (!chars || chars.length === 0) throw new Error("لا توجد شخصيات في الطلب");
@@ -258,31 +304,79 @@ export const generateFullStory = createServerFn({ method: "POST" })
       return { ok: true as const, alreadyDone: true };
     }
 
-    const charsText = chars
-      .map((c, i) => `${i + 1}. ${c.name}${c.age ? ` (عمر ${c.age})` : ""} — ${c.role}${c.description ? `: ${c.description}` : ""}${c.is_primary ? " [البطل الرئيسي]" : ""}`)
+    // === Vision pass: analyze each uploaded character photo for a stable visual brief.
+    // Done in parallel; saved on order_characters.visual_brief for re-use.
+    await Promise.all(
+      chars.map(async (c) => {
+        if (c.visual_brief || !c.photo_path) return;
+        const dataUrl = await photoToDataUrl(c.photo_path);
+        if (!dataUrl) return;
+        const brief = await analyzeCharacterPhoto({ dataUrl, name: c.name, language });
+        if (brief) {
+          await supabaseAdmin
+            .from("order_characters")
+            .update({ visual_brief: brief })
+            .eq("id", c.id);
+          c.visual_brief = brief;
+        }
+      }),
+    );
+
+    const renderChar = (c: typeof chars[number], i: number, ar: boolean) => {
+      const head = ar
+        ? `${i + 1}. ${c.name}${c.age ? ` (عمر ${c.age})` : ""} — ${c.role}${c.description ? `: ${c.description}` : ""}${c.is_primary ? " [البطل الرئيسي]" : ""}`
+        : `${i + 1}. ${c.name}${c.age ? ` (age ${c.age})` : ""} — ${c.role}${c.description ? `: ${c.description}` : ""}${c.is_primary ? " [main hero]" : ""}`;
+      const vb = c.visual_brief ? `\n   ${ar ? "وصف بصري من الصورة المرفوعة" : "visual brief from uploaded photo"}: ${c.visual_brief}` : "";
+      return head + vb;
+    };
+    const charsText = chars.map((c, i) => renderChar(c, i, true)).join("\n");
+    const charsTextEn = chars.map((c, i) => renderChar(c, i, false)).join("\n");
+
+    // === Anti-duplication: fingerprint + creative seed + look at recent siblings.
+    const normName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+    const fingerprintRaw = [
+      language,
+      [...moods].sort().join("|"),
+      chars.map((c) => normName(c.name)).sort().join("|"),
+      customInstructions.trim().toLowerCase().slice(0, 120),
+    ].join("::");
+    const { createHash, randomBytes } = await import("crypto");
+    const fingerprint = createHash("sha256").update(fingerprintRaw).digest("hex").slice(0, 32);
+
+    const { data: priorFp } = await supabaseAdmin
+      .from("story_fingerprints")
+      .select("title, opening, plan_seed")
+      .like("hash", `${fingerprint}-%`)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const avoidList = (priorFp ?? [])
+      .map((r) => `• "${r.title}" — ${(r.opening ?? "").slice(0, 120)}`)
       .join("\n");
-    const charsTextEn = chars
-      .map((c, i) => `${i + 1}. ${c.name}${c.age ? ` (age ${c.age})` : ""} — ${c.role}${c.description ? `: ${c.description}` : ""}${c.is_primary ? " [main hero]" : ""}`)
-      .join("\n");
+
+    const makeSeed = () => randomBytes(4).toString("hex");
+    let creativeSeed = makeSeed();
 
     const textModel = "google/gemini-3-flash-preview";
     const sys = isAr
       ? "أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي."
       : "You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it.";
 
-    const userPrompt = isAr
+    const buildPrompt = (seed: string) => isAr
       ? `اكتب قصة من ${pageCount} صفحات لمجموعة الشخصيات التالية:
 ${charsText}
 
 أجواء القصة: ${moods.join("، ")}.
 ${customInstructions ? `تعليمات إضافية من صاحب القصة: ${customInstructions}` : ""}
 
-استخدم لغة بسيطة دافئة مناسبة للأطفال. اجعل نص كل صفحة من 4 إلى 6 جمل (تقريباً 60-90 كلمة) لتتوازن بصرياً مع الصورة المرافقة، مع وصف للمشاعر وحوار قصير. أدمج كل الشخصيات في الأحداث بشكل طبيعي.
+بذرة إبداعية: ${seed} — استخدمها لتنويع الحبكة والشخصيات الثانوية والعقدة.
+${avoidList ? `⚠️ تجنّب تماماً الافتتاحيات والحبكات التالية التي سبق توليدها لهذه الشخصيات:\n${avoidList}\nاخترع حبكة جديدة مختلفة كلياً.` : ""}
+
+استخدم لغة بسيطة دافئة مناسبة للأطفال. اجعل نص كل صفحة من 4 إلى 6 جمل (تقريباً 60-90 كلمة) لتتوازن بصرياً مع الصورة المرافقة، مع وصف للمشاعر وحوار قصير. أدمج كل الشخصيات في الأحداث بشكل طبيعي. عند وصف الشخصية بصرياً، استخدم المعلومات من "وصف بصري من الصورة المرفوعة" حرفياً.
 
 أعد JSON بهذا الشكل بالضبط:
 {
   "title": "...",
-  "character_visual": "وصف بصري ثابت لكل الشخصيات (ملابس، شعر، ألوان، ميزات مميزة) لاستخدامه في كل صورة لضمان الاتساق",
+  "character_visual": "وصف بصري ثابت ومفصّل لكل الشخصيات (يدمج وصف الصور المرفوعة) لاستخدامه في كل صورة",
   "cover_prompt": "وصف مشهد الغلاف بالإنجليزية يضم كل الشخصيات",
   "pages": [ { "text": "نص الصفحة بالعربية", "image_prompt": "وصف مشهد الصفحة بالإنجليزية" } ، ... ${pageCount} عنصر ]
 }`
@@ -292,38 +386,62 @@ ${charsTextEn}
 Story vibes: ${moods.join(", ")}.
 ${customInstructions ? `Author's notes: ${customInstructions}` : ""}
 
-Use warm simple language for children. Each page should be 4 to 6 sentences (about 60-90 words) so the text balances visually with the page illustration, including a touch of feeling and a brief dialogue when natural. Weave all characters into the events naturally.
+Creative seed: ${seed} — use it to vary plot, supporting cast and conflict.
+${avoidList ? `⚠️ Strictly avoid these previously-generated openings/plots for this same cast:\n${avoidList}\nInvent a completely different plot.` : ""}
+
+Use warm simple language for children. Each page should be 4 to 6 sentences (about 60-90 words). Weave all characters in naturally. When describing a character visually, USE the "visual brief from uploaded photo" line verbatim.
 
 Return JSON exactly like:
 {
   "title": "...",
-  "character_visual": "Persistent visual description of every character (clothing, hair, color, distinctive features) to reuse in every image prompt for consistency",
+  "character_visual": "Detailed persistent visual description merging the uploaded-photo briefs",
   "cover_prompt": "Cover scene description in English featuring all characters",
   "pages": [ { "text": "page text in English", "image_prompt": "scene description in English" }, ... ${pageCount} items ]
 }`;
 
-    const chat = await callChat({
-      model: textModel,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    });
-    await logEvent(
-      data.orderId,
-      "story_plan",
-      textModel,
-      "chat",
-      chat.meta,
-      estimateTextCostUsd(textModel, chat.meta.usage),
-      0,
-      pricing,
-    );
-    const plan = safeParseJson(chat.content);
+    const runChat = async (seed: string) => {
+      const chat = await callChat({
+        model: textModel,
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: buildPrompt(seed) },
+        ],
+        response_format: { type: "json_object" },
+      });
+      await logEvent(
+        data.orderId,
+        "story_plan",
+        textModel,
+        "chat",
+        chat.meta,
+        estimateTextCostUsd(textModel, chat.meta.usage),
+        0,
+        pricing,
+      );
+      return safeParseJson(chat.content);
+    };
+
+    let plan = await runChat(creativeSeed);
     if (!plan || !plan.pages || plan.pages.length === 0) {
       throw new Error("Failed to parse story plan");
     }
+
+    // Similarity check vs latest sibling — if too close, re-roll once.
+    const opening = (plan.pages[0]?.text ?? "").slice(0, 200).toLowerCase();
+    const jaccard = (a: string, b: string) => {
+      const wa = new Set(a.split(/\s+/).filter(Boolean));
+      const wb = new Set(b.split(/\s+/).filter(Boolean));
+      const inter = [...wa].filter((w) => wb.has(w)).length;
+      const uni = new Set([...wa, ...wb]).size;
+      return uni === 0 ? 0 : inter / uni;
+    };
+    const prevOpenings = (priorFp ?? []).map((r) => (r.opening ?? "").toLowerCase());
+    if (prevOpenings.some((p) => p && jaccard(opening, p) > 0.7)) {
+      creativeSeed = makeSeed();
+      const retry = await runChat(creativeSeed);
+      if (retry && retry.pages?.length) plan = retry;
+    }
+
     const pagesPlan = plan.pages.slice(0, pageCount);
     while (pagesPlan.length < pageCount) {
       pagesPlan.push({ text: "", image_prompt: plan.character_visual ?? "" });
@@ -355,7 +473,14 @@ Return JSON exactly like:
       );
     }
 
-    // Also remember the cover prompt for later — we stash it in generations.full_story (already done above)
+    // Record fingerprint so future generations for the same cast/moods diverge.
+    await supabaseAdmin.from("story_fingerprints").insert({
+      hash: `${fingerprint}-${data.orderId.slice(0, 8)}`,
+      order_id: data.orderId,
+      plan_seed: creativeSeed,
+      title: plan.title,
+      opening: (pagesPlan[0]?.text ?? "").slice(0, 240),
+    }).then(() => {/* ignore conflicts */});
 
     return { ok: true as const };
   });
@@ -656,7 +781,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     try {
       const { data: order } = await supabaseAdmin
         .from("orders")
-        .select("id, title, character_brief, page_count, customer_phone, user_id, characters(language)")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, characters(language)")
         .eq("id", data.orderId)
         .single();
       if (!order) throw new Error("Order missing");
@@ -670,11 +795,37 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         .select("page_number, image_prompt, image_path")
         .eq("order_id", data.orderId)
         .order("page_number");
+      const { data: chars } = await supabaseAdmin
+        .from("order_characters")
+        .select("photo_path, is_primary")
+        .eq("order_id", data.orderId)
+        .order("position");
 
       const pricing = await getPricing();
+      const tier = (order.image_quality_tier as "fast" | "standard" | "premium" | null) ?? "standard";
+      const coverModel = tier === "premium"
+        ? "google/gemini-3-pro-image"
+        : tier === "fast"
+          ? "openai/gpt-image-1-mini"
+          : "google/gemini-3.1-flash-image";
+      const pageModel = tier === "fast"
+        ? "openai/gpt-image-1-mini"
+        : "google/gemini-3.1-flash-image";
+
+      // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
+      const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
+      const referenceImages: string[] = [];
+      if (primary?.photo_path && coverModel.startsWith("google/")) {
+        const url = await photoToDataUrl(primary.photo_path);
+        if (url) referenceImages.push(url);
+      }
+
       const brief = (order.character_brief as string | null) ?? "";
-      const style = "warm storybook illustration, soft watercolor, vibrant colors, cinematic lighting, child-friendly";
+      const style = "warm storybook illustration, soft watercolor, vibrant colors, cinematic lighting, child-friendly, clean composition centered subject";
       const consistencyTag = brief ? `Consistent cast across all pages — ${brief}. ` : "";
+      const likenessTag = referenceImages.length
+        ? "Match the facial features, hair and skin tone of the reference photo as closely as possible while keeping a cartoon storybook style. "
+        : "";
 
       // Cover
       let coverPath = gen?.cover_image_path as string | null;
@@ -685,14 +836,16 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${consistencyTag}${coverPrompt}. ${style}.`
-          : `${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}.`;
+          ? `${likenessTag}${consistencyTag}${coverPrompt}. ${style}. Book cover composition, leave headroom for title.`
+          : `${likenessTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}.`;
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
           prompt: cp,
           storagePath: `covers/${data.orderId}.png`,
           pricing,
+          model: coverModel,
+          referenceImages,
         });
         if (coverPath) {
           await supabaseAdmin
@@ -704,13 +857,16 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       // Page images
       const todo = (pages ?? []).filter((p) => !p.image_path);
       await runWithConcurrency(todo, 3, async (p) => {
-        const prompt = `${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}. No text or letters in the image.`;
+        const styleSeed = ((p.page_number ?? 0) % 3 === 0) ? "soft morning light" : ((p.page_number ?? 0) % 3 === 1 ? "warm golden hour" : "gentle dusk");
+        const prompt = `${likenessTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, ${styleSeed}. No text or letters in the image.`;
         const path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
           prompt,
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
+          model: pageModel,
+          referenceImages: pageModel.startsWith("google/") ? referenceImages : undefined,
         });
         if (path) {
           await supabaseAdmin

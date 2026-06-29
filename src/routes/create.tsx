@@ -80,6 +80,7 @@ function CreatePage() {
   const [moods, setMoods] = useState<string[]>(["adventure"]);
   const [instructions, setInstructions] = useState("");
   const [pages, setPages] = useState<number>(5);
+  const [qualityTier, setQualityTier] = useState<"fast" | "standard" | "premium">("standard");
   const [submitting, setSubmitting] = useState(false);
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
@@ -155,6 +156,7 @@ function CreatePage() {
           custom_instructions: instructions.trim(),
           language: lang,
           page_count: pages,
+          image_quality_tier: qualityTier,
           draft_id: draftIdRef.current,
         },
       });
@@ -356,6 +358,28 @@ function CreatePage() {
               <div className="text-muted-foreground">{t("tier_video")}</div>
               <div className="font-bold text-primary">{estimates.video.toLocaleString()} {t("iqd")}</div>
             </div>
+          </div>
+        </div>
+
+        {/* Image quality tier */}
+        <div>
+          <label className="block text-sm font-bold mb-2">جودة الصور</label>
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            {([
+              { v: "fast", label: "سريع", hint: "GPT mini" },
+              { v: "standard", label: "قياسي", hint: "Gemini Flash Image" },
+              { v: "premium", label: "احترافي", hint: "Gemini 3 Pro Image" },
+            ] as const).map((o) => (
+              <button
+                type="button"
+                key={o.v}
+                onClick={() => setQualityTier(o.v)}
+                className={`rounded-xl border p-2 transition ${qualityTier === o.v ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30"}`}
+              >
+                <div>{o.label}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{o.hint}</div>
+              </button>
+            ))}
           </div>
         </div>
 

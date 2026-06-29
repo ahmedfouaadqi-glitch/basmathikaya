@@ -8,6 +8,7 @@ export type Usage = { input_tokens?: number; output_tokens?: number; total_token
 const TEXT_PRICING_PER_1M: Record<string, { input: number; output: number }> = {
   "google/gemini-3-flash-preview": { input: 0.075, output: 0.30 },
   "google/gemini-2.5-flash": { input: 0.075, output: 0.30 },
+  "google/gemini-2.5-pro": { input: 1.25, output: 5.0 },
   "google/gemini-3.5-flash": { input: 0.10, output: 0.40 },
 };
 const IMAGE_PRICING_PER_IMAGE: Record<string, number> = {
@@ -42,9 +43,17 @@ export type GatewayMeta = {
   duration_ms: number;
 };
 
+type TextContent = { type: "text"; text: string };
+type ImageContent = { type: "image_url"; image_url: { url: string } };
+type ContentBlock = TextContent | ImageContent;
+type Message = {
+  role: "system" | "user" | "assistant";
+  content: string | ContentBlock[];
+};
+
 export async function callChat(args: {
   model: string;
-  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+  messages: Message[];
   response_format?: unknown;
 }): Promise<{ content: string; meta: GatewayMeta }> {
   const started = Date.now();
@@ -84,22 +93,36 @@ export async function callChat(args: {
 export async function callImage(args: {
   model: string;
   prompt: string;
+  /** Optional reference image data URLs (data:image/...;base64,...) for likeness. Gemini image models only. */
+  referenceImages?: string[];
 }): Promise<{ b64: string; meta: GatewayMeta }> {
   const started = Date.now();
   const isGemini = args.model.startsWith("google/");
-  const body = isGemini
-    ? {
-        model: args.model,
-        messages: [{ role: "user", content: args.prompt }],
-        modalities: ["image", "text"],
-      }
-    : {
-        model: args.model,
-        prompt: args.prompt,
-        size: "1024x1024",
-        quality: "low",
-        n: 1,
-      };
+  const refs = args.referenceImages?.filter(Boolean) ?? [];
+
+  let body: unknown;
+  if (isGemini) {
+    const content: ContentBlock[] = [
+      { type: "text", text: args.prompt },
+      ...refs.map<ImageContent>((url) => ({ type: "image_url", image_url: { url } })),
+    ];
+    body = {
+      model: args.model,
+      messages: [{ role: "user", content }],
+      modalities: ["image", "text"],
+    };
+  } else {
+    // OpenAI gpt-image endpoint here doesn't accept reference images;
+    // we just embed a textual description instead. (Reference images already
+    // shaped the character_visual brief.)
+    body = {
+      model: args.model,
+      prompt: args.prompt,
+      size: "1024x1024",
+      quality: "low",
+      n: 1,
+    };
+  }
   const res = await fetch(`${BASE}/images/generations`, {
     method: "POST",
     headers: {
