@@ -152,3 +152,22 @@
   mix-blend-mode: overlay;
   z-index: 2;
 }
+
+/* Brand logo animations */
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50%      { transform: translateY(-8px) rotate(1.5deg); }
+}
+@keyframes water-ripple {
+  0%, 100% { transform: scale(1);    opacity: 0.55; }
+  50%      { transform: scale(1.15); opacity: 0.9; }
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-logo-float { animation: logo-float 6s ease-in-out infinite; transform-origin: center; }
+.animate-water-ripple { animation: water-ripple 4.5s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 14s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-logo-float, .animate-water-ripple, .animate-spin-slow { animation: none; }
+}

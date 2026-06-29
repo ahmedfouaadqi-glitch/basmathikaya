@@ -31,7 +31,14 @@ function Home() {
             {t("brand")}
           </span>
         </h1>
-        <img src={brandLogoUrl} alt="شعار بصمة حكاية" className="mx-auto mt-6 h-48 w-48 object-contain md:h-64 md:w-64 drop-shadow-md" />
+        <div className="relative mx-auto mt-6 inline-block">
+          <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-primary/30 via-accent/20 to-primary/30 blur-3xl animate-water-ripple" aria-hidden="true" />
+          <img
+            src={brandLogoUrl}
+            alt="شعار بصمة حكاية"
+            className="mx-auto h-64 w-64 object-contain drop-shadow-2xl animate-logo-float md:h-80 md:w-80"
+          />
+        </div>
         <p className="mx-auto mt-5 max-w-xl text-base md:text-lg text-muted-foreground text-balance">
           {t("hero_lead")}
         </p>

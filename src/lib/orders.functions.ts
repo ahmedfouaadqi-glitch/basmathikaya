@@ -277,7 +277,7 @@ ${charsText}
 أجواء القصة: ${moods.join("، ")}.
 ${customInstructions ? `تعليمات إضافية من صاحب القصة: ${customInstructions}` : ""}
 
-استخدم لغة بسيطة دافئة مناسبة للأطفال. كل صفحة 2-4 جمل قصيرة. أدمج كل الشخصيات في الأحداث بشكل طبيعي.
+استخدم لغة بسيطة دافئة مناسبة للأطفال. اجعل نص كل صفحة من 4 إلى 6 جمل (تقريباً 60-90 كلمة) لتتوازن بصرياً مع الصورة المرافقة، مع وصف للمشاعر وحوار قصير. أدمج كل الشخصيات في الأحداث بشكل طبيعي.
 
 أعد JSON بهذا الشكل بالضبط:
 {
@@ -292,7 +292,7 @@ ${charsTextEn}
 Story vibes: ${moods.join(", ")}.
 ${customInstructions ? `Author's notes: ${customInstructions}` : ""}
 
-Use warm simple language for children. Each page 2-4 short sentences. Weave all characters into the events naturally.
+Use warm simple language for children. Each page should be 4 to 6 sentences (about 60-90 words) so the text balances visually with the page illustration, including a touch of feeling and a brief dialogue when natural. Weave all characters into the events naturally.
 
 Return JSON exactly like:
 {

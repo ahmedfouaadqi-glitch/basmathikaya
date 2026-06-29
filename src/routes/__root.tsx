@@ -148,24 +148,27 @@ function Header() {
       ) : (
         <Link to="/auth" className="rounded-md px-3 py-2 hover:bg-secondary font-medium">{t("nav_login")}</Link>
       )}
-      <Link to="/admin" className="rounded-md px-3 py-2 hover:bg-secondary text-muted-foreground">{t("nav_admin")}</Link>
+      {/* Admin link intentionally hidden — accessible only via direct URL /admin/login */}
     </>
   );
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-3">
+    <header
+      className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+    >
+      <div className="mx-auto grid min-h-[60px] max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 lg:flex lg:justify-between">
         <Link to="/" className="flex min-w-0 items-center gap-2 font-bold">
           <img
             src={brandLogoUrl}
             alt=""
-            className="h-10 w-10 shrink-0 object-contain drop-shadow-sm sm:h-12 sm:w-12 md:h-14 md:w-14"
+            className="h-12 w-12 shrink-0 object-contain drop-shadow-md animate-logo-float sm:h-14 sm:w-14 md:h-16 md:w-16"
           />
-          <span className="truncate text-sm text-foreground sm:text-base md:text-lg">{t("brand")}</span>
+          <span className="truncate text-sm text-foreground sm:text-base md:text-lg lg:text-xl">{t("brand")}</span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 text-sm md:flex">
+        {/* Desktop nav (≥lg to give tablets room) */}
+        <nav className="hidden items-center gap-1 text-sm lg:flex">
           {links}
           <button
             onClick={() => setLang(lang === "ar" ? "en" : "ar")}
@@ -176,8 +179,8 @@ function Header() {
           </button>
         </nav>
 
-        {/* Mobile actions */}
-        <div className="flex items-center gap-1 md:hidden">
+        {/* Mobile + tablet actions */}
+        <div className="flex shrink-0 items-center gap-1 lg:hidden">
           <button
             onClick={() => setLang(lang === "ar" ? "en" : "ar")}
             className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-secondary"
@@ -196,9 +199,9 @@ function Header() {
         </div>
       </div>
 
-      {/* Mobile dropdown */}
+      {/* Mobile/tablet dropdown */}
       {open && (
-        <div className="border-t bg-background md:hidden">
+        <div className="border-t bg-background lg:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-3 py-2 text-sm">
             {links}
           </nav>
