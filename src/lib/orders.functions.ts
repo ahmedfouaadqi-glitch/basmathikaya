@@ -25,6 +25,7 @@ const CreateInput = z.object({
   language: z.enum(["ar", "en"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
+  image_quality_tier: z.enum(["fast", "standard", "premium"]).default("standard"),
 });
 
 type PricingRow = PricingLike & {
