@@ -254,11 +254,18 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
 
   await ensureTajawal();
 
-  // Preload images as data URLs (avoids CORS-tainted canvas).
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isMobile = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches;
+  // Per-device caps to keep canvas memory under iOS Safari's ~224MB limit.
+  const imgMaxEdge = isIOS ? 1100 : isMobile ? 1300 : 1600;
+  const imgQuality = isIOS ? 0.82 : 0.9;
+
+  // Preload images (compressed) as data URLs.
   const [coverData, logoData, ...pageImgs] = await Promise.all([
-    a.coverUrl ? loadImageAsDataUrl(a.coverUrl) : Promise.resolve(null),
+    loadAndCompressImage(a.coverUrl, { maxEdge: imgMaxEdge, quality: imgQuality }),
     loadImageAsDataUrl(brandLogoUrl),
-    ...a.pages.map((p) => (p.imageUrl ? loadImageAsDataUrl(p.imageUrl) : Promise.resolve(null))),
+    ...a.pages.map((p) => loadAndCompressImage(p.imageUrl, { maxEdge: imgMaxEdge, quality: imgQuality })),
   ]);
 
   // Offscreen host
