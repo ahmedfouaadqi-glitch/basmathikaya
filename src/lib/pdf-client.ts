@@ -44,17 +44,27 @@ async function loadImageAsDataUrl(url: string): Promise<string | null> {
 }
 
 async function ensureTajawal(): Promise<void> {
-  if (document.getElementById("tajawal-pdf-font")) return;
-  const link = document.createElement("link");
-  link.id = "tajawal-pdf-font";
-  link.rel = "stylesheet";
-  link.href = "https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap";
-  document.head.appendChild(link);
-  // Try to wait for fonts.
+  if (!document.getElementById("tajawal-pdf-font")) {
+    const link = document.createElement("link");
+    link.id = "tajawal-pdf-font";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap";
+    document.head.appendChild(link);
+  }
+  // Wait for fonts to actually load before we snapshot — critical on iOS Safari.
   try {
-    await (document as any).fonts?.load?.('700 24px "Tajawal"');
-    await (document as any).fonts?.load?.('400 16px "Tajawal"');
-    await (document as any).fonts?.ready;
+    const f = (document as any).fonts;
+    if (f?.load) {
+      await Promise.all([
+        f.load('900 42px "Tajawal"'),
+        f.load('700 22px "Tajawal"'),
+        f.load('500 22px "Tajawal"'),
+        f.load('400 16px "Tajawal"'),
+      ]);
+    }
+    await f?.ready;
+    // double rAF: ensure layout settles after font swap
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
   } catch { /* ignore */ }
 }
 
@@ -69,7 +79,7 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
   const brand = isAr ? "بصمة حكاية" : "Basma Hekaya";
   const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
   const cover = opts.coverData
-    ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain;background:#F0E6D2;display:block;" />`
     : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
   const logoImg = opts.logo
     ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:60px;height:60px;object-fit:contain;display:block;margin:0 auto 6px;" />`
@@ -117,7 +127,7 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
   const pageLabel = isAr ? `صفحة ${p.number} من ${total}` : `Page ${p.number} of ${total}`;
   const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
   const img = opts.imgData
-    ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain;background:#F0E6D2;display:block;" />`
     : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
   const logoImg = opts.logo
     ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:22px;height:22px;object-fit:contain;display:inline-block;vertical-align:middle;margin:0 6px;" />`
@@ -125,7 +135,7 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
   const text = escapeHtml(p.text || "").replace(/\n+/g, "<br/>");
 
   return `
-  <div dir="${dir}" style="
+  <div dir="${dir}" lang="${a.language}" style="
     width:${PAGE_W}px;height:${PAGE_H}px;
     background:#FFFBF5;
     font-family:'Tajawal',sans-serif;
@@ -134,21 +144,24 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
     position:relative;display:flex;flex-direction:column;
   ">
     <div style="height:14px;background:${opts.accent};"></div>
-    <div style="flex:1;display:flex;flex-direction:column;padding:30px 44px 0;">
+    <div style="flex:1;display:flex;flex-direction:column;padding:26px 44px 0;min-height:0;">
       <div style="
-        width:100%;height:520px;border-radius:16px;overflow:hidden;
+        width:100%;height:430px;border-radius:16px;overflow:hidden;
         border:3px solid ${opts.accent};
         box-shadow:0 8px 20px rgba(0,0,0,.10);
-        flex-shrink:0;
+        flex-shrink:0;background:#F0E6D2;
       ">
         ${img}
       </div>
+      <div style="height:2px;background:linear-gradient(to ${isAr ? "left" : "right"}, ${opts.gold}, transparent);margin:18px 0 14px;"></div>
       <div style="
-        margin-top:26px;
-        font-size:20px;line-height:1.95;font-weight:500;
-        text-align:${align};
+        font-size:22px;line-height:2.05;font-weight:500;
+        text-align:${isAr ? "justify" : "justify"};
+        text-justify:inter-word;
         color:#1a2128;
         flex:1;
+        word-wrap:break-word;
+        overflow-wrap:break-word;
       ">${text}</div>
     </div>
     <div style="
