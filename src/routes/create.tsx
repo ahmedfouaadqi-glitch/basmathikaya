@@ -361,7 +361,28 @@ function CreatePage() {
           </div>
         </div>
 
-        <button
+        {/* Image quality tier */}
+        <div>
+          <label className="block text-sm font-bold mb-2">جودة الصور</label>
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            {([
+              { v: "fast", label: "سريع", hint: "GPT mini" },
+              { v: "standard", label: "قياسي", hint: "Gemini Flash Image" },
+              { v: "premium", label: "احترافي", hint: "Gemini 3 Pro Image" },
+            ] as const).map((o) => (
+              <button
+                type="button"
+                key={o.v}
+                onClick={() => setQualityTier(o.v)}
+                className={`rounded-xl border p-2 transition ${qualityTier === o.v ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30"}`}
+              >
+                <div>{o.label}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{o.hint}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
           type="submit"
           disabled={submitting}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 text-base font-bold text-primary-foreground shadow-warm disabled:opacity-60"
