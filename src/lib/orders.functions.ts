@@ -781,7 +781,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     try {
       const { data: order } = await supabaseAdmin
         .from("orders")
-        .select("id, title, character_brief, page_count, customer_phone, user_id, characters(language)")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, characters(language)")
         .eq("id", data.orderId)
         .single();
       if (!order) throw new Error("Order missing");
@@ -795,11 +795,37 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         .select("page_number, image_prompt, image_path")
         .eq("order_id", data.orderId)
         .order("page_number");
+      const { data: chars } = await supabaseAdmin
+        .from("order_characters")
+        .select("photo_path, is_primary")
+        .eq("order_id", data.orderId)
+        .order("position");
 
       const pricing = await getPricing();
+      const tier = (order.image_quality_tier as "fast" | "standard" | "premium" | null) ?? "standard";
+      const coverModel = tier === "premium"
+        ? "google/gemini-3-pro-image"
+        : tier === "fast"
+          ? "openai/gpt-image-1-mini"
+          : "google/gemini-3.1-flash-image";
+      const pageModel = tier === "fast"
+        ? "openai/gpt-image-1-mini"
+        : "google/gemini-3.1-flash-image";
+
+      // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
+      const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
+      const referenceImages: string[] = [];
+      if (primary?.photo_path && coverModel.startsWith("google/")) {
+        const url = await photoToDataUrl(primary.photo_path);
+        if (url) referenceImages.push(url);
+      }
+
       const brief = (order.character_brief as string | null) ?? "";
-      const style = "warm storybook illustration, soft watercolor, vibrant colors, cinematic lighting, child-friendly";
+      const style = "warm storybook illustration, soft watercolor, vibrant colors, cinematic lighting, child-friendly, clean composition centered subject";
       const consistencyTag = brief ? `Consistent cast across all pages — ${brief}. ` : "";
+      const likenessTag = referenceImages.length
+        ? "Match the facial features, hair and skin tone of the reference photo as closely as possible while keeping a cartoon storybook style. "
+        : "";
 
       // Cover
       let coverPath = gen?.cover_image_path as string | null;
@@ -810,14 +836,16 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${consistencyTag}${coverPrompt}. ${style}.`
-          : `${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}.`;
+          ? `${likenessTag}${consistencyTag}${coverPrompt}. ${style}. Book cover composition, leave headroom for title.`
+          : `${likenessTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}.`;
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
           prompt: cp,
           storagePath: `covers/${data.orderId}.png`,
           pricing,
+          model: coverModel,
+          referenceImages,
         });
         if (coverPath) {
           await supabaseAdmin
@@ -829,13 +857,16 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       // Page images
       const todo = (pages ?? []).filter((p) => !p.image_path);
       await runWithConcurrency(todo, 3, async (p) => {
-        const prompt = `${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}. No text or letters in the image.`;
+        const styleSeed = ((p.page_number ?? 0) % 3 === 0) ? "soft morning light" : ((p.page_number ?? 0) % 3 === 1 ? "warm golden hour" : "gentle dusk");
+        const prompt = `${likenessTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, ${styleSeed}. No text or letters in the image.`;
         const path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
           prompt,
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
+          model: pageModel,
+          referenceImages: pageModel.startsWith("google/") ? referenceImages : undefined,
         });
         if (path) {
           await supabaseAdmin
