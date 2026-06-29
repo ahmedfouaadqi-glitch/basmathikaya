@@ -346,7 +346,7 @@ export const generateFullStory = createServerFn({ method: "POST" })
     const { data: priorFp } = await supabaseAdmin
       .from("story_fingerprints")
       .select("title, opening, plan_seed")
-      .eq("hash", fingerprint)
+      .like("hash", `${fingerprint}-%`)
       .order("created_at", { ascending: false })
       .limit(5);
     const avoidList = (priorFp ?? [])
