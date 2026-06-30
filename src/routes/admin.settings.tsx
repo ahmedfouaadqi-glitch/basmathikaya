@@ -101,6 +101,15 @@ function SettingsPage() {
           <Row label="تكلفة الطباعة (د.ع)" type="number" value={form.print_cost_iqd} onChange={(v) => set("print_cost_iqd", v)} />
           <Row label="تكلفة الشحن (د.ع)" type="number" value={form.shipping_cost_iqd} onChange={(v) => set("shipping_cost_iqd", v)} />
         </div>
+        <div className="text-xs font-semibold text-muted-foreground mt-2">إضافات جودة الصور</div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Row label="فارق سعر الجودة القياسية (د.ع)" type="number" value={form.image_tier_standard_extra_iqd} onChange={(v) => set("image_tier_standard_extra_iqd", v)} />
+          <Row label="فارق سعر الجودة الاحترافية (د.ع)" type="number" value={form.image_tier_premium_extra_iqd} onChange={(v) => set("image_tier_premium_extra_iqd", v)} />
+        </div>
+        <label className="flex items-center gap-2 text-sm pt-2">
+          <input type="checkbox" checked={form.video_tier_enabled} onChange={(e) => set("video_tier_enabled", e.target.checked)} />
+          تفعيل مستوى الفيديو (إن أُلغيَ سيظل السعر ظاهراً ولكن لا يمكن اختياره)
+        </label>
         <button disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3 font-bold text-primary-foreground disabled:opacity-60">
           {saving && <Loader2 className="size-4 animate-spin" />}
           {t("save")}
