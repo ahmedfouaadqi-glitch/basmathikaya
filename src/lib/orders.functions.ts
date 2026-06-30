@@ -25,7 +25,10 @@ const CreateInput = z.object({
   language: z.enum(["ar", "en"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
-  image_quality_tier: z.enum(["fast", "standard", "premium"]).default("standard"),
+  image_quality_tier: z
+    .enum(["fast", "standard", "premium"])
+    .default("standard")
+    .transform((v) => (v === "fast" ? "standard" : v)),
 });
 
 type PricingRow = PricingLike & {
@@ -89,6 +92,9 @@ async function getPricing(): Promise<PricingRow> {
       max_characters: 5,
       print_cost_iqd: 0,
       shipping_cost_iqd: 0,
+      image_tier_standard_extra_iqd: 0,
+      image_tier_premium_extra_iqd: 2000,
+      video_tier_enabled: false,
     };
   }
   return data as PricingRow;
@@ -622,6 +628,9 @@ export const getPublicPricing = createServerFn({ method: "GET" }).handler(async 
     per_character_iqd_printed: Number(p.per_character_iqd_printed ?? 3000),
     per_character_iqd_video: Number(p.per_character_iqd_video ?? 6000),
     max_characters: Number(p.max_characters ?? 5),
+    image_tier_standard_extra_iqd: Number((p as PricingRow).image_tier_standard_extra_iqd ?? 0),
+    image_tier_premium_extra_iqd: Number((p as PricingRow).image_tier_premium_extra_iqd ?? 2000),
+    video_tier_enabled: Boolean((p as PricingRow).video_tier_enabled ?? false),
   };
 });
 
@@ -803,13 +812,12 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
 
       const pricing = await getPricing();
       const tier = (order.image_quality_tier as "fast" | "standard" | "premium" | null) ?? "standard";
-      const coverModel = tier === "premium"
+      const effectiveTier: "standard" | "premium" = tier === "premium" ? "premium" : "standard";
+      const coverModel = effectiveTier === "premium"
         ? "google/gemini-3-pro-image"
-        : tier === "fast"
-          ? "openai/gpt-image-1-mini"
-          : "google/gemini-3.1-flash-image";
-      const pageModel = tier === "fast"
-        ? "openai/gpt-image-1-mini"
+        : "google/gemini-3.1-flash-image";
+      const pageModel = effectiveTier === "premium"
+        ? "google/gemini-3-pro-image"
         : "google/gemini-3.1-flash-image";
 
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
@@ -972,6 +980,9 @@ const PricingInput = z.object({
   max_characters: z.coerce.number().int().min(1).max(10),
   print_cost_iqd: z.coerce.number().int().nonnegative(),
   shipping_cost_iqd: z.coerce.number().int().nonnegative(),
+  image_tier_standard_extra_iqd: z.coerce.number().int().nonnegative().default(0),
+  image_tier_premium_extra_iqd: z.coerce.number().int().nonnegative().default(2000),
+  video_tier_enabled: z.coerce.boolean().default(false),
 });
 
 export const adminUpdatePricing = createServerFn({ method: "POST" })

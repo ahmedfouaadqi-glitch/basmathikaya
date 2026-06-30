@@ -80,17 +80,18 @@ function CreatePage() {
   const [moods, setMoods] = useState<string[]>(["adventure"]);
   const [instructions, setInstructions] = useState("");
   const [pages, setPages] = useState<number>(5);
-  const [qualityTier, setQualityTier] = useState<"fast" | "standard" | "premium">("standard");
+  const [qualityTier, setQualityTier] = useState<"standard" | "premium">("standard");
   const [submitting, setSubmitting] = useState(false);
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
   const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
+  const videoEnabled = Boolean((pricingQ.data as { video_tier_enabled?: boolean } | undefined)?.video_tier_enabled ?? false);
 
   const estimates = useMemo(() => ({
-    pdf: computeTierAmount("pdf", pages, pricing, characters.length),
-    printed: computeTierAmount("printed", pages, pricing, characters.length),
-    video: computeTierAmount("video", pages, pricing, characters.length),
-  }), [pages, pricing, characters.length]);
+    pdf: computeTierAmount("pdf", pages, pricing, characters.length, qualityTier),
+    printed: computeTierAmount("printed", pages, pricing, characters.length, qualityTier),
+    video: computeTierAmount("video", pages, pricing, characters.length, qualityTier),
+  }), [pages, pricing, characters.length, qualityTier]);
 
   function updateChar(i: number, patch: Partial<CharacterDraft>) {
     setCharacters((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
@@ -354,7 +355,11 @@ function CreatePage() {
               <div className="text-muted-foreground">{t("tier_printed")}</div>
               <div className="font-bold text-primary">{estimates.printed.toLocaleString()} {t("iqd")}</div>
             </div>
-            <div>
+            <div
+              className={videoEnabled ? "" : "opacity-50 blur-[1px] select-none pointer-events-none"}
+              aria-disabled={!videoEnabled}
+              title={videoEnabled ? undefined : "قريباً"}
+            >
               <div className="text-muted-foreground">{t("tier_video")}</div>
               <div className="font-bold text-primary">{estimates.video.toLocaleString()} {t("iqd")}</div>
             </div>
@@ -364,9 +369,8 @@ function CreatePage() {
         {/* Image quality tier */}
         <div>
           <label className="block text-sm font-bold mb-2">جودة الصور</label>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="grid grid-cols-2 gap-2 text-center text-xs">
             {([
-              { v: "fast", label: "سريع", hint: "GPT mini" },
               { v: "standard", label: "قياسي", hint: "Gemini Flash Image" },
               { v: "premium", label: "احترافي", hint: "Gemini 3 Pro Image" },
             ] as const).map((o) => (

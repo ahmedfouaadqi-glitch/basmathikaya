@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useT } from "../lib/i18n";
 import { Sparkles, BookOpen, Truck } from "lucide-react";
 import { brandLogoUrl } from "../lib/brand";
 import { BrandIntroVideo } from "../components/BrandIntroVideo";
+import { getHomeContent, DEFAULT_HOME_CONTENT } from "../lib/site-content.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,15 +19,23 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
+function pick<T extends string>(ar: T, en: T, lang: "ar" | "en"): T {
+  return lang === "ar" ? ar : en;
+}
+
 function Home() {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const homeFn = useServerFn(getHomeContent);
+  const q = useQuery({ queryKey: ["site-home"], queryFn: () => homeFn(), staleTime: 60_000 });
+  const c = q.data ?? DEFAULT_HOME_CONTENT;
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24">
       {/* Hero */}
       <section className="pt-12 md:pt-20 text-center">
         <div className="mx-auto inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-3 py-1 text-xs text-muted-foreground">
           <Sparkles className="size-3.5 text-primary" />
-          {t("tagline")}
+          {pick(c.tagline_ar, c.tagline_en, lang)}
         </div>
         <h1 className="mt-5 text-4xl md:text-6xl font-extrabold leading-tight text-balance">
           <span className="bg-gradient-to-br from-foreground via-accent to-primary bg-clip-text text-transparent">
@@ -40,14 +51,14 @@ function Home() {
           />
         </div>
         <p className="mx-auto mt-5 max-w-xl text-base md:text-lg text-muted-foreground text-balance">
-          {t("hero_lead")}
+          {pick(c.hero_lead_ar, c.hero_lead_en, lang)}
         </p>
         <div className="mt-8 flex justify-center">
           <Link
             to="/create"
             className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-primary to-accent px-6 py-3.5 text-base font-bold text-primary-foreground shadow-warm transition hover:scale-[1.02] active:scale-[0.99]"
           >
-            {t("cta_start")}
+            {pick(c.cta_start_ar, c.cta_start_en, lang)}
             <Sparkles className="size-4 transition group-hover:rotate-12" />
           </Link>
         </div>
@@ -66,9 +77,9 @@ function Home() {
       {/* Features */}
       <section className="mt-16 grid gap-4 md:grid-cols-3">
         {[
-          { icon: Sparkles, t: t("feat_1_t"), d: t("feat_1_d") },
-          { icon: BookOpen, t: t("feat_2_t"), d: t("feat_2_d") },
-          { icon: Truck, t: t("feat_3_t"), d: t("feat_3_d") },
+          { icon: Sparkles, t: pick(c.feat_1_t_ar, c.feat_1_t_en, lang), d: pick(c.feat_1_d_ar, c.feat_1_d_en, lang) },
+          { icon: BookOpen, t: pick(c.feat_2_t_ar, c.feat_2_t_en, lang), d: pick(c.feat_2_d_ar, c.feat_2_d_en, lang) },
+          { icon: Truck, t: pick(c.feat_3_t_ar, c.feat_3_t_en, lang), d: pick(c.feat_3_d_ar, c.feat_3_d_en, lang) },
         ].map((f) => (
           <div key={f.t} className="rounded-2xl border bg-card p-6 shadow-sm">
             <f.icon className="size-7 text-primary" />

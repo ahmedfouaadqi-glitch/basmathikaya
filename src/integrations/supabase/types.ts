@@ -366,6 +366,8 @@ export type Database = {
         Row: {
           id: number
           image_quality_tier: string
+          image_tier_premium_extra_iqd: number
+          image_tier_standard_extra_iqd: number
           iqd_per_usd: number
           max_characters: number
           per_character_iqd_pdf: number
@@ -383,10 +385,13 @@ export type Database = {
           tier_video_iqd: number
           updated_at: string
           usd_per_credit: number
+          video_tier_enabled: boolean
         }
         Insert: {
           id?: number
           image_quality_tier?: string
+          image_tier_premium_extra_iqd?: number
+          image_tier_standard_extra_iqd?: number
           iqd_per_usd?: number
           max_characters?: number
           per_character_iqd_pdf?: number
@@ -404,10 +409,13 @@ export type Database = {
           tier_video_iqd?: number
           updated_at?: string
           usd_per_credit?: number
+          video_tier_enabled?: boolean
         }
         Update: {
           id?: number
           image_quality_tier?: string
+          image_tier_premium_extra_iqd?: number
+          image_tier_standard_extra_iqd?: number
           iqd_per_usd?: number
           max_characters?: number
           per_character_iqd_pdf?: number
@@ -425,6 +433,7 @@ export type Database = {
           tier_video_iqd?: number
           updated_at?: string
           usd_per_credit?: number
+          video_tier_enabled?: boolean
         }
         Relationships: []
       }
@@ -439,6 +448,7 @@ export type Database = {
           end_date: string | null
           id: string
           name: string
+          pattern: string | null
           start_date: string | null
           updated_at: string
         }
@@ -452,6 +462,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name: string
+          pattern?: string | null
           start_date?: string | null
           updated_at?: string
         }
@@ -465,8 +476,27 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string
+          pattern?: string | null
           start_date?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      site_content: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
         }
         Relationships: []
       }

@@ -1,6 +1,7 @@
 // Shared pricing helpers — safe for client & server.
 
 export type Tier = "pdf" | "printed" | "video";
+export type QualityTier = "standard" | "premium";
 
 export const DEFAULT_BASE_PAGES = 5;
 export const MIN_PAGES = 4;
@@ -21,13 +22,23 @@ export type PricingLike = {
   max_characters?: number | string;
   print_cost_iqd?: number | string;
   shipping_cost_iqd?: number | string;
+  image_tier_standard_extra_iqd?: number | string;
+  image_tier_premium_extra_iqd?: number | string;
+  video_tier_enabled?: boolean;
 };
+
+export function qualityExtra(p: PricingLike, q: QualityTier): number {
+  return q === "premium"
+    ? Number(p.image_tier_premium_extra_iqd ?? 2000)
+    : Number(p.image_tier_standard_extra_iqd ?? 0);
+}
 
 export function computeTierAmount(
   tier: Tier,
   pageCount: number,
   p: PricingLike,
   characterCount: number = 1,
+  quality: QualityTier = "standard",
 ): number {
   const extraPages = Math.max(0, pageCount - DEFAULT_BASE_PAGES);
   const extraChars = Math.max(0, characterCount - 1);
@@ -44,7 +55,7 @@ export function computeTierAmount(
         ? p.per_character_iqd_printed ?? 3000
         : p.per_character_iqd_video ?? 6000,
   );
-  return Math.round(base + extraPages * perPage + extraChars * perChar);
+  return Math.round(base + extraPages * perPage + extraChars * perChar + qualityExtra(p, quality));
 }
 
 export const DEFAULT_PRICING: PricingLike = {
@@ -60,4 +71,7 @@ export const DEFAULT_PRICING: PricingLike = {
   max_characters: 5,
   print_cost_iqd: 0,
   shipping_cost_iqd: 0,
+  image_tier_standard_extra_iqd: 0,
+  image_tier_premium_extra_iqd: 2000,
+  video_tier_enabled: false,
 };
