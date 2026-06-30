@@ -812,13 +812,12 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
 
       const pricing = await getPricing();
       const tier = (order.image_quality_tier as "fast" | "standard" | "premium" | null) ?? "standard";
-      const coverModel = tier === "premium"
+      const effectiveTier: "standard" | "premium" = tier === "premium" ? "premium" : "standard";
+      const coverModel = effectiveTier === "premium"
         ? "google/gemini-3-pro-image"
-        : tier === "fast"
-          ? "openai/gpt-image-1-mini"
-          : "google/gemini-3.1-flash-image";
-      const pageModel = tier === "fast"
-        ? "openai/gpt-image-1-mini"
+        : "google/gemini-3.1-flash-image";
+      const pageModel = effectiveTier === "premium"
+        ? "google/gemini-3-pro-image"
         : "google/gemini-3.1-flash-image";
 
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
