@@ -18,6 +18,8 @@ type Form = {
   per_character_iqd_pdf: number; per_character_iqd_printed: number; per_character_iqd_video: number;
   max_characters: number;
   print_cost_iqd: number; shipping_cost_iqd: number;
+  image_tier_standard_extra_iqd: number; image_tier_premium_extra_iqd: number;
+  video_tier_enabled: boolean;
 };
 
 function SettingsPage() {
@@ -45,6 +47,9 @@ function SettingsPage() {
         max_characters: (q.data as { max_characters?: number }).max_characters ?? 5,
         print_cost_iqd: q.data.print_cost_iqd,
         shipping_cost_iqd: q.data.shipping_cost_iqd,
+        image_tier_standard_extra_iqd: (q.data as { image_tier_standard_extra_iqd?: number }).image_tier_standard_extra_iqd ?? 0,
+        image_tier_premium_extra_iqd: (q.data as { image_tier_premium_extra_iqd?: number }).image_tier_premium_extra_iqd ?? 2000,
+        video_tier_enabled: Boolean((q.data as { video_tier_enabled?: boolean }).video_tier_enabled ?? false),
       });
     }
   }, [q.data, form]);
