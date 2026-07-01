@@ -81,6 +81,7 @@ function CreatePage() {
   const [instructions, setInstructions] = useState("");
   const [pages, setPages] = useState<number>(5);
   const [qualityTier, setQualityTier] = useState<"standard" | "premium">("standard");
+  const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
@@ -142,6 +143,7 @@ function CreatePage() {
     e.preventDefault();
     if (!characters[0].name.trim()) return toast.error("اكتب اسم البطل الرئيسي");
     if (moods.length === 0) return toast.error("اختر جواً واحداً على الأقل");
+    if (!acceptedDisclaimer) return toast.error("يرجى الموافقة على إخلاء المسؤولية للمتابعة");
     setSubmitting(true);
     try {
       const res = await create({
@@ -159,6 +161,7 @@ function CreatePage() {
           page_count: pages,
           image_quality_tier: qualityTier,
           draft_id: draftIdRef.current,
+          disclaimer_accepted: true,
         },
       });
       navigate({ to: "/preview/$orderId", params: { orderId: res.orderId } });
@@ -366,13 +369,16 @@ function CreatePage() {
           </div>
         </div>
 
-        {/* Image quality tier */}
+        {/* Quality tier — affects both text richness and image fidelity across the whole story */}
         <div>
-          <label className="block text-sm font-bold mb-2">جودة الصور</label>
+          <label className="block text-sm font-bold mb-2">الجودة</label>
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            الجودة الاحترافية تضاعف تفاصيل النص والصور لكل صفحة وكل شخصية — والتكلفة تُحسب بنفس المضاعِف.
+          </p>
           <div className="grid grid-cols-2 gap-2 text-center text-xs">
             {([
-              { v: "standard", label: "قياسي", hint: "Gemini Flash Image" },
-              { v: "premium", label: "احترافي", hint: "Gemini 3 Pro Image" },
+              { v: "standard", label: "قياسي", hint: "جودة جيدة للاستخدام اليومي" },
+              { v: "premium", label: "احترافي", hint: "أعلى تفاصيل بالنص والصور" },
             ] as const).map((o) => (
               <button
                 type="button"
@@ -387,9 +393,24 @@ function CreatePage() {
           </div>
         </div>
 
+        {/* Disclaimer acceptance — required before creating */}
+        <label className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed">
+          <input
+            type="checkbox"
+            checked={acceptedDisclaimer}
+            onChange={(e) => setAcceptedDisclaimer(e.target.checked)}
+            className="mt-0.5 shrink-0"
+          />
+          <span>
+            <span className="font-bold text-amber-700 dark:text-amber-400">إخلاء مسؤولية:</span>{" "}
+            «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة بدون أي تدخّل بشري. أنا المسؤول الوحيد عن كل المُدخلات والنتائج،
+            ولا يوجد استرجاع للمبالغ تحت أي ظرف. تحتفظ الإدارة بحق قبول أو رفض الطلب.
+          </span>
+        </label>
+
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !acceptedDisclaimer}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 text-base font-bold text-primary-foreground shadow-warm disabled:opacity-60"
         >
           {submitting && <Loader2 className="size-4 animate-spin" />}
