@@ -12,6 +12,9 @@ export type StoryPdfAssets = {
   pages: Array<{ number: number; text: string; imageUrl: string | null }>;
   accentColor?: string | null;
   orderNumber?: number | null;
+  disclaimer?: string | null;
+  frameStyle?: "classic" | "arabesque" | "ribbon" | "stars" | "floral" | "geometric" | "none" | null;
+  palette?: string[] | null;
 };
 
 // A4 at 96dpi: 794 x 1123 px
@@ -156,7 +159,7 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
   </div>`;
 }
 
-function buildPageHtml(p: { number: number; text: string; imageUrl: string | null }, total: number, a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; imgData: string | null }) {
+function buildPageHtml(p: { number: number; text: string; imageUrl: string | null }, total: number, a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; imgData: string | null; disclaimer: string }) {
   const isAr = a.language === "ar";
   const dir = isAr ? "rtl" : "ltr";
   const align = isAr ? "right" : "left";
@@ -202,7 +205,7 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
       ">${text}</div>
     </div>
     <div style="
-      padding:10px 44px 0;
+      padding:8px 44px 0;
       border-top:1px solid ${opts.accent}55;
       display:flex;justify-content:space-between;align-items:center;
       font-size:12px;color:#6b7079;
@@ -212,19 +215,23 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
         ${logoImg}${brand}
       </span>
     </div>
-    <div style="text-align:center;font-size:10px;color:${opts.gold};padding:6px 0 10px;">${tag}</div>
-    <div style="height:10px;background:${opts.gold};"></div>
+    <div style="text-align:center;font-size:10px;color:${opts.gold};padding:4px 44px 2px;">${tag}</div>
+    <div style="font-size:8.5px;line-height:1.5;color:#8a8f96;padding:0 44px 6px;text-align:center;">
+      ${escapeHtml((opts.disclaimer ?? "").slice(0, 220))}
+    </div>
+    <div style="height:8px;background:${opts.gold};"></div>
   </div>`;
 }
 
-function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null }) {
+function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; disclaimer: string }) {
   const isAr = a.language === "ar";
   const dir = isAr ? "rtl" : "ltr";
   const thanks = isAr ? "شكراً لاختياركم بصمة حكاية" : "Thank you for choosing Basma Hekaya";
   const note = isAr ? "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة." : "Follow us on TikTok and tell us your next story idea.";
   const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
+  const disclaimerTitle = isAr ? "إخلاء مسؤولية" : "Disclaimer";
   const logoImg = opts.logo
-    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:140px;height:140px;object-fit:contain;display:block;margin:0 auto 24px;" />`
+    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:120px;height:120px;object-fit:contain;display:block;margin:0 auto 16px;" />`
     : "";
 
   return `
@@ -237,13 +244,18 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
     display:flex;flex-direction:column;
   ">
     <div style="height:18px;background:${opts.accent};"></div>
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:0 60px;text-align:center;">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px 60px;text-align:center;">
       ${logoImg}
-      <div style="font-size:32px;font-weight:900;color:${opts.accent};margin-bottom:14px;">${escapeHtml(thanks)}</div>
-      <div style="font-size:16px;color:#6b7079;margin-bottom:18px;">${escapeHtml(note)}</div>
-      <div style="font-size:16px;font-weight:700;color:${opts.gold};">@basmathikaya1 · tiktok.com</div>
+      <div style="font-size:30px;font-weight:900;color:${opts.accent};margin-bottom:10px;">${escapeHtml(thanks)}</div>
+      <div style="font-size:15px;color:#6b7079;margin-bottom:14px;">${escapeHtml(note)}</div>
+      <div style="font-size:15px;font-weight:700;color:${opts.gold};margin-bottom:22px;">@basmathikaya1 · tiktok.com</div>
+
+      <div style="width:100%;max-width:640px;border:2px solid ${opts.accent}44;border-radius:14px;padding:16px 20px;background:${opts.accent}08;text-align:${isAr ? "right" : "left"};">
+        <div style="font-size:12px;font-weight:900;color:${opts.accent};margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">${disclaimerTitle}</div>
+        <div style="font-size:13px;line-height:1.9;color:#3a3f47;">${escapeHtml(opts.disclaimer)}</div>
+      </div>
     </div>
-    <div style="text-align:center;font-size:13px;font-weight:700;color:${opts.accent};padding:14px 0;">${tag}</div>
+    <div style="text-align:center;font-size:13px;font-weight:700;color:${opts.accent};padding:12px 0;">${tag}</div>
     <div style="height:12px;background:${opts.gold};"></div>
   </div>`;
 }
@@ -281,9 +293,14 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
   document.body.appendChild(host);
 
   try {
-    const opts = { accent, gold, logo: logoData };
+    const disclaimer =
+      a.disclaimer ??
+      (a.language === "ar"
+        ? "منصة «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة، بدون أي تدخّل بشري. المستخدم مسؤول عن كل المُدخلات والنتائج، ولا يوجد استرجاع للمبالغ تحت أي ظرف."
+        : "Basma Hekaya is an AI tool built for this concept, with no human involvement. The user is solely responsible for all inputs and outputs; no refunds under any circumstances.");
+    const opts = { accent, gold, logo: logoData, disclaimer };
     const htmlParts: string[] = [
-      buildCoverHtml(a, { ...opts, coverData }),
+      buildCoverHtml(a, { accent, gold, logo: logoData, coverData }),
       ...a.pages.map((p, i) => buildPageHtml(p, a.pages.length, a, { ...opts, imgData: pageImgs[i] })),
       buildThanksHtml(a, opts),
     ];

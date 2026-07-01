@@ -13,6 +13,7 @@ import {
   getPublicPricing,
 } from "../lib/orders.functions";
 import { getActiveTheme } from "../lib/themes.functions";
+import { getHomeContent } from "../lib/site-content.functions";
 import { buildAndDownloadStoryPdf } from "../lib/pdf-client";
 import { computeTierAmount, DEFAULT_PRICING } from "../lib/pricing";
 
@@ -33,6 +34,8 @@ function PreviewPage() {
   const pricingFn = useServerFn(getPublicPricing);
 
   const themeFn = useServerFn(getActiveTheme);
+  const contentFn = useServerFn(getHomeContent);
+
 
   const [confirming, setConfirming] = useState<string | null>(null);
   const [genStarted, setGenStarted] = useState(false);
@@ -109,7 +112,11 @@ function PreviewPage() {
     if (!progress) return;
     setBuilding(true);
     try {
-      const theme = await themeFn().catch(() => null);
+      const [theme, content] = await Promise.all([
+        themeFn().catch(() => null),
+        contentFn().catch(() => null),
+      ]);
+      const th = theme as (null | { accent_color?: string | null; frame_style?: string | null; palette?: string[] | null });
       await buildAndDownloadStoryPdf({
         title: progress.title || (lang === "ar" ? "حكايتي" : "My Story"),
         language: lang,
@@ -117,8 +124,11 @@ function PreviewPage() {
         moods: progress.moods ?? [],
         coverUrl: progress.cover_url,
         pages: progress.pages.map((pg) => ({ number: pg.page_number, text: pg.text, imageUrl: pg.image_url })),
-        accentColor: theme?.accent_color ?? null,
+        accentColor: th?.accent_color ?? null,
         orderNumber: progress.order_number ?? order?.order_number ?? null,
+        disclaimer: content ? (lang === "ar" ? content.disclaimer_ar : content.disclaimer_en) : null,
+        frameStyle: (th?.frame_style as never) ?? null,
+        palette: th?.palette ?? null,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");

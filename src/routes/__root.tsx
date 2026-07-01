@@ -104,7 +104,15 @@ function ThemeBanner() {
   const { lang } = useT();
   const fn = useServerFn(getActiveTheme);
   const q = useQuery({ queryKey: ["active-theme"], queryFn: () => fn(), staleTime: 5 * 60_000 });
-  const theme = q.data;
+  const theme = q.data as
+    | (null | {
+        accent_color: string | null;
+        banner_text_ar: string | null; banner_text_en: string | null;
+        banner_url: string | null;
+        header_title_ar: string | null; header_title_en: string | null;
+        header_size: string | null;
+        palette: string[] | null;
+      });
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (theme?.accent_color) {
@@ -114,15 +122,41 @@ function ThemeBanner() {
     }
   }, [theme?.accent_color]);
   if (!theme) return null;
-  const text = lang === "ar" ? theme.banner_text_ar : theme.banner_text_en;
-  if (!text) return null;
+  const bannerText = lang === "ar" ? theme.banner_text_ar : theme.banner_text_en;
+  const headerTitle = lang === "ar" ? theme.header_title_ar : theme.header_title_en;
+  if (!bannerText && !headerTitle) return null;
+  const size = theme.header_size ?? "md";
+  const titleClass =
+    size === "xl" ? "text-2xl md:text-3xl"
+    : size === "lg" ? "text-xl md:text-2xl"
+    : size === "sm" ? "text-sm md:text-base"
+    : "text-base md:text-lg";
+  const palette = theme.palette ?? [];
+  const gradient = palette.length >= 2
+    ? `linear-gradient(to right, ${palette[0]}22, ${palette[Math.min(2, palette.length - 1)]}33, ${palette[palette.length - 1]}22)`
+    : undefined;
   return (
-    <div className="bg-gradient-to-r from-accent/30 via-primary/15 to-accent/30 border-b text-center text-xs font-medium text-foreground py-1.5 px-3">
-      {text}{" "}
-      {theme.banner_url && (
-        <a href={theme.banner_url} className="underline text-primary" target="_blank" rel="noopener noreferrer">
-          {lang === "ar" ? "اعرف أكثر" : "Learn more"}
-        </a>
+    <div
+      className="border-b text-center py-2 px-3"
+      style={{
+        background: gradient,
+        borderColor: theme.accent_color ? `${theme.accent_color}44` : undefined,
+      }}
+    >
+      {headerTitle && (
+        <div className={`${titleClass} font-extrabold`} style={{ color: theme.accent_color ?? undefined }}>
+          {headerTitle}
+        </div>
+      )}
+      {bannerText && (
+        <div className="mt-0.5 text-xs font-medium text-foreground/80">
+          {bannerText}{" "}
+          {theme.banner_url && (
+            <a href={theme.banner_url} className="underline text-primary" target="_blank" rel="noopener noreferrer">
+              {lang === "ar" ? "اعرف أكثر" : "Learn more"}
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

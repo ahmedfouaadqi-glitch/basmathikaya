@@ -6,7 +6,9 @@ import { toast } from "sonner";
 import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck } from "lucide-react";
 import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress } from "../lib/orders.functions";
 import { getActiveTheme } from "../lib/themes.functions";
-import { buildAndDownloadStoryPdf } from "../lib/pdf-client";
+import { getHomeContent } from "../lib/site-content.functions";
+import { buildAndDownloadStoryPdf, type StoryPdfAssets } from "../lib/pdf-client";
+type StoryFrameStyle = NonNullable<StoryPdfAssets["frameStyle"]>;
 import { useT } from "../lib/i18n";
 import { supabase } from "../integrations/supabase/client";
 
@@ -22,6 +24,7 @@ function OrderDetail() {
   const regenFn = useServerFn(adminRegeneratePage);
   const progressFn = useServerFn(getStoryProgress);
   const themeFn = useServerFn(getActiveTheme);
+  const contentFn = useServerFn(getHomeContent);
   const confirmGenFn = useServerFn(adminConfirmPaymentAndGenerate);
   const updateStatusFn = useServerFn(adminUpdateStatus);
   const [regening, setRegening] = useState<number | null>(null);
@@ -70,14 +73,16 @@ function OrderDetail() {
   async function downloadPdf() {
     setBuildingPdf(true);
     try {
-      const [p, theme] = await Promise.all([
+      const [p, theme, content] = await Promise.all([
         progressFn({ data: { orderId: id } }),
         themeFn().catch(() => null),
+        contentFn().catch(() => null),
       ]);
       if (!p.ready) {
         toast.error(lang === "ar" ? "القصة غير جاهزة بعد" : "Story not ready yet");
         return;
       }
+      const th = theme as (null | { accent_color?: string | null; frame_style?: string | null; palette?: string[] | null });
       await buildAndDownloadStoryPdf({
         title: p.title || (lang === "ar" ? "حكايتي" : "My Story"),
         language: lang,
@@ -85,8 +90,11 @@ function OrderDetail() {
         moods: p.moods ?? [],
         coverUrl: p.cover_url,
         pages: p.pages.map((pg) => ({ number: pg.page_number, text: pg.text, imageUrl: pg.image_url })),
-        accentColor: theme?.accent_color ?? null,
+        accentColor: th?.accent_color ?? null,
         orderNumber: p.order_number ?? order.order_number,
+        disclaimer: content ? (lang === "ar" ? content.disclaimer_ar : content.disclaimer_en) : null,
+        frameStyle: (th?.frame_style as StoryFrameStyle) ?? null,
+        palette: th?.palette ?? null,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");

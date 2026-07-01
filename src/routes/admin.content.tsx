@@ -88,6 +88,7 @@ function ContentPage() {
         <Pair k={"feat_2_d" as keyof HomeContent} label="ميزة 2 — الوصف" multiline />
         <Pair k={"feat_3_t" as keyof HomeContent} label="ميزة 3 — العنوان" />
         <Pair k={"feat_3_d" as keyof HomeContent} label="ميزة 3 — الوصف" multiline />
+        <Pair k={"disclaimer" as keyof HomeContent} label="نص إخلاء المسؤولية (يظهر في الصفحة الرئيسية والذيل وملف القصة)" multiline />
         <button disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3 font-bold text-primary-foreground disabled:opacity-60">
           {saving && <Loader2 className="size-4 animate-spin" />}
           حفظ

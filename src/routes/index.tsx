@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useT } from "../lib/i18n";
 import { Sparkles, BookOpen, Truck } from "lucide-react";
 import { brandLogoUrl } from "../lib/brand";
-import { BrandIntroVideo } from "../components/BrandIntroVideo";
+import { BrandIntroCarousel } from "../components/BrandIntroCarousel";
 import { getHomeContent, DEFAULT_HOME_CONTENT } from "../lib/site-content.functions";
 
 export const Route = createFileRoute("/")({
@@ -31,8 +31,18 @@ function Home() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24">
+      {/* === Promo videos moved to the TOP, above the tagline === */}
+      <section className="pt-8 md:pt-12">
+        <div className="relative mx-auto max-w-2xl">
+          <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-primary/20 via-transparent to-accent/25 blur-2xl" />
+          <div className="relative aspect-[3/4] max-w-sm mx-auto rounded-2xl bg-gradient-to-br from-primary/25 via-background to-accent/30 p-1 shadow-2xl overflow-hidden">
+            <BrandIntroCarousel className="h-full w-full" />
+          </div>
+        </div>
+      </section>
+
       {/* Hero */}
-      <section className="pt-12 md:pt-20 text-center">
+      <section className="pt-10 md:pt-14 text-center">
         <div className="mx-auto inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-3 py-1 text-xs text-muted-foreground">
           <Sparkles className="size-3.5 text-primary" />
           {pick(c.tagline_ar, c.tagline_en, lang)}
@@ -53,24 +63,14 @@ function Home() {
         <p className="mx-auto mt-5 max-w-xl text-base md:text-lg text-muted-foreground text-balance">
           {pick(c.hero_lead_ar, c.hero_lead_en, lang)}
         </p>
-        <div className="mt-8 flex justify-center">
+        {/* CTA button intentionally removed per admin request — the top nav "ابدأ حكايتك" is the entry point. */}
+        <div className="mt-6">
           <Link
             to="/create"
-            className="group inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-primary to-accent px-6 py-3.5 text-base font-bold text-primary-foreground shadow-warm transition hover:scale-[1.02] active:scale-[0.99]"
+            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-4"
           >
-            {pick(c.cta_start_ar, c.cta_start_en, lang)}
-            <Sparkles className="size-4 transition group-hover:rotate-12" />
+            {pick(c.cta_start_ar, c.cta_start_en, lang)} →
           </Link>
-        </div>
-      </section>
-
-      {/* Brand intro videos — sequential loop */}
-      <section className="mt-16 md:mt-24">
-        <div className="relative mx-auto max-w-2xl">
-          <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-primary/20 via-transparent to-accent/25 blur-2xl" />
-          <div className="relative aspect-[3/4] max-w-sm mx-auto rounded-2xl bg-gradient-to-br from-primary/25 via-background to-accent/30 p-1 shadow-2xl overflow-hidden">
-            <BrandIntroVideo className="h-full w-full rounded-xl object-cover bg-background" />
-          </div>
         </div>
       </section>
 
@@ -87,6 +87,16 @@ function Home() {
             <p className="mt-1.5 text-sm text-muted-foreground">{f.d}</p>
           </div>
         ))}
+      </section>
+
+      {/* Disclaimer */}
+      <section className="mt-14">
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs leading-relaxed text-foreground/80">
+          <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+            {lang === "ar" ? "إخلاء مسؤولية" : "Disclaimer"}
+          </div>
+          {pick(c.disclaimer_ar, c.disclaimer_en, lang)}
+        </div>
       </section>
     </div>
   );

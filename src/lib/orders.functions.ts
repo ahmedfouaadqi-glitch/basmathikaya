@@ -25,6 +25,7 @@ const CreateInput = z.object({
   language: z.enum(["ar", "en"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
+  disclaimer_accepted: z.boolean().default(false),
   image_quality_tier: z
     .enum(["fast", "standard", "premium"])
     .default("standard")
@@ -119,6 +120,7 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         moods: data.moods,
         custom_instructions: data.custom_instructions || null,
         image_quality_tier: data.image_quality_tier,
+        disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
       })
       .select("id, order_number")
       .single();
@@ -580,7 +582,9 @@ export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
       .select("id", { count: "exact", head: true })
       .eq("order_id", data.orderId);
     const characters = Math.max(1, charCount ?? 1);
-    const amount = computeTierAmount(data.tier as Tier, pageCount, pricing, characters);
+    const quality = ((await supabaseAdmin.from("orders").select("image_quality_tier").eq("id", data.orderId).single()).data?.image_quality_tier as "standard" | "premium" | null) ?? "standard";
+    const effQuality: "standard" | "premium" = quality === "premium" ? "premium" : "standard";
+    const amount = computeTierAmount(data.tier as Tier, pageCount, pricing, characters, effQuality);
 
     const { data: ord, error } = await supabaseAdmin
       .from("orders")
@@ -629,7 +633,8 @@ export const getPublicPricing = createServerFn({ method: "GET" }).handler(async 
     per_character_iqd_video: Number(p.per_character_iqd_video ?? 6000),
     max_characters: Number(p.max_characters ?? 5),
     image_tier_standard_extra_iqd: Number((p as PricingRow).image_tier_standard_extra_iqd ?? 0),
-    image_tier_premium_extra_iqd: Number((p as PricingRow).image_tier_premium_extra_iqd ?? 2000),
+    image_tier_premium_extra_iqd: Number((p as PricingRow).image_tier_premium_extra_iqd ?? 0),
+    quality_premium_multiplier: Number((p as PricingRow).quality_premium_multiplier ?? 2),
     video_tier_enabled: Boolean((p as PricingRow).video_tier_enabled ?? false),
   };
 });
@@ -790,7 +795,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     try {
       const { data: order } = await supabaseAdmin
         .from("orders")
-        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, characters(language)")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, characters(language)")
         .eq("id", data.orderId)
         .single();
       if (!order) throw new Error("Order missing");
@@ -806,7 +811,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         .order("page_number");
       const { data: chars } = await supabaseAdmin
         .from("order_characters")
-        .select("photo_path, is_primary")
+        .select("photo_path, is_primary, visual_brief")
         .eq("order_id", data.orderId)
         .order("position");
 
@@ -816,9 +821,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const coverModel = effectiveTier === "premium"
         ? "google/gemini-3-pro-image"
         : "google/gemini-3.1-flash-image";
-      const pageModel = effectiveTier === "premium"
-        ? "google/gemini-3-pro-image"
-        : "google/gemini-3.1-flash-image";
+      const pageModel = coverModel;
 
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
       const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
@@ -829,7 +832,21 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       }
 
       const brief = (order.character_brief as string | null) ?? "";
-      const style = "warm storybook illustration, soft watercolor, vibrant colors, cinematic lighting, child-friendly, clean composition centered subject";
+      // Persistent art style lock — same style repeated across cover + every page,
+      // so the whole book feels like one illustrated set. Only the LIGHTING varies per page.
+      let artStyleLock = (order.art_style_lock as string | null) ?? "";
+      if (!artStyleLock) {
+        artStyleLock = "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
+        await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
+      }
+      const style = artStyleLock;
+      const dnaLines = (chars ?? [])
+        .map((c) => (c.visual_brief ? `• ${c.visual_brief}` : ""))
+        .filter(Boolean)
+        .join("\n");
+      const dnaTag = dnaLines
+        ? `Character DNA (must match every page):\n${dnaLines}\n`
+        : "";
       const consistencyTag = brief ? `Consistent cast across all pages — ${brief}. ` : "";
       const likenessTag = referenceImages.length
         ? "Match the facial features, hair and skin tone of the reference photo as closely as possible while keeping a cartoon storybook style. "
@@ -844,8 +861,8 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${likenessTag}${consistencyTag}${coverPrompt}. ${style}. Book cover composition, leave headroom for title.`
-          : `${likenessTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}.`;
+          ? `${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. Book cover composition, leave headroom for title, no text.`
+          : `${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. No text.`;
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
@@ -865,8 +882,9 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       // Page images
       const todo = (pages ?? []).filter((p) => !p.image_path);
       await runWithConcurrency(todo, 3, async (p) => {
-        const styleSeed = ((p.page_number ?? 0) % 3 === 0) ? "soft morning light" : ((p.page_number ?? 0) % 3 === 1 ? "warm golden hour" : "gentle dusk");
-        const prompt = `${likenessTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, ${styleSeed}. No text or letters in the image.`;
+        const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
+        const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
+        const prompt = `${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. No text or letters in the image.`;
         const path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
@@ -981,7 +999,8 @@ const PricingInput = z.object({
   print_cost_iqd: z.coerce.number().int().nonnegative(),
   shipping_cost_iqd: z.coerce.number().int().nonnegative(),
   image_tier_standard_extra_iqd: z.coerce.number().int().nonnegative().default(0),
-  image_tier_premium_extra_iqd: z.coerce.number().int().nonnegative().default(2000),
+  image_tier_premium_extra_iqd: z.coerce.number().int().nonnegative().default(0),
+  quality_premium_multiplier: z.coerce.number().positive().max(20).default(2),
   video_tier_enabled: z.coerce.boolean().default(false),
 });
 

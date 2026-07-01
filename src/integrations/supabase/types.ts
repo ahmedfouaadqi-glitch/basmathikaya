@@ -239,12 +239,15 @@ export type Database = {
       orders: {
         Row: {
           amount_iqd: number
+          art_style_lock: string | null
           character_brief: string | null
+          character_dna: Json | null
           character_id: string | null
           created_at: string
           custom_instructions: string | null
           customer_phone: string
           delivered_at: string | null
+          disclaimer_accepted_at: string | null
           id: string
           image_quality_tier: string | null
           images_error: string | null
@@ -265,12 +268,15 @@ export type Database = {
         }
         Insert: {
           amount_iqd?: number
+          art_style_lock?: string | null
           character_brief?: string | null
+          character_dna?: Json | null
           character_id?: string | null
           created_at?: string
           custom_instructions?: string | null
           customer_phone: string
           delivered_at?: string | null
+          disclaimer_accepted_at?: string | null
           id?: string
           image_quality_tier?: string | null
           images_error?: string | null
@@ -291,12 +297,15 @@ export type Database = {
         }
         Update: {
           amount_iqd?: number
+          art_style_lock?: string | null
           character_brief?: string | null
+          character_dna?: Json | null
           character_id?: string | null
           created_at?: string
           custom_instructions?: string | null
           customer_phone?: string
           delivered_at?: string | null
+          disclaimer_accepted_at?: string | null
           id?: string
           image_quality_tier?: string | null
           images_error?: string | null
@@ -377,6 +386,7 @@ export type Database = {
           per_page_iqd_printed: number
           per_page_iqd_video: number
           print_cost_iqd: number
+          quality_premium_multiplier: number
           shipping_cost_iqd: number
           tier_fast_extra_iqd: number
           tier_pdf_iqd: number
@@ -401,6 +411,7 @@ export type Database = {
           per_page_iqd_printed?: number
           per_page_iqd_video?: number
           print_cost_iqd?: number
+          quality_premium_multiplier?: number
           shipping_cost_iqd?: number
           tier_fast_extra_iqd?: number
           tier_pdf_iqd?: number
@@ -425,6 +436,7 @@ export type Database = {
           per_page_iqd_printed?: number
           per_page_iqd_video?: number
           print_cost_iqd?: number
+          quality_premium_multiplier?: number
           shipping_cost_iqd?: number
           tier_fast_extra_iqd?: number
           tier_pdf_iqd?: number
@@ -437,6 +449,39 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_videos: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          muted_default: boolean
+          sort_order: number
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          muted_default?: boolean
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          muted_default?: boolean
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       seasonal_themes: {
         Row: {
           accent_color: string | null
@@ -446,8 +491,16 @@ export type Database = {
           banner_url: string | null
           created_at: string
           end_date: string | null
+          frame_style: string | null
+          header_size: string | null
+          header_title_ar: string | null
+          header_title_en: string | null
           id: string
+          meaning_ar: string | null
+          meaning_en: string | null
+          motifs: Json | null
           name: string
+          palette: Json | null
           pattern: string | null
           start_date: string | null
           updated_at: string
@@ -460,8 +513,16 @@ export type Database = {
           banner_url?: string | null
           created_at?: string
           end_date?: string | null
+          frame_style?: string | null
+          header_size?: string | null
+          header_title_ar?: string | null
+          header_title_en?: string | null
           id?: string
+          meaning_ar?: string | null
+          meaning_en?: string | null
+          motifs?: Json | null
           name: string
+          palette?: Json | null
           pattern?: string | null
           start_date?: string | null
           updated_at?: string
@@ -474,8 +535,16 @@ export type Database = {
           banner_url?: string | null
           created_at?: string
           end_date?: string | null
+          frame_style?: string | null
+          header_size?: string | null
+          header_title_ar?: string | null
+          header_title_en?: string | null
           id?: string
+          meaning_ar?: string | null
+          meaning_en?: string | null
+          motifs?: Json | null
           name?: string
+          palette?: Json | null
           pattern?: string | null
           start_date?: string | null
           updated_at?: string
