@@ -10,6 +10,14 @@ const ThemeInput = z.object({
   banner_text_ar: z.string().trim().max(200).optional().nullable(),
   banner_text_en: z.string().trim().max(200).optional().nullable(),
   banner_url: z.string().trim().max(500).optional().nullable(),
+  meaning_ar: z.string().trim().max(1000).optional().nullable(),
+  meaning_en: z.string().trim().max(1000).optional().nullable(),
+  palette: z.array(z.string().trim().max(40)).max(6).optional().nullable(),
+  frame_style: z.enum(["classic", "arabesque", "ribbon", "stars", "floral", "geometric", "none"]).optional().nullable(),
+  motifs: z.array(z.string().trim().max(40)).max(8).optional().nullable(),
+  header_title_ar: z.string().trim().max(160).optional().nullable(),
+  header_title_en: z.string().trim().max(160).optional().nullable(),
+  header_size: z.enum(["sm", "md", "lg", "xl"]).optional().nullable(),
   active: z.boolean().default(false),
 });
 
@@ -27,7 +35,6 @@ export const getActiveTheme = createServerFn({ method: "GET" }).handler(async ()
     .eq("active", true)
     .order("updated_at", { ascending: false })
     .limit(20);
-  // pick the first active theme whose date range covers today (or has no range)
   const matched = (data ?? []).find((t) => {
     const okStart = !t.start_date || t.start_date <= today;
     const okEnd = !t.end_date || t.end_date >= today;

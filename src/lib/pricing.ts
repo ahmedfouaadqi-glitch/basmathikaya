@@ -24,15 +24,28 @@ export type PricingLike = {
   shipping_cost_iqd?: number | string;
   image_tier_standard_extra_iqd?: number | string;
   image_tier_premium_extra_iqd?: number | string;
+  quality_premium_multiplier?: number | string;
   video_tier_enabled?: boolean;
 };
 
+/** Returns per-unit multiplier applied when the user picks premium quality. */
+export function qualityMultiplier(p: PricingLike, q: QualityTier): number {
+  if (q !== "premium") return 1;
+  const m = Number(p.quality_premium_multiplier ?? 2);
+  return Number.isFinite(m) && m > 0 ? m : 2;
+}
+
 export function qualityExtra(p: PricingLike, q: QualityTier): number {
   return q === "premium"
-    ? Number(p.image_tier_premium_extra_iqd ?? 2000)
+    ? Number(p.image_tier_premium_extra_iqd ?? 0)
     : Number(p.image_tier_standard_extra_iqd ?? 0);
 }
 
+/**
+ * Total = (base + extraPages*perPage + extraChars*perChar) * qualityMultiplier + flatExtra
+ * The multiplier scales the whole per-unit tally (base, per-page, per-character)
+ * so higher quality raises the price of each image, each page and each character.
+ */
 export function computeTierAmount(
   tier: Tier,
   pageCount: number,
@@ -55,7 +68,9 @@ export function computeTierAmount(
         ? p.per_character_iqd_printed ?? 3000
         : p.per_character_iqd_video ?? 6000,
   );
-  return Math.round(base + extraPages * perPage + extraChars * perChar + qualityExtra(p, quality));
+  const mult = qualityMultiplier(p, quality);
+  const perUnit = base + extraPages * perPage + extraChars * perChar;
+  return Math.round(perUnit * mult + qualityExtra(p, quality));
 }
 
 export const DEFAULT_PRICING: PricingLike = {
@@ -72,6 +87,7 @@ export const DEFAULT_PRICING: PricingLike = {
   print_cost_iqd: 0,
   shipping_cost_iqd: 0,
   image_tier_standard_extra_iqd: 0,
-  image_tier_premium_extra_iqd: 2000,
+  image_tier_premium_extra_iqd: 0,
+  quality_premium_multiplier: 2,
   video_tier_enabled: false,
 };
