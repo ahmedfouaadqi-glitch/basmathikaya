@@ -293,9 +293,14 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
   document.body.appendChild(host);
 
   try {
-    const opts = { accent, gold, logo: logoData };
+    const disclaimer =
+      a.disclaimer ??
+      (a.language === "ar"
+        ? "منصة «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة، بدون أي تدخّل بشري. المستخدم مسؤول عن كل المُدخلات والنتائج، ولا يوجد استرجاع للمبالغ تحت أي ظرف."
+        : "Basma Hekaya is an AI tool built for this concept, with no human involvement. The user is solely responsible for all inputs and outputs; no refunds under any circumstances.");
+    const opts = { accent, gold, logo: logoData, disclaimer };
     const htmlParts: string[] = [
-      buildCoverHtml(a, { ...opts, coverData }),
+      buildCoverHtml(a, { accent, gold, logo: logoData, coverData }),
       ...a.pages.map((p, i) => buildPageHtml(p, a.pages.length, a, { ...opts, imgData: pageImgs[i] })),
       buildThanksHtml(a, opts),
     ];
