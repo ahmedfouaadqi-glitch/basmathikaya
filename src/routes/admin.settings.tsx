@@ -19,6 +19,7 @@ type Form = {
   max_characters: number;
   print_cost_iqd: number; shipping_cost_iqd: number;
   image_tier_standard_extra_iqd: number; image_tier_premium_extra_iqd: number;
+  quality_premium_multiplier: number;
   video_tier_enabled: boolean;
 };
 
@@ -48,7 +49,8 @@ function SettingsPage() {
         print_cost_iqd: q.data.print_cost_iqd,
         shipping_cost_iqd: q.data.shipping_cost_iqd,
         image_tier_standard_extra_iqd: (q.data as { image_tier_standard_extra_iqd?: number }).image_tier_standard_extra_iqd ?? 0,
-        image_tier_premium_extra_iqd: (q.data as { image_tier_premium_extra_iqd?: number }).image_tier_premium_extra_iqd ?? 2000,
+        image_tier_premium_extra_iqd: (q.data as { image_tier_premium_extra_iqd?: number }).image_tier_premium_extra_iqd ?? 0,
+        quality_premium_multiplier: Number((q.data as { quality_premium_multiplier?: number | string }).quality_premium_multiplier ?? 2),
         video_tier_enabled: Boolean((q.data as { video_tier_enabled?: boolean }).video_tier_enabled ?? false),
       });
     }
@@ -101,11 +103,16 @@ function SettingsPage() {
           <Row label="تكلفة الطباعة (د.ع)" type="number" value={form.print_cost_iqd} onChange={(v) => set("print_cost_iqd", v)} />
           <Row label="تكلفة الشحن (د.ع)" type="number" value={form.shipping_cost_iqd} onChange={(v) => set("shipping_cost_iqd", v)} />
         </div>
-        <div className="text-xs font-semibold text-muted-foreground mt-2">إضافات جودة الصور</div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Row label="فارق سعر الجودة القياسية (د.ع)" type="number" value={form.image_tier_standard_extra_iqd} onChange={(v) => set("image_tier_standard_extra_iqd", v)} />
-          <Row label="فارق سعر الجودة الاحترافية (د.ع)" type="number" value={form.image_tier_premium_extra_iqd} onChange={(v) => set("image_tier_premium_extra_iqd", v)} />
+        <div className="text-xs font-semibold text-muted-foreground mt-2">إعدادات مستوى الجودة</div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Row label="مضاعِف الجودة الاحترافية (لكل صفحة/شخصية/أساسي)" type="number" step="0.1" value={form.quality_premium_multiplier} onChange={(v) => set("quality_premium_multiplier", v)} />
+          <Row label="فارق سعر ثابت — قياسي (د.ع)" type="number" value={form.image_tier_standard_extra_iqd} onChange={(v) => set("image_tier_standard_extra_iqd", v)} />
+          <Row label="فارق سعر ثابت — احترافي (د.ع)" type="number" value={form.image_tier_premium_extra_iqd} onChange={(v) => set("image_tier_premium_extra_iqd", v)} />
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          المضاعِف يُطبَّق على مجموع (السعر الأساسي + كل الصفحات الإضافية + كل الشخصيات الإضافية)، ثم يُضاف الفارق الثابت.
+          مثال: مضاعِف 2.0 يعني أن الجودة الاحترافية تُضاعف تكلفة الصور والنصوص والصفحات معاً.
+        </p>
         <label className="flex items-center gap-2 text-sm pt-2">
           <input type="checkbox" checked={form.video_tier_enabled} onChange={(e) => set("video_tier_enabled", e.target.checked)} />
           تفعيل مستوى الفيديو (إن أُلغيَ سيظل السعر ظاهراً ولكن لا يمكن اختياره)
