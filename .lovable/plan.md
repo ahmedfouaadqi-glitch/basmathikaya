@@ -1,108 +1,82 @@
-## الهدف
-توسيع صلاحيات الإدارة لتشمل تحرير محتوى الصفحة الرئيسية ونصوص الواجهة، دمج مستويات جودة الصور إلى مستويين (قياسي + محترف)، وتعطيل/تغويش المستوى الثالث (الفيديو) مع إبقاء سعره ظاهراً فقط.
+# خطة التحديث الشاملة
 
----
+## 1) شخصية موحّدة + إطارات مطابقة للثيم
 
-## 1) دمج مستويات جودة الصور (سريع + قياسي → قياسي)
+- **Character DNA ثابت**: بعد تحليل Gemini Vision للصور المرفوعة، نُنشئ `character_dna` مفصّل (شكل الوجه، لون البشرة، الشعر، العينين، الملابس الأساسية، السن التقريبي، الجنس) ونحفظه في `orders.character_dna` (jsonb).
+- **نمط بصري ثابت لكل قصة**: نولّد `art_style_lock` واحد (مثال: "watercolor storybook, soft pastel, 3D-ish shading") ونستخدمه في **كل** صفحة + الغلاف.
+- **اختلاف الإضاءة فقط**: كل صفحة تحمل `lighting_variant` (شروق، ظهر، غروب، ليلي هادئ، مصابيح دافئة…) مع الحفاظ على نفس الـDNA والنمط.
+- **إطار الصفحة يتبع الثيم**: بدل الإطار العام، نضيف حقولاً للثيم: `frame_style` (ذهبي عربي، هلال رمضاني، نجوم مولد، ورقي…) و`frame_svg_pattern`، ويُطبَّق في `pdf-client.ts` وفي معاينة الغلاف.
+- **مراجع دائمة**: نمرّر صور المستخدم + الغلاف الناتج كمراجع لكل صفحة (Gemini image) لضمان التطابق.
 
-- في `src/routes/create.tsx`: تقليل خيارات `image_quality_tier` إلى:
-  - **قياسي** (`standard`) — الافتراضي، يستخدم Gemini Flash (دمج ما كان "سريع" + "قياسي").
-  - **محترف** (`premium`) — Gemini 3 Pro / أعلى نموذج متاح.
-- في `src/lib/orders.functions.ts` و`src/lib/ai-gateway.server.ts`:
-  - `fast` يُعامل كـ alias لـ `standard` (للتوافق مع الطلبات القديمة).
-  - تحديث جدول الأسعار: `image_tier_extra_iqd` لكل مستوى.
-- في `pricing_settings`: إضافة عمودَي `image_tier_standard_extra_iqd` و`image_tier_premium_extra_iqd` لتحكم الإدارة بفارق السعر.
+## 2) توسيع الثيمات (المعنى + الألوان + الهيدر)
 
-## 2) تغويش (تعطيل) مستوى "فيديو"
+- ترقية `seasonal_themes` بأعمدة:
+  - `meaning_ar` / `meaning_en` (وصف روحاني للشهر/المناسبة)
+  - `palette` jsonb (primary/accent/bg/frame)
+  - `frame_style` + `motifs[]` (هلال، فانوس، نخلة…)
+  - `header_title_ar/en` + `header_size` (sm/md/lg/xl)
+  - `active_from` / `active_to` (تفعيل تلقائي حسب التاريخ)
+- شاشة **admin.themes** موسّعة: منتقي ألوان، اختيار نمط الإطار، معاينة حيّة، تحكم بحجم عنوان الهيدر.
+- تطبيق الثيم النشط تلقائياً على: الهيدر (اللون/الحجم/العنوان)، الغلاف، إطارات صفحات الـPDF، وخلفية الصفحة الرئيسية.
 
-- في `src/routes/create.tsx`: بطاقة الفيديو تبقى ظاهرة مع السعر الحالي (يُحسب من `tier_video_iqd + per_page + per_character` كما هو الآن).
-- تُضاف خصائص: `disabled`, `aria-disabled`, `cursor-not-allowed`, شفافية 60%، شارة "قريباً".
-- إخفاء تفاصيل/وصف المستوى (ميزات الفيديو) — يبقى العنوان والسعر فقط.
-- منع اختياره: `tier` لا يقبل `"video"` في النموذج، والـ submit يرفضه.
+## 3) الصفحة الرئيسية — ترتيب وحذف
 
-## 3) تحرير محتوى الصفحة الرئيسية من الإدارة
+- **حذف** زر «اصنع حكايتي الآن» العلوي من `index.tsx`.
+- **رفع الترويسة (فيديو الترويج)** إلى أعلى القسم قبل السطر:
+  «اختر شخصياتك · حدد جوك · أضف لمستك الخاصة · واحصل على حكاية فريدة · كل حكاية كبصمتك».
+- الاحتفاظ بالأزرار السفلية الأصلية للمتابعة.
 
-جدول جديد `site_content` (key/value JSONB) لتخزين النصوص القابلة للتحرير:
+## 4) فيديوهات الترويسة عبر الإدارة
 
-```text
-key                         value (JSONB)
----------------------------  ------------------------------------------
-home.hero                    { title_ar, title_en, subtitle_ar, subtitle_en, cta_ar, cta_en }
-home.features                [ { icon, title_ar, title_en, desc_ar, desc_en } ]
-home.how_it_works            [ { step, title_ar, title_en, desc_ar, desc_en } ]
-home.footer_note             { ar, en }
-create.intro                 { ar, en }
-auth.intro                   { ar, en }
-```
+- جدول `promo_videos`: `id, url, title, sort_order, enabled, muted_default`.
+- **admin.videos** (route جديد): رفع فيديو (bucket خاص أو رابط)، ترتيب سحب/إفلات، تفعيل/تعطيل، وسويتش «مكتوم افتراضياً / صوت مفعّل».
+- `BrandIntroVideo` يقرأ القائمة، يشغّلها تباعاً، ويحترم إعداد الكتم من الإدارة (مع زر مستخدم للتبديل).
 
-- RLS: قراءة عامة (`TO anon SELECT`)، كتابة فقط عبر `service_role` (server fn محمي بـ `requireAdmin`).
-- Server functions في `src/lib/site-content.functions.ts`:
-  - `getSiteContent({ key })` — عام، مع cache.
-  - `adminListSiteContent()` / `adminUpsertSiteContent({ key, value })` — محمي.
-- صفحة إدارة جديدة `src/routes/admin.content.tsx`: محرر JSON منظّم لكل مفتاح (حقول AR/EN لكل عنصر).
-- تحديث `src/routes/index.tsx` لقراءة النصوص من `site_content` بدلاً من السلاسل الثابتة (مع fallback للنصوص الحالية).
+## 5) تصنيف الجودة يؤثر على القصة كلها
 
-## 4) توسيع الثيمات الموسمية لكل الأشهر والمناسبات
+- في `create.tsx`: تسمية القسم **«الجودة»** فقط، **حذف** أسماء النماذج (Gemini Flash / Gemini 3 Pro Image) من الواجهة.
+- «الجودة» تُطبَّق على النص + الصور + عدد جمل الصفحة:
+  - **قياسي**: `gemini-2.5-flash` للنص، `gemini-3.1-flash-image` للصور، 4-5 جمل/صفحة.
+  - **احترافي**: `gemini-2.5-pro` للنص (تفاصيل أعمق، حبكة أغنى)، `gemini-3-pro-image` للصور، 6-8 جمل/صفحة + إطار بجودة أعلى.
+- **التسعير المضاعف لكل وحدة** (وليس مبلغاً ثابتاً):
+  - `pricing_settings`: `quality_premium_multiplier` (افتراضي 2.0) يُضرب في تكلفة كل صفحة + كل شخصية + الأساس.
+  - إزالة `image_tier_premium_extra_iqd` الثابت، والاستعاضة بمُضاعِف.
+  - كل هذا قابل للتعديل من **admin.settings**.
 
-- في `src/routes/admin.themes.tsx`: إضافة "قوالب جاهزة" (presets) يضغط الأدمن لإنشائها مرة واحدة:
-  - محرم، صفر، ربيع الأول (المولد النبوي)، رجب، شعبان، رمضان، شوال (العيد)، ذو الحجة (عيد الأضحى)، عاشوراء، الإسراء والمعراج، ليلة القدر، رأس السنة الهجرية، رأس السنة الميلادية، عيد الأم، اليوم الوطني، الصيف، الشتاء.
-- كل preset يملأ: `name`, `start_date`, `end_date` (تقريبي/سنوي), `accent_color`, `banner_text_ar/en`.
-- إضافة عمود `pattern` (اختياري) لاسم نمط زخرفي (هندسي/نباتي/فلكي) يُستخدم في الـPDF والواجهة.
-- تطبيق الثيم النشط أوتوماتيكياً على: شريط الموقع، خلفية صفحة الإنشاء، غلاف الـPDF (accent border + banner text).
+## 6) إخلاء المسؤولية
 
-## 5) لوحة إدارة موسّعة (Hub)
+- نص عربي/إنجليزي مركزي في `site_content`:
+  «هذه المنصة أداة ذكاء اصطناعي مخصّصة لفكرة "بصمة حكاية"، دون أي تدخل بشري في التوليد. المستخدم وحده مسؤول عن المُدخلات والنتائج. لا تُسترجع المبالغ تحت أي ظرف. تحتفظ الإدارة بحق قبول أو رفض أي طلب.»
+- يظهر في:
+  1. تذييل الموقع (`SiteFooter`).
+  2. صفحة `create.tsx` كخانة موافقة إلزامية قبل الإرسال (يُخزَّن `disclaimer_accepted_at` في الطلب).
+  3. **آخر صفحة في PDF** («صفحة إخلاء المسؤولية»).
+  4. سطر صغير في **ذيل كل صفحة PDF** بجانب «بصمة حكاية».
+- الإدارة تستطيع تعديل النص من `admin.content`، وترى حالة الموافقة في تفاصيل الطلب مع أزرار **قبول/رفض** واضحة تستند لإخلاء المسؤولية.
 
-- إعادة تنظيم `src/routes/admin.tsx`:
-  - أقسام: الطلبات • المستخدمون • التحليلات • المحتوى (جديد) • الثيمات • الإعدادات.
-- في `admin.settings.tsx`: إضافة قسمَي:
-  - **جودة الصور**: حقول `image_tier_standard_extra_iqd`, `image_tier_premium_extra_iqd`.
-  - **حالة المستويات**: مفتاح `video_tier_enabled` (افتراضياً `false`) للتحكم بإظهار/تعطيل الفيديو لاحقاً دون نشر تحديث.
+## قاعدة البيانات (Migration واحد)
 
----
+- `orders`: `character_dna jsonb`, `art_style_lock text`, `disclaimer_accepted_at timestamptz`.
+- `seasonal_themes`: `meaning_ar/en`, `palette jsonb`, `frame_style`, `motifs jsonb`, `header_title_ar/en`, `header_size`, `active_from`, `active_to`.
+- جدول جديد `promo_videos` + GRANTs + RLS (قراءة للعموم، كتابة للإدارة عبر service_role من serverFn).
+- `pricing_settings`: إضافة `quality_premium_multiplier numeric default 2.0`، وإزالة `image_tier_premium_extra_iqd` من الاستخدام (نُبقي العمود مؤقتاً للتوافق).
+- `site_content` مفاتيح جديدة: `disclaimer_ar`, `disclaimer_en`.
+- Bucket خاص `promo-videos` (public read).
 
-## التفاصيل التقنية
+## الملفات المتأثرة
 
-**Migration (نسخة مختصرة):**
+- `supabase/migrations/*` (جديد)
+- `src/lib/orders.functions.ts` — DNA/style lock، تطبيق مُضاعِف الجودة، تخزين قبول الإخلاء.
+- `src/lib/pricing.ts` — دالة `applyQualityMultiplier`.
+- `src/lib/pdf-client.ts` — إطار الثيم، ذيل الإخلاء، صفحة الإخلاء النهائية.
+- `src/lib/themes.functions.ts` + `src/routes/admin.themes.tsx` — الحقول الجديدة.
+- `src/lib/promo-videos.functions.ts` (جديد) + `src/routes/admin.videos.tsx` (جديد).
+- `src/components/BrandIntroVideo.tsx` — قراءة القائمة الديناميكية + الكتم من الإدارة.
+- `src/routes/index.tsx` — إعادة ترتيب/حذف الزر، الترويسة أعلى، تطبيق ألوان/عنوان الثيم على الهيدر.
+- `src/routes/create.tsx` — إعادة تسمية «الجودة»، حذف أسماء النماذج، خانة موافقة الإخلاء.
+- `src/components/SiteFooter.tsx` — إخلاء مسؤولية.
+- `src/routes/admin.content.tsx` — تحرير نص الإخلاء.
+- `src/routes/admin.settings.tsx` — حقل `quality_premium_multiplier`.
+- `src/routes/admin.orders.$id.tsx` — عرض قبول الإخلاء + أزرار قبول/رفض.
 
-```sql
--- site content
-CREATE TABLE public.site_content (
-  key text PRIMARY KEY,
-  value jsonb NOT NULL DEFAULT '{}'::jsonb,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-GRANT SELECT ON public.site_content TO anon, authenticated;
-GRANT ALL ON public.site_content TO service_role;
-ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public read" ON public.site_content FOR SELECT TO anon, authenticated USING (true);
-
--- pricing additions
-ALTER TABLE public.pricing_settings
-  ADD COLUMN IF NOT EXISTS image_tier_standard_extra_iqd int NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS image_tier_premium_extra_iqd int NOT NULL DEFAULT 2000,
-  ADD COLUMN IF NOT EXISTS video_tier_enabled boolean NOT NULL DEFAULT false;
-
--- themes additions
-ALTER TABLE public.seasonal_themes
-  ADD COLUMN IF NOT EXISTS pattern text;
-```
-
-**Backward compatibility:** الطلبات الموجودة بـ `image_quality_tier='fast'` تُعالج كـ `standard` في كل من PDF/AI gateway/pricing.
-
-**الملفات المُعدّلة:**
-- `src/routes/create.tsx` — تقليل خيارات الجودة + تعطيل بطاقة الفيديو.
-- `src/routes/index.tsx` — قراءة من `site_content`.
-- `src/routes/admin.tsx` — رابط "المحتوى".
-- `src/routes/admin.content.tsx` — جديد، محرر النصوص.
-- `src/routes/admin.themes.tsx` — أزرار presets.
-- `src/routes/admin.settings.tsx` — حقول مستويات الجودة + مفتاح الفيديو.
-- `src/lib/site-content.functions.ts` — جديد.
-- `src/lib/orders.functions.ts` + `src/lib/ai-gateway.server.ts` — alias `fast→standard`، استخدام أسعار الجودة الجديدة.
-- `src/lib/pricing.ts` — دالة `imageTierExtra(tier, pricing)`.
-
----
-
-## ما لن يتغير
-- مسار المصادقة الإدارية (الرقمان + الرمز 7979).
-- منطق توليد القصة والصور وفحص التكرار.
-- بنية الـPDF الحالية (تستفيد فقط من accent color للثيم).
+هل نبدأ التنفيذ؟
