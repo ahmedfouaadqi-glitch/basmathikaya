@@ -50,6 +50,10 @@ function AdminLayout() {
             <Video className="size-4" />
             فيديوهات
           </Link>
+          <Link to="/admin/coupons" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Ticket className="size-4" />
+            {t("admin_coupons")}
+          </Link>
           <Link to="/admin/settings" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Settings className="size-4" />
             {t("admin_settings")}
