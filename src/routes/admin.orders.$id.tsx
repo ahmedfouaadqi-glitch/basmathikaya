@@ -222,7 +222,7 @@ function OrderDetail() {
             )}
 
             {/* Redownload request from customer */}
-            {order.redownload_status === "requested" && (
+            {order.redownload_status === "pending" && (
               <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
                 <div className="font-semibold text-primary mb-1">{t("redownload_request_pending")}</div>
                 <div className="text-muted-foreground">
