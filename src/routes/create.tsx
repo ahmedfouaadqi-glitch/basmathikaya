@@ -436,7 +436,7 @@ function CreatePage() {
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 text-base font-bold text-primary-foreground shadow-warm disabled:opacity-60"
         >
           {submitting && <Loader2 className="size-4 animate-spin" />}
-          {submitting ? t("please_wait_generating") : t("submit_create")}
+          {submitting ? t("creating_now") : t("submit_create")}
         </button>
       </form>
 
@@ -468,7 +468,7 @@ function CreatePage() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-warm disabled:opacity-60"
               >
                 {submitting && <Loader2 className="size-4 animate-spin" />}
-                {submitting ? t("please_wait_generating") : t("confirm_yes")}
+                {submitting ? t("creating_now") : t("confirm_yes")}
               </button>
             </div>
           </div>
