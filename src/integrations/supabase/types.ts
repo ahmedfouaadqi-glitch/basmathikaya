@@ -47,6 +47,107 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          discount_iqd: number
+          id: string
+          order_id: string
+          user_id: string | null
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          discount_iqd: number
+          id?: string
+          order_id: string
+          user_id?: string | null
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          discount_iqd?: number
+          id?: string
+          order_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          active: boolean
+          applies_to: string
+          code: string
+          created_at: string
+          discount_type: string
+          discount_value: number
+          id: string
+          max_uses: number | null
+          updated_at: string
+          uses_count: number
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          active?: boolean
+          applies_to?: string
+          code: string
+          created_at?: string
+          discount_type: string
+          discount_value: number
+          id?: string
+          max_uses?: number | null
+          updated_at?: string
+          uses_count?: number
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          active?: boolean
+          applies_to?: string
+          code?: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          max_uses?: number | null
+          updated_at?: string
+          uses_count?: number
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: []
+      }
       generation_events: {
         Row: {
           aig_log_id: string | null
@@ -243,6 +344,8 @@ export type Database = {
           character_brief: string | null
           character_dna: Json | null
           character_id: string | null
+          coupon_code: string | null
+          coupon_discount_iqd: number
           created_at: string
           custom_instructions: string | null
           customer_phone: string
@@ -252,6 +355,7 @@ export type Database = {
           image_quality_tier: string | null
           images_error: string | null
           images_status: string
+          mood_extra_iqd: number
           moods: string[]
           notes: string | null
           order_number: number
@@ -259,6 +363,12 @@ export type Database = {
           paid_at: string | null
           payment_confirmed_at: string | null
           pdf_path: string | null
+          redownload_amount_iqd: number | null
+          redownload_paid_at: string | null
+          redownload_requested_at: string | null
+          redownload_status: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
           status: Database["public"]["Enums"]["order_status"]
           tier: Database["public"]["Enums"]["order_tier"] | null
           title: string | null
@@ -272,6 +382,8 @@ export type Database = {
           character_brief?: string | null
           character_dna?: Json | null
           character_id?: string | null
+          coupon_code?: string | null
+          coupon_discount_iqd?: number
           created_at?: string
           custom_instructions?: string | null
           customer_phone: string
@@ -281,6 +393,7 @@ export type Database = {
           image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
+          mood_extra_iqd?: number
           moods?: string[]
           notes?: string | null
           order_number?: number
@@ -288,6 +401,12 @@ export type Database = {
           paid_at?: string | null
           payment_confirmed_at?: string | null
           pdf_path?: string | null
+          redownload_amount_iqd?: number | null
+          redownload_paid_at?: string | null
+          redownload_requested_at?: string | null
+          redownload_status?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tier?: Database["public"]["Enums"]["order_tier"] | null
           title?: string | null
@@ -301,6 +420,8 @@ export type Database = {
           character_brief?: string | null
           character_dna?: Json | null
           character_id?: string | null
+          coupon_code?: string | null
+          coupon_discount_iqd?: number
           created_at?: string
           custom_instructions?: string | null
           customer_phone?: string
@@ -310,6 +431,7 @@ export type Database = {
           image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
+          mood_extra_iqd?: number
           moods?: string[]
           notes?: string | null
           order_number?: number
@@ -317,6 +439,12 @@ export type Database = {
           paid_at?: string | null
           payment_confirmed_at?: string | null
           pdf_path?: string | null
+          redownload_amount_iqd?: number | null
+          redownload_paid_at?: string | null
+          redownload_requested_at?: string | null
+          redownload_status?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           tier?: Database["public"]["Enums"]["order_tier"] | null
           title?: string | null
@@ -373,12 +501,14 @@ export type Database = {
       }
       pricing_settings: {
         Row: {
+          free_moods_count: number
           id: number
           image_quality_tier: string
           image_tier_premium_extra_iqd: number
           image_tier_standard_extra_iqd: number
           iqd_per_usd: number
           max_characters: number
+          mood_extra_iqd: number
           per_character_iqd_pdf: number
           per_character_iqd_printed: number
           per_character_iqd_video: number
@@ -387,6 +517,9 @@ export type Database = {
           per_page_iqd_video: number
           print_cost_iqd: number
           quality_premium_multiplier: number
+          redownload_iqd_pdf: number
+          redownload_iqd_printed: number
+          redownload_iqd_video: number
           shipping_cost_iqd: number
           tier_fast_extra_iqd: number
           tier_pdf_iqd: number
@@ -398,12 +531,14 @@ export type Database = {
           video_tier_enabled: boolean
         }
         Insert: {
+          free_moods_count?: number
           id?: number
           image_quality_tier?: string
           image_tier_premium_extra_iqd?: number
           image_tier_standard_extra_iqd?: number
           iqd_per_usd?: number
           max_characters?: number
+          mood_extra_iqd?: number
           per_character_iqd_pdf?: number
           per_character_iqd_printed?: number
           per_character_iqd_video?: number
@@ -412,6 +547,9 @@ export type Database = {
           per_page_iqd_video?: number
           print_cost_iqd?: number
           quality_premium_multiplier?: number
+          redownload_iqd_pdf?: number
+          redownload_iqd_printed?: number
+          redownload_iqd_video?: number
           shipping_cost_iqd?: number
           tier_fast_extra_iqd?: number
           tier_pdf_iqd?: number
@@ -423,12 +561,14 @@ export type Database = {
           video_tier_enabled?: boolean
         }
         Update: {
+          free_moods_count?: number
           id?: number
           image_quality_tier?: string
           image_tier_premium_extra_iqd?: number
           image_tier_standard_extra_iqd?: number
           iqd_per_usd?: number
           max_characters?: number
+          mood_extra_iqd?: number
           per_character_iqd_pdf?: number
           per_character_iqd_printed?: number
           per_character_iqd_video?: number
@@ -437,6 +577,9 @@ export type Database = {
           per_page_iqd_video?: number
           print_cost_iqd?: number
           quality_premium_multiplier?: number
+          redownload_iqd_pdf?: number
+          redownload_iqd_printed?: number
+          redownload_iqd_video?: number
           shipping_cost_iqd?: number
           tier_fast_extra_iqd?: number
           tier_pdf_iqd?: number
@@ -481,6 +624,64 @@ export type Database = {
           url?: string
         }
         Relationships: []
+      }
+      redownload_requests: {
+        Row: {
+          amount_iqd: number
+          created_at: string
+          id: string
+          order_id: string
+          paid_at: string | null
+          requested_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_iqd: number
+          created_at?: string
+          id?: string
+          order_id: string
+          paid_at?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_iqd?: number
+          created_at?: string
+          id?: string
+          order_id?: string
+          paid_at?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redownload_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "redownload_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redownload_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       seasonal_themes: {
         Row: {
@@ -668,6 +869,7 @@ export type Database = {
           marketing_consent: boolean
           notes: string | null
           phone: string
+          status: string
           updated_at: string
         }
         Insert: {
@@ -678,6 +880,7 @@ export type Database = {
           marketing_consent?: boolean
           notes?: string | null
           phone: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -688,6 +891,7 @@ export type Database = {
           marketing_consent?: boolean
           notes?: string | null
           phone?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
