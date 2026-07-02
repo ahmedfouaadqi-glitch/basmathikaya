@@ -83,16 +83,18 @@ function CreatePage() {
   const [qualityTier, setQualityTier] = useState<"standard" | "premium">("standard");
   const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
   const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
   const videoEnabled = Boolean((pricingQ.data as { video_tier_enabled?: boolean } | undefined)?.video_tier_enabled ?? false);
 
   const estimates = useMemo(() => ({
-    pdf: computeTierAmount("pdf", pages, pricing, characters.length, qualityTier),
-    printed: computeTierAmount("printed", pages, pricing, characters.length, qualityTier),
-    video: computeTierAmount("video", pages, pricing, characters.length, qualityTier),
-  }), [pages, pricing, characters.length, qualityTier]);
+    pdf: computeTierAmount("pdf", pages, pricing, characters.length, qualityTier, moods.length),
+    printed: computeTierAmount("printed", pages, pricing, characters.length, qualityTier, moods.length),
+    video: computeTierAmount("video", pages, pricing, characters.length, qualityTier, moods.length),
+  }), [pages, pricing, characters.length, qualityTier, moods.length]);
 
   function updateChar(i: number, patch: Partial<CharacterDraft>) {
     setCharacters((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
