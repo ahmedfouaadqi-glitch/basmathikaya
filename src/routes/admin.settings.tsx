@@ -21,6 +21,11 @@ type Form = {
   image_tier_standard_extra_iqd: number; image_tier_premium_extra_iqd: number;
   quality_premium_multiplier: number;
   video_tier_enabled: boolean;
+  free_moods_count: number;
+  mood_extra_iqd: number;
+  redownload_iqd_pdf: number;
+  redownload_iqd_printed: number;
+  redownload_iqd_video: number;
 };
 
 function SettingsPage() {
