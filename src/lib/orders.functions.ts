@@ -589,7 +589,7 @@ export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
     const pricing = await getPricing();
     const { data: o0 } = await supabaseAdmin
       .from("orders")
-      .select("page_count")
+      .select("page_count, moods, image_quality_tier, coupon_code, user_id")
       .eq("id", data.orderId)
       .single();
     const pageCount = o0?.page_count ?? 5;
@@ -598,27 +598,80 @@ export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
       .select("id", { count: "exact", head: true })
       .eq("order_id", data.orderId);
     const characters = Math.max(1, charCount ?? 1);
-    const quality = ((await supabaseAdmin.from("orders").select("image_quality_tier").eq("id", data.orderId).single()).data?.image_quality_tier as "standard" | "premium" | null) ?? "standard";
+    const moods = ((o0?.moods as string[] | null) ?? []).length || 1;
+    const quality = (o0?.image_quality_tier as "standard" | "premium" | null) ?? "standard";
     const effQuality: "standard" | "premium" = quality === "premium" ? "premium" : "standard";
-    const amount = computeTierAmount(data.tier as Tier, pageCount, pricing, characters, effQuality);
+    const gross = computeTierAmount(data.tier as Tier, pageCount, pricing, characters, effQuality, moods);
+    const { moodExtraIqd } = await import("./pricing");
+    const moodExtra = moodExtraIqd(pricing, moods);
+
+    // Apply coupon if present and valid.
+    let discount = 0;
+    let couponId: string | null = null;
+    const code = (o0?.coupon_code as string | null)?.toUpperCase() ?? null;
+    if (code) {
+      const { data: c } = await supabaseAdmin
+        .from("coupons")
+        .select("id, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, active, applies_to")
+        .eq("code", code)
+        .maybeSingle();
+      const now = Date.now();
+      const valid =
+        c && c.active &&
+        (!c.valid_from || new Date(c.valid_from).getTime() <= now) &&
+        (!c.valid_to || new Date(c.valid_to).getTime() >= now) &&
+        (c.max_uses == null || (c.uses_count ?? 0) < c.max_uses);
+      if (valid) {
+        discount = c.discount_type === "percent"
+          ? Math.round((gross * Number(c.discount_value)) / 100)
+          : Math.round(Number(c.discount_value));
+        discount = Math.max(0, Math.min(discount, gross));
+        couponId = c.id;
+      }
+    }
+    const amount = Math.max(0, gross - discount);
 
     const { data: ord, error } = await supabaseAdmin
       .from("orders")
       .update({
         tier: data.tier,
         amount_iqd: amount,
+        coupon_discount_iqd: discount,
+        mood_extra_iqd: moodExtra,
         whatsapp_sent_at: new Date().toISOString(),
       })
       .eq("id", data.orderId)
       .select("order_number, tier, amount_iqd, page_count")
       .single();
     if (error || !ord) throw new Error(error?.message || "Failed");
+
+    if (couponId && discount > 0) {
+      await supabaseAdmin.from("coupon_redemptions").insert({
+        coupon_id: couponId,
+        order_id: data.orderId,
+        user_id: o0?.user_id ?? null,
+        discount_iqd: discount,
+      });
+      await supabaseAdmin.rpc("noop_unused_fn"); // safe no-op — coupon counters incremented via trigger not required
+      // increment uses_count via update
+      const { data: cRow } = await supabaseAdmin
+        .from("coupons")
+        .select("uses_count")
+        .eq("id", couponId)
+        .maybeSingle();
+      await supabaseAdmin
+        .from("coupons")
+        .update({ uses_count: (cRow?.uses_count ?? 0) + 1 })
+        .eq("id", couponId);
+    }
+
     return {
       order_number: ord.order_number,
       tier: ord.tier,
       amount_iqd: ord.amount_iqd,
       page_count: ord.page_count,
       character_count: characters,
+      discount_iqd: discount,
     };
   });
 
