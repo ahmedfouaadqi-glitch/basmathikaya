@@ -47,7 +47,12 @@ function PreviewPage() {
     queryKey: ["order", orderId],
     queryFn: () => orderFn({ data: { orderId } }),
   });
-  const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
+  const pricingQ = useQuery({
+    queryKey: ["pricing-public"],
+    queryFn: () => pricingFn(),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
 
   useEffect(() => {
     if (genStarted) return;
@@ -73,15 +78,17 @@ function PreviewPage() {
   const order = orderQ.data;
   const pageCount = order?.page_count ?? progress?.page_count ?? 5;
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
+  const videoEnabled = Boolean((pricingQ.data as { video_tier_enabled?: boolean } | undefined)?.video_tier_enabled ?? false);
+  const charCount = Number((order as { character_count?: number } | null | undefined)?.character_count ?? 1);
+  const qualityTier = ((order as { image_quality_tier?: "standard" | "premium" } | null | undefined)?.image_quality_tier ?? "standard") as "standard" | "premium";
+  const moodCount = Array.isArray(order?.moods) ? Math.max(1, order!.moods.length) : 1;
   const estimates = useMemo(() => {
-    // We don't know the exact character count from progress; fetch from order via separate query would be ideal.
-    // For tier card display we assume 1; the server recomputes exact amount on confirmTier.
     return {
-      pdf: computeTierAmount("pdf", pageCount, pricing, 1),
-      printed: computeTierAmount("printed", pageCount, pricing, 1),
-      video: computeTierAmount("video", pageCount, pricing, 1),
+      pdf: computeTierAmount("pdf", pageCount, pricing, charCount, qualityTier, moodCount),
+      printed: computeTierAmount("printed", pageCount, pricing, charCount, qualityTier, moodCount),
+      video: computeTierAmount("video", pageCount, pricing, charCount, qualityTier, moodCount),
     };
-  }, [pageCount, pricing]);
+  }, [pageCount, pricing, charCount, qualityTier, moodCount]);
 
   async function pick(tier: "pdf" | "printed" | "video") {
     setConfirming(tier);
@@ -193,18 +200,33 @@ function PreviewPage() {
             </div>
           )}
 
-          {/* PDF download when ready (built in the browser) */}
-          {progress.ready && (
-            <button
-              type="button"
-              disabled={building}
-              onClick={handleDownload}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
-            >
-              {building ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              {building ? t("building_pdf") : t("download_pdf")}
-            </button>
-          )}
+          {/* PDF download when ready — gated by delivery/redownload payment */}
+          {progress.ready && (() => {
+            const p = progress as typeof progress & { order_status?: string; redownload_status?: string | null; redownload_amount_iqd?: number | null };
+            const canDownload = p.order_status === "delivered" || p.redownload_status === "paid";
+            if (canDownload) {
+              return (
+                <button
+                  type="button"
+                  disabled={building}
+                  onClick={handleDownload}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
+                >
+                  {building ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {building ? t("building_pdf") : t("download_pdf")}
+                </button>
+              );
+            }
+            if (p.redownload_status === "pending") {
+              return (
+                <div className="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-center text-sm text-amber-700 dark:text-amber-400">
+                  {t("redownload_awaiting_admin")}
+                  {p.redownload_amount_iqd ? <span className="ms-1 font-mono">· {Number(p.redownload_amount_iqd).toLocaleString()} {t("iqd")}</span> : null}
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {/* Tier selection (only if not yet picked) */}
           {!progress.tier && (
@@ -213,7 +235,14 @@ function PreviewPage() {
               <div className="grid gap-3 md:grid-cols-3">
                 <TierCard price={estimates.pdf} label={t("tier_pdf")} desc={t("tier_pdf_d")} onPick={() => pick("pdf")} loading={confirming === "pdf"} accent />
                 <TierCard price={estimates.printed} label={t("tier_printed")} desc={t("tier_printed_d")} onPick={() => pick("printed")} loading={confirming === "printed"} />
-                <TierCard price={estimates.video} label={t("tier_video")} desc={t("tier_video_d")} onPick={() => pick("video")} loading={confirming === "video"} muted />
+                <TierCard
+                  price={estimates.video}
+                  label={t("tier_video")}
+                  desc={t("tier_video_d")}
+                  onPick={() => videoEnabled && pick("video")}
+                  loading={confirming === "video"}
+                  disabled={!videoEnabled}
+                />
               </div>
               <p className="mt-4 text-center text-xs text-muted-foreground">{t("whatsapp_msg_open")}</p>
             </div>
@@ -274,20 +303,43 @@ function CoverArea({ progress }: { progress: { cover_url: string | null; images_
 
 function LoadingCard() {
   const { t } = useT();
+  const steps = [
+    t("loading_step_write"),
+    t("loading_step_design"),
+    t("loading_step_draw"),
+    t("loading_step_review"),
+  ];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setI((x) => (x + 1) % steps.length), 2200);
+    return () => window.clearInterval(id);
+  }, [steps.length]);
   return (
-    <div className="rounded-2xl border bg-card p-12 text-center">
-      <Loader2 className="mx-auto size-10 animate-spin text-primary" />
-      <p className="mt-4 text-lg font-medium">{t("preview_loading")}</p>
+    <div className="rounded-2xl border bg-card p-10 text-center">
+      <img src="/logo.png" alt="بصمة حكاية" className="mx-auto mb-4 h-20 w-20 animate-pulse rounded-2xl object-contain" onError={(e) => ((e.currentTarget.style.display = "none"))} />
+      <Loader2 className="mx-auto size-8 animate-spin text-primary" />
+      <p className="mt-4 text-lg font-bold">{t("loading_making_story")}</p>
+      <p className="mt-2 min-h-[1.5rem] text-sm text-muted-foreground transition-all">{steps[i]}</p>
+      <div className="mx-auto mt-5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-secondary">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
+          style={{ width: `${((i + 1) / steps.length) * 100}%` }}
+        />
+      </div>
     </div>
   );
 }
 
 function TierCard({
-  price, label, desc, onPick, loading, accent, muted,
-}: { price: number; label: string; desc: string; onPick: () => void; loading: boolean; accent?: boolean; muted?: boolean }) {
+  price, label, desc, onPick, loading, accent, disabled,
+}: { price: number; label: string; desc: string; onPick: () => void; loading: boolean; accent?: boolean; disabled?: boolean }) {
   const { t } = useT();
   return (
-    <div className={`flex flex-col rounded-2xl border p-5 shadow-sm transition ${accent ? "border-primary bg-primary/5" : "bg-card"} ${muted ? "opacity-70" : ""}`}>
+    <div
+      className={`flex flex-col rounded-2xl border p-5 shadow-sm transition ${accent ? "border-primary bg-primary/5" : "bg-card"} ${disabled ? "opacity-60 blur-[1.5px] select-none pointer-events-none" : ""}`}
+      aria-disabled={disabled || undefined}
+      title={disabled ? "قريباً" : undefined}
+    >
       <div className="text-base font-bold">{label}</div>
       <div className="mt-1 text-2xl font-extrabold text-primary">
         {price.toLocaleString()} <span className="text-sm font-medium text-muted-foreground">{t("iqd")}</span>
@@ -295,7 +347,7 @@ function TierCard({
       <p className="mt-2 text-sm text-muted-foreground flex-1">{desc}</p>
       <button
         onClick={onPick}
-        disabled={loading}
+        disabled={loading || disabled}
         className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-2.5 text-sm font-bold text-primary-foreground shadow-warm disabled:opacity-60"
       >
         {loading && <Loader2 className="size-4 animate-spin" />}

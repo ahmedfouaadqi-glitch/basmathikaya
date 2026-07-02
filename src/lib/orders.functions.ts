@@ -26,6 +26,7 @@ const CreateInput = z.object({
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
   disclaimer_accepted: z.boolean().default(false),
+  coupon_code: z.string().trim().max(40).optional().nullable(),
   image_quality_tier: z
     .enum(["fast", "standard", "premium"])
     .default("standard")
@@ -110,6 +111,20 @@ export const createOrderDraft = createServerFn({ method: "POST" })
     const userId = session.data.userId!;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Block suspended/banned users at draft creation.
+    const { data: u } = await supabaseAdmin
+      .from("users")
+      .select("status")
+      .eq("id", userId)
+      .maybeSingle();
+    if (u && u.status && u.status !== "active") {
+      throw new Error(
+        u.status === "banned"
+          ? "حسابك محظور، لا يمكنك إنشاء طلبات."
+          : "حسابك موقوف مؤقتاً، تواصل مع الإدارة.",
+      );
+    }
+
     const { data: ord, error: ordErr } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -121,6 +136,7 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         custom_instructions: data.custom_instructions || null,
         image_quality_tier: data.image_quality_tier,
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
+        coupon_code: data.coupon_code ? data.coupon_code.toUpperCase() : null,
       })
       .select("id, order_number")
       .single();
@@ -237,8 +253,8 @@ async function analyzeCharacterPhoto(args: {
     const { callChat } = await import("./ai-gateway.server");
     const isAr = args.language === "ar";
     const prompt = isAr
-      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (4-6 أسطر، عربي) مايلي: الجنس التقريبي، الفئة العمرية، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، الملابس البارزة، أي ميزات مميزة. لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.`
-      : `Analyze this person (${args.name}) and describe in 4-6 short lines: apparent gender, age group, skin tone, hair (length/color/style), eye color, notable clothing, distinctive features. No real names. Pure visual brief for drawing a consistent cartoon character.`;
+      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (5-7 أسطر، عربي) وبإلزام تام: الجنس (ذكر/أنثى)، الفئة العمرية (طفل صغير/طفل/مراهق/شاب/بالغ/مسنّ)، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، شكل الوجه، بنية الجسم، الملابس البارزة، أي ميزات مميزة. يجب أن يبدأ الوصف بسطر: "الجنس والعمر: <ذكر/أنثى> · <الفئة العمرية>". لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.`
+      : `Analyze this person (${args.name}) and produce 5-7 short lines describing (mandatory): gender (male/female), age group (toddler/child/teen/young adult/adult/senior), skin tone, hair (length/color/style), eye color, face shape, body build, notable clothing, distinctive features. Start with: "Gender & age: <male/female> · <age group>". No real names. Pure visual brief for drawing a consistent cartoon character.`;
     const r = await callChat({
       model: "google/gemini-2.5-flash",
       messages: [
@@ -248,7 +264,7 @@ async function analyzeCharacterPhoto(args: {
         ] },
       ],
     });
-    return r.content.trim().slice(0, 800);
+    return r.content.trim().slice(0, 900);
   } catch {
     return null;
   }
@@ -500,7 +516,7 @@ export const getStoryProgress = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path, order_number, moods")
+      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path, order_number, moods, rejection_reason, redownload_status, redownload_amount_iqd, delivered_at")
       .eq("id", data.orderId)
       .maybeSingle();
     const { data: user } = order?.user_id
@@ -557,6 +573,10 @@ export const getStoryProgress = createServerFn({ method: "GET" })
       ready: imagesReady,
       moods: (order?.moods as string[] | null) ?? [],
       order_number: (order?.order_number as number | null) ?? null,
+      rejection_reason: (order?.rejection_reason as string | null) ?? null,
+      redownload_status: (order?.redownload_status as string | null) ?? null,
+      redownload_amount_iqd: (order?.redownload_amount_iqd as number | null) ?? null,
+      delivered_at: (order?.delivered_at as string | null) ?? null,
     };
   });
 
@@ -573,7 +593,7 @@ export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
     const pricing = await getPricing();
     const { data: o0 } = await supabaseAdmin
       .from("orders")
-      .select("page_count")
+      .select("page_count, moods, image_quality_tier, coupon_code, user_id")
       .eq("id", data.orderId)
       .single();
     const pageCount = o0?.page_count ?? 5;
@@ -582,27 +602,80 @@ export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
       .select("id", { count: "exact", head: true })
       .eq("order_id", data.orderId);
     const characters = Math.max(1, charCount ?? 1);
-    const quality = ((await supabaseAdmin.from("orders").select("image_quality_tier").eq("id", data.orderId).single()).data?.image_quality_tier as "standard" | "premium" | null) ?? "standard";
+    const moods = ((o0?.moods as string[] | null) ?? []).length || 1;
+    const quality = (o0?.image_quality_tier as "standard" | "premium" | null) ?? "standard";
     const effQuality: "standard" | "premium" = quality === "premium" ? "premium" : "standard";
-    const amount = computeTierAmount(data.tier as Tier, pageCount, pricing, characters, effQuality);
+    const gross = computeTierAmount(data.tier as Tier, pageCount, pricing, characters, effQuality, moods);
+    const { moodExtraIqd } = await import("./pricing");
+    const moodExtra = moodExtraIqd(pricing, moods);
+
+    // Apply coupon if present and valid.
+    let discount = 0;
+    let couponId: string | null = null;
+    const code = (o0?.coupon_code as string | null)?.toUpperCase() ?? null;
+    if (code) {
+      const { data: c } = await supabaseAdmin
+        .from("coupons")
+        .select("id, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, active, applies_to")
+        .eq("code", code)
+        .maybeSingle();
+      const now = Date.now();
+      const valid =
+        c && c.active &&
+        (!c.valid_from || new Date(c.valid_from).getTime() <= now) &&
+        (!c.valid_to || new Date(c.valid_to).getTime() >= now) &&
+        (c.max_uses == null || (c.uses_count ?? 0) < c.max_uses);
+      if (valid) {
+        discount = c.discount_type === "percent"
+          ? Math.round((gross * Number(c.discount_value)) / 100)
+          : Math.round(Number(c.discount_value));
+        discount = Math.max(0, Math.min(discount, gross));
+        couponId = c.id;
+      }
+    }
+    const amount = Math.max(0, gross - discount);
 
     const { data: ord, error } = await supabaseAdmin
       .from("orders")
       .update({
         tier: data.tier,
         amount_iqd: amount,
+        coupon_discount_iqd: discount,
+        mood_extra_iqd: moodExtra,
         whatsapp_sent_at: new Date().toISOString(),
       })
       .eq("id", data.orderId)
       .select("order_number, tier, amount_iqd, page_count")
       .single();
     if (error || !ord) throw new Error(error?.message || "Failed");
+
+    if (couponId && discount > 0) {
+      await supabaseAdmin.from("coupon_redemptions").insert({
+        coupon_id: couponId,
+        order_id: data.orderId,
+        user_id: o0?.user_id ?? null,
+        discount_iqd: discount,
+      });
+      // (uses_count is bumped below via direct update)
+      // increment uses_count via update
+      const { data: cRow } = await supabaseAdmin
+        .from("coupons")
+        .select("uses_count")
+        .eq("id", couponId)
+        .maybeSingle();
+      await supabaseAdmin
+        .from("coupons")
+        .update({ uses_count: (cRow?.uses_count ?? 0) + 1 })
+        .eq("id", couponId);
+    }
+
     return {
       order_number: ord.order_number,
       tier: ord.tier,
       amount_iqd: ord.amount_iqd,
       page_count: ord.page_count,
       character_count: characters,
+      discount_iqd: discount,
     };
   });
 
@@ -612,10 +685,15 @@ export const getOrderPublic = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: o } = await supabaseAdmin
       .from("orders")
-      .select("id, order_number, tier, amount_iqd, status, images_status, page_count, title, moods, custom_instructions, user_id, pdf_path")
+      .select("id, order_number, tier, amount_iqd, status, images_status, page_count, title, moods, custom_instructions, user_id, pdf_path, image_quality_tier, rejection_reason, rejected_at, redownload_status, redownload_amount_iqd, coupon_code, coupon_discount_iqd")
       .eq("id", data.orderId)
       .maybeSingle();
-    return o;
+    if (!o) return null;
+    const { count: charCount } = await supabaseAdmin
+      .from("order_characters")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", data.orderId);
+    return { ...o, character_count: charCount ?? 1 };
   });
 
 // Public pricing snapshot for /create and /preview
@@ -636,6 +714,11 @@ export const getPublicPricing = createServerFn({ method: "GET" }).handler(async 
     image_tier_premium_extra_iqd: Number((p as PricingRow).image_tier_premium_extra_iqd ?? 0),
     quality_premium_multiplier: Number((p as PricingRow).quality_premium_multiplier ?? 2),
     video_tier_enabled: Boolean((p as PricingRow).video_tier_enabled ?? false),
+    free_moods_count: Number((p as PricingRow).free_moods_count ?? 1),
+    mood_extra_iqd: Number((p as PricingRow).mood_extra_iqd ?? 0),
+    redownload_iqd_pdf: Number((p as PricingRow).redownload_iqd_pdf ?? 1500),
+    redownload_iqd_printed: Number((p as PricingRow).redownload_iqd_printed ?? 3000),
+    redownload_iqd_video: Number((p as PricingRow).redownload_iqd_video ?? 5000),
   };
 });
 
@@ -646,7 +729,7 @@ export const myOrders = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("orders")
-    .select("id, order_number, status, images_status, tier, amount_iqd, page_count, title, created_at")
+    .select("id, order_number, status, images_status, tier, amount_iqd, page_count, title, created_at, rejection_reason, rejected_at, redownload_status, redownload_amount_iqd")
     .eq("user_id", s.data.userId!)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -849,8 +932,20 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         : "";
       const consistencyTag = brief ? `Consistent cast across all pages — ${brief}. ` : "";
       const likenessTag = referenceImages.length
-        ? "Match the facial features, hair and skin tone of the reference photo as closely as possible while keeping a cartoon storybook style. "
+        ? "Use the reference photo ONLY to preserve facial features, hair, skin tone and body build of the illustrated character. "
         : "";
+
+      // Strong negative constraints — prevent Gemini from ever pasting the reference photo
+      // (or any inset/frame/thumbnail of it) into the final illustration.
+      const negatives =
+        "STRICT RULES: The output MUST be a single full-scene storybook illustration only. " +
+        "ABSOLUTELY NO photograph, no photo-of-a-photo, no photo-in-photo, no picture-in-picture, " +
+        "no inset image, no side panel, no thumbnail, no polaroid, no framed reference on any wall or table, " +
+        "no collage, no before/after comparison, no split screen, no reference sheet, no character turnaround, " +
+        "no watermark, no logo, no text, no letters, no captions, no signatures. " +
+        "Never render the original uploaded photo or any cropped part of it inside the scene. " +
+        "Only the illustrated storybook scene fills the frame. " +
+        "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. ";
 
       // Cover
       let coverPath = gen?.cover_image_path as string | null;
@@ -861,8 +956,8 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. Book cover composition, leave headroom for title, no text.`
-          : `${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. No text.`;
+          ? `${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${negatives} Book cover composition, leave headroom for title.`
+          : `${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${negatives}`;
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
@@ -884,7 +979,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       await runWithConcurrency(todo, 3, async (p) => {
         const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
         const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
-        const prompt = `${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. No text or letters in the image.`;
+        const prompt = `${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
         const path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
@@ -1002,6 +1097,11 @@ const PricingInput = z.object({
   image_tier_premium_extra_iqd: z.coerce.number().int().nonnegative().default(0),
   quality_premium_multiplier: z.coerce.number().positive().max(20).default(2),
   video_tier_enabled: z.coerce.boolean().default(false),
+  free_moods_count: z.coerce.number().int().nonnegative().default(1),
+  mood_extra_iqd: z.coerce.number().int().nonnegative().default(0),
+  redownload_iqd_pdf: z.coerce.number().int().nonnegative().default(1500),
+  redownload_iqd_printed: z.coerce.number().int().nonnegative().default(3000),
+  redownload_iqd_video: z.coerce.number().int().nonnegative().default(5000),
 });
 
 export const adminUpdatePricing = createServerFn({ method: "POST" })
@@ -1072,3 +1172,211 @@ export const adminListUsers = createServerFn({ method: "GET" }).handler(async ()
     total_spent_iqd: stats.get(u.id)?.spent ?? 0,
   }));
 });
+
+// ============= User moderation (admin) =============
+
+const UserIdInput = z.object({ userId: z.string().uuid() });
+
+export const adminSetUserStatus = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      status: z.enum(["active", "suspended", "banned"]),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("users").update({ status: data.status }).eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const adminDeleteUser = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => UserIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // orders have ON DELETE CASCADE via user_id? If not, null user_id or delete orders too.
+    // Delete cascade child data first to be safe (orders may not have cascade).
+    const { data: orders } = await supabaseAdmin.from("orders").select("id").eq("user_id", data.userId);
+    for (const o of orders ?? []) {
+      await supabaseAdmin.from("orders").delete().eq("id", o.id);
+    }
+    const { error } = await supabaseAdmin.from("users").delete().eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ============= Order moderation (admin) =============
+
+export const adminRejectOrder = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({ orderId: z.string().uuid(), reason: z.string().trim().min(1).max(500) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        status: "cancelled",
+        rejection_reason: data.reason,
+        rejected_at: new Date().toISOString(),
+      })
+      .eq("id", data.orderId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const adminDeleteOrder = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("orders").delete().eq("id", data.orderId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ============= Coupons (admin) =============
+
+const CouponInput = z.object({
+  id: z.string().uuid().optional(),
+  code: z.string().trim().min(2).max(40).transform((s) => s.toUpperCase()),
+  discount_type: z.enum(["percent", "fixed"]),
+  discount_value: z.coerce.number().positive(),
+  max_uses: z.coerce.number().int().positive().nullable().optional(),
+  valid_from: z.string().optional().nullable(),
+  valid_to: z.string().optional().nullable(),
+  applies_to: z.enum(["all", "new"]).default("all"),
+  active: z.boolean().default(true),
+});
+
+export const adminListCoupons = createServerFn({ method: "GET" }).handler(async () => {
+  await gate();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("coupons").select("*").order("created_at", { ascending: false });
+  return data ?? [];
+});
+
+export const adminUpsertCoupon = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => CouponInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.id) {
+      const { error } = await supabaseAdmin.from("coupons").update({
+        code: data.code,
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        max_uses: data.max_uses ?? null,
+        valid_from: data.valid_from || null,
+        valid_to: data.valid_to || null,
+        applies_to: data.applies_to,
+        active: data.active,
+      }).eq("id", data.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabaseAdmin.from("coupons").insert({
+        code: data.code,
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        max_uses: data.max_uses ?? null,
+        valid_from: data.valid_from || null,
+        valid_to: data.valid_to || null,
+        applies_to: data.applies_to,
+        active: data.active,
+      });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true as const };
+  });
+
+export const adminDeleteCoupon = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("coupons").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// Public: check a coupon before submitting.
+export const validateCoupon = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ code: z.string().trim().min(1).max(40) }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const code = data.code.toUpperCase();
+    const { data: c } = await supabaseAdmin
+      .from("coupons")
+      .select("code, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, active")
+      .eq("code", code)
+      .maybeSingle();
+    const now = Date.now();
+    const valid = !!c && c.active &&
+      (!c.valid_from || new Date(c.valid_from).getTime() <= now) &&
+      (!c.valid_to || new Date(c.valid_to).getTime() >= now) &&
+      (c.max_uses == null || (c.uses_count ?? 0) < c.max_uses);
+    if (!valid || !c) return { ok: false as const };
+    return {
+      ok: true as const,
+      code: c.code,
+      discount_type: c.discount_type,
+      discount_value: Number(c.discount_value),
+    };
+  });
+
+// ============= Redownload (paid re-download) =============
+
+export const requestRedownload = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    const { requireUserSession } = await import("./user-session.server");
+    const s = await requireUserSession();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id, tier, user_id, redownload_status")
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (!order || order.user_id !== s.data.userId) throw new Error("غير مصرح");
+    if (order.redownload_status === "pending") throw new Error("طلبك موجود مسبقاً");
+    const pricing = await getPricing();
+    const { redownloadPrice } = await import("./pricing");
+    const amount = redownloadPrice(pricing, order.tier);
+    await supabaseAdmin.from("redownload_requests").insert({
+      order_id: order.id,
+      user_id: s.data.userId!,
+      amount_iqd: amount,
+    });
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        redownload_status: "pending",
+        redownload_amount_iqd: amount,
+        redownload_requested_at: new Date().toISOString(),
+      })
+      .eq("id", order.id);
+    return { ok: true as const, amount_iqd: amount };
+  });
+
+export const adminConfirmRedownload = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date().toISOString();
+    await supabaseAdmin
+      .from("orders")
+      .update({ redownload_status: "paid", redownload_paid_at: now })
+      .eq("id", data.orderId);
+    await supabaseAdmin
+      .from("redownload_requests")
+      .update({ status: "paid", paid_at: now })
+      .eq("order_id", data.orderId)
+      .eq("status", "pending");
+    return { ok: true as const };
+  });
+

@@ -3,8 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck } from "lucide-react";
-import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress } from "../lib/orders.functions";
+import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck, X, Trash2, RotateCcw } from "lucide-react";
+import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload } from "../lib/orders.functions";
 import { getActiveTheme } from "../lib/themes.functions";
 import { getHomeContent } from "../lib/site-content.functions";
 import { buildAndDownloadStoryPdf, type StoryPdfAssets } from "../lib/pdf-client";
@@ -27,9 +27,15 @@ function OrderDetail() {
   const contentFn = useServerFn(getHomeContent);
   const confirmGenFn = useServerFn(adminConfirmPaymentAndGenerate);
   const updateStatusFn = useServerFn(adminUpdateStatus);
+  const rejectFn = useServerFn(adminRejectOrder);
+  const deleteFn = useServerFn(adminDeleteOrder);
+  const redownloadFn = useServerFn(adminConfirmRedownload);
   const [regening, setRegening] = useState<number | null>(null);
   const [buildingPdf, setBuildingPdf] = useState(false);
   const [confirmingPay, setConfirmingPay] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const q = useQuery({
     queryKey: ["admin-order", id],
@@ -60,6 +66,8 @@ function OrderDetail() {
     order_number: number; tier: string | null; amount_iqd: number; status: string; page_count?: number;
     customer_phone: string; title?: string | null; moods?: string[]; custom_instructions?: string | null;
     images_status?: string; images_error?: string | null;
+    rejection_reason?: string | null;
+    redownload_status?: string | null; redownload_amount_iqd?: number | null;
   };
   const user = q.data.user as { full_name?: string; phone?: string } | null;
   const chars = q.data.characters ?? [];
@@ -212,6 +220,66 @@ function OrderDetail() {
                 )}
               </>
             )}
+
+            {/* Redownload request from customer */}
+            {order.redownload_status === "pending" && (
+              <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+                <div className="font-semibold text-primary mb-1">{t("redownload_request_pending")}</div>
+                <div className="text-muted-foreground">
+                  {t("amount_due")}: <span className="font-mono">{Number(order.redownload_amount_iqd ?? 0).toLocaleString()} {t("iqd")}</span>
+                </div>
+                <button
+                  onClick={async () => {
+                    try { await redownloadFn({ data: { orderId: id } }); toast.success("تم"); qc.invalidateQueries({ queryKey: ["admin-order", id] }); }
+                    catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                  }}
+                  className="mt-2 w-full rounded-lg bg-primary py-2 text-xs font-bold text-primary-foreground"
+                >{t("confirm_redownload_payment")}</button>
+              </div>
+            )}
+
+            {order.status === "rejected" && order.rejection_reason && (
+              <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                <div className="font-semibold mb-0.5">{t("rejected")}</div>
+                <p>{order.rejection_reason}</p>
+              </div>
+            )}
+
+            {/* Admin moderation */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {order.status !== "rejected" && order.status !== "delivered" && (
+                <button
+                  onClick={() => setRejectOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                >
+                  <X className="size-3.5" /> {t("reject_order")}
+                </button>
+              )}
+              <button
+                onClick={async () => {
+                  if (!confirm("حذف الطلب نهائياً؟")) return;
+                  try {
+                    await deleteFn({ data: { orderId: id } });
+                    toast.success("تم");
+                    window.location.href = "/admin";
+                  } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="size-3.5" /> {t("delete_order")}
+              </button>
+              {order.status === "rejected" && (
+                <button
+                  onClick={async () => {
+                    try { await updateStatusFn({ data: { orderId: id, status: "pending" } }); toast.success("تم"); qc.invalidateQueries({ queryKey: ["admin-order", id] }); }
+                    catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs hover:bg-secondary"
+                >
+                  <RotateCcw className="size-3.5" /> {t("reopen_order")}
+                </button>
+              )}
+            </div>
           </div>
 
           {chars.length > 0 && (
@@ -349,6 +417,42 @@ function OrderDetail() {
           </div>
         </div>
       </div>
+
+      {rejectOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-card p-5 shadow-lg">
+            <div className="mb-2 text-lg font-bold">{t("reject_order")}</div>
+            <p className="mb-3 text-xs text-muted-foreground">{t("reject_reason_hint")}</p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              className="w-full rounded-lg border bg-background p-2 text-sm"
+              placeholder={t("reject_reason_placeholder")}
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => { setRejectOpen(false); setRejectReason(""); }}
+                className="flex-1 rounded-lg border py-2 text-sm hover:bg-secondary"
+              >{t("cancel")}</button>
+              <button
+                disabled={rejecting || rejectReason.trim().length < 3}
+                onClick={async () => {
+                  setRejecting(true);
+                  try {
+                    await rejectFn({ data: { orderId: id, reason: rejectReason.trim() } });
+                    toast.success("تم");
+                    setRejectOpen(false); setRejectReason("");
+                    qc.invalidateQueries({ queryKey: ["admin-order", id] });
+                  } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                  finally { setRejecting(false); }
+                }}
+                className="flex-1 rounded-lg bg-destructive py-2 text-sm font-bold text-destructive-foreground disabled:opacity-60"
+              >{rejecting ? "..." : t("confirm_reject")}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

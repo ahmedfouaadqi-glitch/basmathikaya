@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -21,6 +21,11 @@ type Form = {
   image_tier_standard_extra_iqd: number; image_tier_premium_extra_iqd: number;
   quality_premium_multiplier: number;
   video_tier_enabled: boolean;
+  free_moods_count: number;
+  mood_extra_iqd: number;
+  redownload_iqd_pdf: number;
+  redownload_iqd_printed: number;
+  redownload_iqd_video: number;
 };
 
 function SettingsPage() {
@@ -30,6 +35,7 @@ function SettingsPage() {
   const q = useQuery({ queryKey: ["admin-pricing"], queryFn: () => getFn() });
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (q.data && !form) {
@@ -52,6 +58,11 @@ function SettingsPage() {
         image_tier_premium_extra_iqd: (q.data as { image_tier_premium_extra_iqd?: number }).image_tier_premium_extra_iqd ?? 0,
         quality_premium_multiplier: Number((q.data as { quality_premium_multiplier?: number | string }).quality_premium_multiplier ?? 2),
         video_tier_enabled: Boolean((q.data as { video_tier_enabled?: boolean }).video_tier_enabled ?? false),
+        free_moods_count: Number((q.data as { free_moods_count?: number }).free_moods_count ?? 1),
+        mood_extra_iqd: Number((q.data as { mood_extra_iqd?: number }).mood_extra_iqd ?? 0),
+        redownload_iqd_pdf: Number((q.data as { redownload_iqd_pdf?: number }).redownload_iqd_pdf ?? 1500),
+        redownload_iqd_printed: Number((q.data as { redownload_iqd_printed?: number }).redownload_iqd_printed ?? 3000),
+        redownload_iqd_video: Number((q.data as { redownload_iqd_video?: number }).redownload_iqd_video ?? 5000),
       });
     }
   }, [q.data, form]);
@@ -64,6 +75,9 @@ function SettingsPage() {
     setSaving(true);
     try {
       await setFn({ data: form });
+      // Invalidate every place that reads pricing so the UI never shows stale numbers.
+      qc.invalidateQueries({ queryKey: ["pricing-public"] });
+      qc.invalidateQueries({ queryKey: ["admin-pricing"] });
       toast.success(t("saved"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "خطأ");
@@ -117,6 +131,20 @@ function SettingsPage() {
           <input type="checkbox" checked={form.video_tier_enabled} onChange={(e) => set("video_tier_enabled", e.target.checked)} />
           تفعيل مستوى الفيديو (إن أُلغيَ سيظل السعر ظاهراً ولكن لا يمكن اختياره)
         </label>
+
+        <div className="text-xs font-semibold text-muted-foreground mt-4">تسعير الأجواء</div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Row label="عدد الأجواء المجانية" type="number" value={form.free_moods_count} onChange={(v) => set("free_moods_count", v)} />
+          <Row label="سعر كل جو إضافي (د.ع)" type="number" value={form.mood_extra_iqd} onChange={(v) => set("mood_extra_iqd", v)} />
+        </div>
+
+        <div className="text-xs font-semibold text-muted-foreground mt-4">تسعير إعادة التحميل (مدفوع)</div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Row label="PDF (د.ع)" type="number" value={form.redownload_iqd_pdf} onChange={(v) => set("redownload_iqd_pdf", v)} />
+          <Row label="Printed (د.ع)" type="number" value={form.redownload_iqd_printed} onChange={(v) => set("redownload_iqd_printed", v)} />
+          <Row label="Video (د.ع)" type="number" value={form.redownload_iqd_video} onChange={(v) => set("redownload_iqd_video", v)} />
+        </div>
+
         <button disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3 font-bold text-primary-foreground disabled:opacity-60">
           {saving && <Loader2 className="size-4 animate-spin" />}
           {t("save")}

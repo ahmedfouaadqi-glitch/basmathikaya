@@ -1,82 +1,83 @@
-# خطة التحديث الشاملة
 
-## 1) شخصية موحّدة + إطارات مطابقة للثيم
+## نظرة عامة على الطلب
 
-- **Character DNA ثابت**: بعد تحليل Gemini Vision للصور المرفوعة، نُنشئ `character_dna` مفصّل (شكل الوجه، لون البشرة، الشعر، العينين، الملابس الأساسية، السن التقريبي، الجنس) ونحفظه في `orders.character_dna` (jsonb).
-- **نمط بصري ثابت لكل قصة**: نولّد `art_style_lock` واحد (مثال: "watercolor storybook, soft pastel, 3D-ish shading") ونستخدمه في **كل** صفحة + الغلاف.
-- **اختلاف الإضاءة فقط**: كل صفحة تحمل `lighting_variant` (شروق، ظهر، غروب، ليلي هادئ، مصابيح دافئة…) مع الحفاظ على نفس الـDNA والنمط.
-- **إطار الصفحة يتبع الثيم**: بدل الإطار العام، نضيف حقولاً للثيم: `frame_style` (ذهبي عربي، هلال رمضاني، نجوم مولد، ورقي…) و`frame_svg_pattern`، ويُطبَّق في `pdf-client.ts` وفي معاينة الغلاف.
-- **مراجع دائمة**: نمرّر صور المستخدم + الغلاف الناتج كمراجع لكل صفحة (Gemini image) لضمان التطابق.
+كل النقاط الثمانية قابلة للتنفيذ ضمن نفس البنية الحالية (TanStack Start + Lovable Cloud + Supabase + الجداول الموجودة). لا حاجة لتغيير المنطق العام للموقع ولا البنية التحتية. سيبقى نفس تدفق الدفع (WhatsApp → تأكيد الادارة → توليد الصور).
 
-## 2) توسيع الثيمات (المعنى + الألوان + الهيدر)
+بخصوص ملاحظتك حول أن صفحة التأكيد ما تزال تُظهر «الأسعار السابقة» وبطاقة الفيديو رغم تغبيشها: نعم مؤكدة. السبب أن `/preview/$orderId` يستخدم `useQuery(["pricing-public"])` بنفس المفتاح لكن مع `staleTime: 60_000` ولا يُبطَل عند تحديث الأسعار من الإدارة، وأيضاً لا يمرّر `qualityTier` و`characterCount` الحقيقيَّين إلى `computeTierAmount` — سنُصلح ذلك بحيث تُقرأ من الطلب نفسه ويُبطَل الكاش تلقائياً بعد أي حفظ في الإدارة.
 
-- ترقية `seasonal_themes` بأعمدة:
-  - `meaning_ar` / `meaning_en` (وصف روحاني للشهر/المناسبة)
-  - `palette` jsonb (primary/accent/bg/frame)
-  - `frame_style` + `motifs[]` (هلال، فانوس، نخلة…)
-  - `header_title_ar/en` + `header_size` (sm/md/lg/xl)
-  - `active_from` / `active_to` (تفعيل تلقائي حسب التاريخ)
-- شاشة **admin.themes** موسّعة: منتقي ألوان، اختيار نمط الإطار، معاينة حيّة، تحكم بحجم عنوان الهيدر.
-- تطبيق الثيم النشط تلقائياً على: الهيدر (اللون/الحجم/العنوان)، الغلاف، إطارات صفحات الـPDF، وخلفية الصفحة الرئيسية.
+---
 
-## 3) الصفحة الرئيسية — ترتيب وحذف
+## 1) الصور المرجعية (منع «صورة داخل صورة»)
 
-- **حذف** زر «اصنع حكايتي الآن» العلوي من `index.tsx`.
-- **رفع الترويسة (فيديو الترويج)** إلى أعلى القسم قبل السطر:
-  «اختر شخصياتك · حدد جوك · أضف لمستك الخاصة · واحصل على حكاية فريدة · كل حكاية كبصمتك».
-- الاحتفاظ بالأزرار السفلية الأصلية للمتابعة.
+- تعديل `analyzeCharacterPhoto` (في `src/lib/orders.functions.ts`) ليُضاف إلى الوصف: الجنس التقريبي + الفئة العمرية (طفل/بالغ) بشكل صريح، وإلزام الاختيار.
+- في `adminConfirmPaymentAndGenerate` تعديل `likenessTag` و`style` وبناء الـ`prompt` بحيث تُضاف قواعد سلبية صريحة قبل وصف المشهد:
+  > "Use the reference photo ONLY to preserve facial features, hair, skin tone and body build. The final image MUST be a single full-scene storybook illustration. Absolutely NO: original photo, photo-in-photo, thumbnails, side panels, picture-in-picture, framed reference, before/after comparison, collage, polaroid, or any inset image. Never show the reference photo or any cropped part of it. Only the illustrated scene."
+- إضافة النص العربي المطلوب حرفياً كذيل للـ prompt.
+- إبقاء تمرير `referenceImages` لنماذج Gemini كما هو (فقط للتوجيه)، بدون تغيير على استدعاء الـ AI Gateway.
 
-## 4) فيديوهات الترويسة عبر الإدارة
+## 2) نص الزر
 
-- جدول `promo_videos`: `id, url, title, sort_order, enabled, muted_default`.
-- **admin.videos** (route جديد): رفع فيديو (bucket خاص أو رابط)، ترتيب سحب/إفلات، تفعيل/تعطيل، وسويتش «مكتوم افتراضياً / صوت مفعّل».
-- `BrandIntroVideo` يقرأ القائمة، يشغّلها تباعاً، ويحترم إعداد الكتم من الإدارة (مع زر مستخدم للتبديل).
+- في `src/routes/create.tsx` تغيير الزر من «اصنع معاينة» إلى «اصنع حكايتي» عبر مفاتيح i18n (`form_submit`) في `src/lib/i18n.tsx` — بدون تغيير في المنطق.
 
-## 5) تصنيف الجودة يؤثر على القصة كلها
+## 3) صفحة تأكيد قبل التوليد + 4) شاشة تحميل + 5) منع الاستهلاك المكرر
 
-- في `create.tsx`: تسمية القسم **«الجودة»** فقط، **حذف** أسماء النماذج (Gemini Flash / Gemini 3 Pro Image) من الواجهة.
-- «الجودة» تُطبَّق على النص + الصور + عدد جمل الصفحة:
-  - **قياسي**: `gemini-2.5-flash` للنص، `gemini-3.1-flash-image` للصور، 4-5 جمل/صفحة.
-  - **احترافي**: `gemini-2.5-pro` للنص (تفاصيل أعمق، حبكة أغنى)، `gemini-3-pro-image` للصور، 6-8 جمل/صفحة + إطار بجودة أعلى.
-- **التسعير المضاعف لكل وحدة** (وليس مبلغاً ثابتاً):
-  - `pricing_settings`: `quality_premium_multiplier` (افتراضي 2.0) يُضرب في تكلفة كل صفحة + كل شخصية + الأساس.
-  - إزالة `image_tier_premium_extra_iqd` الثابت، والاستعاضة بمُضاعِف.
-  - كل هذا قابل للتعديل من **admin.settings**.
+- في `create.tsx`: عند الضغط، بدل الاستدعاء المباشر لـ `createOrderDraft`، يفتح `<Dialog>` (shadcn) بعنوان «تأكيد إنشاء الحكاية» ونص التأكيد وزرَّي «نعم، اصنع حكايتي» / «رجوع للتعديل». الاستدعاء يحصل فقط بعد التأكيد.
+- تعطيل الزر أثناء `submitting` وإظهار رسالة «جاري إنشاء الحكاية، يرجى الانتظار...» — لا استدعاءات مكرّرة (يوجد `submitting` مسبقاً، سنشدّه بحارس `if (submitting) return`).
+- في `preview.$orderId.tsx`: استبدال `LoadingCard` البسيط بشاشة تحميل احترافية تحتوي شعار «بصمة حكاية» + شريط تقدّم (`<Progress>` من shadcn، قيمة تصاعدية زمنية) + رسائل متغيّرة كل ~3 ثوانٍ: «نكتب أحداث القصة…» → «نصمم الشخصيات…» → «نرسم المشاهد…» → «نراجع الحكاية…».
+- الحماية من الاستدعاء المزدوج لتوليد النص عبر `useRef` بديلاً عن `useState(genStarted)` (React 18 StrictMode يشغل الـ effect مرتين).
 
-## 6) إخلاء المسؤولية
+## 6) «طلباتي» + إعادة تحميل مدفوع
 
-- نص عربي/إنجليزي مركزي في `site_content`:
-  «هذه المنصة أداة ذكاء اصطناعي مخصّصة لفكرة "بصمة حكاية"، دون أي تدخل بشري في التوليد. المستخدم وحده مسؤول عن المُدخلات والنتائج. لا تُسترجع المبالغ تحت أي ظرف. تحتفظ الإدارة بحق قبول أو رفض أي طلب.»
-- يظهر في:
-  1. تذييل الموقع (`SiteFooter`).
-  2. صفحة `create.tsx` كخانة موافقة إلزامية قبل الإرسال (يُخزَّن `disclaimer_accepted_at` في الطلب).
-  3. **آخر صفحة في PDF** («صفحة إخلاء المسؤولية»).
-  4. سطر صغير في **ذيل كل صفحة PDF** بجانب «بصمة حكاية».
-- الإدارة تستطيع تعديل النص من `admin.content`، وترى حالة الموافقة في تفاصيل الطلب مع أزرار **قبول/رفض** واضحة تستند لإخلاء المسؤولية.
+- الصفحة `my-orders.tsx` تعمل حالياً وتُظهر طلبات المستخدم المرتبطة برقم هاتفه (`myOrders` تفلتر بـ `user_id`).
+- إضافة زر «إعادة تحميل مدفوع» لكل طلب `delivered` أو `paid` بحيث ينشئ سجلاً في جدول جديد `redownload_requests` وينقل الحالة إلى `redownload_pending`.
+- الإدارة (شاشة الطلبات) ترى الطلب مع سعر إعادة التحميل الذي حدّدته في `pricing_settings` (حقل جديد `redownload_iqd_pdf/printed/video`)، وتضغط «تأكيد الدفع» → يفتح تحميل PDF للمستخدم مثل الحالة الاعتيادية (بنفس زر التحميل الحالي).
 
-## قاعدة البيانات (Migration واحد)
+## 7) صلاحيات إدارة أوسع للعملاء والطلبات
 
-- `orders`: `character_dna jsonb`, `art_style_lock text`, `disclaimer_accepted_at timestamptz`.
-- `seasonal_themes`: `meaning_ar/en`, `palette jsonb`, `frame_style`, `motifs jsonb`, `header_title_ar/en`, `header_size`, `active_from`, `active_to`.
-- جدول جديد `promo_videos` + GRANTs + RLS (قراءة للعموم، كتابة للإدارة عبر service_role من serverFn).
-- `pricing_settings`: إضافة `quality_premium_multiplier numeric default 2.0`، وإزالة `image_tier_premium_extra_iqd` من الاستخدام (نُبقي العمود مؤقتاً للتوافق).
-- `site_content` مفاتيح جديدة: `disclaimer_ar`, `disclaimer_en`.
-- Bucket خاص `promo-videos` (public read).
+- إضافة أعمدة على `users`: `status` (`active` | `suspended` | `banned`)، ملء تلقائي.
+- server fns جديدة (كلها خلف `gate()`): `adminDeleteUser`, `adminSuspendUser`, `adminBanUser`, `adminDeleteOrder`, `adminRejectOrder({orderId, reason})`.
+- `adminRejectOrder` يضبط `status='cancelled'` مع `rejection_reason` و`rejected_at`، ويظهر للمستخدم في `my-orders` كإشعار «تم الرفض: <السبب>».
+- في `admin.users.tsx` أعمدة إجراءات (تعليق/حظر/حذف). في `admin.orders.$id.tsx` أزرار حذف/رفض مع نافذة إدخال السبب.
+- عند تسجيل الدخول (`user-session`) نتحقق من `status`؛ الحساب المحظور لا يستطيع إنشاء طلب.
 
-## الملفات المتأثرة
+## 8) الكوبونات + تسعير الأجواء
 
-- `supabase/migrations/*` (جديد)
-- `src/lib/orders.functions.ts` — DNA/style lock، تطبيق مُضاعِف الجودة، تخزين قبول الإخلاء.
-- `src/lib/pricing.ts` — دالة `applyQualityMultiplier`.
-- `src/lib/pdf-client.ts` — إطار الثيم، ذيل الإخلاء، صفحة الإخلاء النهائية.
-- `src/lib/themes.functions.ts` + `src/routes/admin.themes.tsx` — الحقول الجديدة.
-- `src/lib/promo-videos.functions.ts` (جديد) + `src/routes/admin.videos.tsx` (جديد).
-- `src/components/BrandIntroVideo.tsx` — قراءة القائمة الديناميكية + الكتم من الإدارة.
-- `src/routes/index.tsx` — إعادة ترتيب/حذف الزر، الترويسة أعلى، تطبيق ألوان/عنوان الثيم على الهيدر.
-- `src/routes/create.tsx` — إعادة تسمية «الجودة»، حذف أسماء النماذج، خانة موافقة الإخلاء.
-- `src/components/SiteFooter.tsx` — إخلاء مسؤولية.
-- `src/routes/admin.content.tsx` — تحرير نص الإخلاء.
-- `src/routes/admin.settings.tsx` — حقل `quality_premium_multiplier`.
-- `src/routes/admin.orders.$id.tsx` — عرض قبول الإخلاء + أزرار قبول/رفض.
+- جدول جديد `coupons`: `code, discount_type (percent|fixed), discount_value, max_uses, uses_count, valid_from, valid_to, applies_to (new|all), active`.
+- جدول `coupon_redemptions` لربط الاستخدام بالمستخدم/الطلب.
+- server fns: `adminListCoupons/adminUpsertCoupon/adminDeleteCoupon` + مسار `admin.coupons.tsx`.
+- في `create.tsx` حقل «كود خصم» اختياري؛ التحقق `validateCoupon` عند الإرسال، ويُخصم من `amount_iqd` عند `confirmTierAndPrepareWhatsapp`.
+- تسعير الأجواء: إضافة إلى `pricing_settings` حقلين: `free_moods_count` (افتراضي 1) و `mood_extra_iqd` (السعر لكل جو إضافي فوق الحد المجاني). تعديل `computeTierAmount` لتقبل `moodCount` وإضافة `Math.max(0, moods - free) * mood_extra_iqd`. يظهر السعر تحت شبكة الأجواء ويتحدث لحظياً في `create.tsx` و`preview`.
 
-هل نبدأ التنفيذ؟
+## إصلاح صفحة التأكيد (المشكلة التي أشرت إليها الآن)
+
+- في `preview.$orderId.tsx`: قراءة `image_quality_tier` و`character_count` الفعليَّين من الطلب (نضيفهما إلى `getOrderPublic`) وتمريرهما إلى `computeTierAmount` بدلاً من `1` و`standard` الثابتَين.
+- إخفاء بطاقة «فيديو» تماماً عندما `video_tier_enabled=false` (بدل التغبيش) — أو الإبقاء عليها مغبَّشة بلا سعر مضلِّل: سنعرض السعر فقط عند التفعيل، ونضع «قريباً» بدلاً منه عند الإيقاف.
+- إبطال الكاش تلقائياً: كل mutation إدارية تعدّل الأسعار/الثيمات/الفيديوهات/الأجواء تستدعي `queryClient.invalidateQueries({ queryKey: ["pricing-public"] })` (وما يشابهها). كذلك تخفيض `staleTime` إلى `0` مع الإبقاء على `refetchOnWindowFocus` ليأخذ المستخدم آخر الأسعار عند العودة للصفحة.
+- إضافة `refetchInterval` معتدل (60s) على `pricing-public` في صفحة المعاينة تحسّباً لتحديث السعر أثناء تصفح المستخدم.
+
+## هجرات قاعدة البيانات (Supabase)
+
+1. `ALTER TABLE users ADD status text DEFAULT 'active' CHECK (...)`.
+2. `ALTER TABLE orders ADD rejection_reason text, rejected_at timestamptz, redownload_status text`.
+3. `ALTER TABLE pricing_settings ADD free_moods_count int DEFAULT 1, mood_extra_iqd int DEFAULT 0, redownload_iqd_pdf/printed/video int DEFAULT 0`.
+4. إنشاء `coupons` + `coupon_redemptions` + `redownload_requests` مع `GRANT` صحيحة و`RLS` مغلقة (كل الوصول عبر server fns).
+
+## ملفات تُلمس
+
+- `src/routes/create.tsx` (زر، حوار التأكيد، كوبون، منع تكرار، مبلغ الجو)
+- `src/routes/preview.$orderId.tsx` (شاشة تحميل، سعر صحيح، إخفاء/إبطال الكاش)
+- `src/routes/my-orders.tsx` (زر إعادة تحميل + إشعار الرفض)
+- `src/routes/admin.users.tsx` (تعليق/حظر/حذف)
+- `src/routes/admin.orders.$id.tsx` (رفض/حذف/سبب/تأكيد إعادة التحميل)
+- `src/routes/admin.settings.tsx` (حقول الكوبون والأجواء وإعادة التحميل)
+- ملف جديد `src/routes/admin.coupons.tsx`
+- `src/lib/orders.functions.ts` (prompt سلبي، fns الإدارة الجديدة، إبطال الكاش عبر revalidation)
+- `src/lib/pricing.ts` (moods pricing)
+- `src/lib/i18n.tsx` (نصوص جديدة)
+- هجرات SQL جديدة.
+
+## غير المتأثر
+
+- منطق التوليد نفسه (Gemini/AI Gateway) والـ style lock والـ art DNA يبقى.
+- تدفق WhatsApp وتأكيد الإدارة يبقى.
+- بنية المصادقة (OTP بالهاتف) والثيمات والفيديوهات الترويجية تبقى كما هي.

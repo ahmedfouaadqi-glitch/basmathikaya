@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/
 import { useServerFn } from "@tanstack/react-start";
 import { adminCheck, adminLogout } from "../lib/admin.functions";
 import { useT } from "../lib/i18n";
-import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video } from "lucide-react";
+import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ location }) => {
@@ -49,6 +49,10 @@ function AdminLayout() {
           <Link to="/admin/videos" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Video className="size-4" />
             فيديوهات
+          </Link>
+          <Link to="/admin/coupons" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Ticket className="size-4" />
+            {t("admin_coupons")}
           </Link>
           <Link to="/admin/settings" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Settings className="size-4" />
