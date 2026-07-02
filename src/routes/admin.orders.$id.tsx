@@ -27,9 +27,15 @@ function OrderDetail() {
   const contentFn = useServerFn(getHomeContent);
   const confirmGenFn = useServerFn(adminConfirmPaymentAndGenerate);
   const updateStatusFn = useServerFn(adminUpdateStatus);
+  const rejectFn = useServerFn(adminRejectOrder);
+  const deleteFn = useServerFn(adminDeleteOrder);
+  const redownloadFn = useServerFn(adminConfirmRedownload);
   const [regening, setRegening] = useState<number | null>(null);
   const [buildingPdf, setBuildingPdf] = useState(false);
   const [confirmingPay, setConfirmingPay] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const q = useQuery({
     queryKey: ["admin-order", id],
