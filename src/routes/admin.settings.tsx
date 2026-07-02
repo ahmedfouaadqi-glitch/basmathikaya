@@ -26,7 +26,11 @@ type Form = {
   redownload_iqd_pdf: number;
   redownload_iqd_printed: number;
   redownload_iqd_video: number;
+  ai_cost_estimate_standard: number;
+  ai_cost_estimate_premium: number;
+  whatsapp_admin_number: string;
 };
+
 
 function SettingsPage() {
   const { t } = useT();
