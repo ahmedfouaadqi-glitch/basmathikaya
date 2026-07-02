@@ -403,6 +403,18 @@ function CreatePage() {
           </div>
         </div>
 
+        {/* Coupon code */}
+        <div>
+          <label className="mb-2 block text-sm font-bold">{t("coupon_field")}</label>
+          <input
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+            placeholder="CODE2025"
+            maxLength={40}
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
         {/* Disclaimer acceptance — required before creating */}
         <label className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed">
           <input
@@ -424,9 +436,44 @@ function CreatePage() {
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 text-base font-bold text-primary-foreground shadow-warm disabled:opacity-60"
         >
           {submitting && <Loader2 className="size-4 animate-spin" />}
-          {t("submit_create")}
+          {submitting ? t("please_wait_generating") : t("submit_create")}
         </button>
       </form>
+
+      {/* Confirmation dialog — prevents accidental submissions and consumption */}
+      {confirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => !submitting && setConfirmOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-2 text-lg font-extrabold">{t("confirm_title")}</h2>
+            <p className="mb-5 text-sm text-muted-foreground leading-relaxed">{t("confirm_body")}</p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-xl border px-4 py-2.5 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+              >
+                {t("confirm_back")}
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={doCreate}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-warm disabled:opacity-60"
+              >
+                {submitting && <Loader2 className="size-4 animate-spin" />}
+                {submitting ? t("please_wait_generating") : t("confirm_yes")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
