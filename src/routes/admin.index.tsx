@@ -141,3 +141,25 @@ function AdminOrders() {
     </div>
   );
 }
+
+function CreditBalanceCard() {
+  const fn = useServerFn(getAICreditBalance);
+  const q = useQuery({ queryKey: ["ai-credits"], queryFn: () => fn(), refetchInterval: 60_000 });
+  if (!q.data || !q.data.available) return null;
+  const d = q.data as { stories_left_standard: number | null; stories_left_premium: number | null };
+  return (
+    <div className="mb-4 rounded-2xl border bg-card p-4 flex items-center gap-4">
+      <div className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
+        <Sparkles className="size-5" />
+      </div>
+      <div className="flex-1">
+        <div className="text-xs text-muted-foreground">الرصيد المتبقي (تقدير)</div>
+        <div className="mt-0.5 flex flex-wrap gap-4 text-sm">
+          <span>قياسي: <span className="font-mono font-bold text-primary">{d.stories_left_standard ?? "—"}</span> قصة (5 صفحات)</span>
+          <span>احترافي: <span className="font-mono font-bold text-primary">{d.stories_left_premium ?? "—"}</span> قصة</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
