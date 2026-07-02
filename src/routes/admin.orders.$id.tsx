@@ -377,44 +377,15 @@ function OrderDetail() {
             </div>
           )}
 
-          <div className="rounded-2xl border bg-card p-2">
-            <div className="px-3 py-2 text-sm font-semibold">{t("cost_events")}</div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-xs">
-                <thead className="text-muted-foreground bg-secondary/40">
-                  <tr>
-                    <th className="px-2 py-1.5 text-start">step</th>
-                    <th className="px-2 py-1.5 text-start">model</th>
-                    <th className="px-2 py-1.5 text-end">tokens</th>
-                    <th className="px-2 py-1.5 text-end">imgs</th>
-                    <th className="px-2 py-1.5 text-end">USD</th>
-                    <th className="px-2 py-1.5 text-end">IQD</th>
-                    <th className="px-2 py-1.5 text-end">ms</th>
-                    <th className="px-2 py-1.5 text-start">status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.length === 0 && (
-                    <tr><td colSpan={8} className="px-2 py-4 text-center text-muted-foreground">—</td></tr>
-                  )}
-                  {events.map((e) => (
-                    <tr key={e.id} className="border-t">
-                      <td className="px-2 py-1.5 font-medium">{e.step}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground text-[10px]">{e.model}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{e.total_tokens}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{e.image_count}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{Number(e.cost_usd).toFixed(4)}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{Number(e.cost_iqd).toFixed(0)}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{e.duration_ms}</td>
-                      <td className="px-2 py-1.5">
-                        <span className={e.status === "success" ? "text-primary" : "text-destructive"}>{e.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AICostSection
+            events={events as Array<{ id: string; step: string; operation: string | null; total_tokens: number | null; image_count: number | null; cost_usd: number | string | null; cost_iqd: number | string | null; cost_credits: number | string | null; duration_ms: number | null; status: string }>}
+            tier={order.tier}
+            pageCount={order.page_count ?? 5}
+            charCount={chars.length}
+            revenueIqd={Number(order.amount_iqd ?? 0)}
+            costIqd={Number(cost?.cost_iqd ?? 0)}
+            grossProfitIqd={Number(cost?.gross_profit_iqd ?? 0)}
+          />
         </div>
       </div>
 
@@ -463,6 +434,130 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ro
     <div className="rounded-2xl border bg-card p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className={`mt-1 text-lg font-bold ${cls}`}>{value}</div>
+    </div>
+  );
+}
+
+// Translate raw event `step` values into user-facing Arabic labels — never expose model names.
+function labelForStep(step: string): string {
+  if (step === "story_plan") return "خطة القصة";
+  if (step === "first_paragraph") return "نص افتتاحي";
+  if (step === "cover_image") return "صورة الغلاف";
+  const pageImage = step.match(/^page_(\d+)_image$/);
+  if (pageImage) return `صورة صفحة ${pageImage[1]}`;
+  const pageRegen = step.match(/^page_(\d+)_regen$/);
+  if (pageRegen) return `إعادة توليد صفحة ${pageRegen[1]}`;
+  const pageText = step.match(/^page_(\d+)_text$/);
+  if (pageText) return `نص صفحة ${pageText[1]}`;
+  return step;
+}
+
+function tierLabel(t: string | null): string {
+  if (t === "pdf") return "PDF";
+  if (t === "printed") return "مطبوع";
+  if (t === "video") return "فيديو";
+  return "—";
+}
+
+function AICostSection({
+  events, tier, pageCount, charCount, revenueIqd, costIqd, grossProfitIqd,
+}: {
+  events: Array<{ id: string; step: string; operation: string | null; total_tokens: number | null; image_count: number | null; cost_usd: number | string | null; cost_iqd: number | string | null; cost_credits: number | string | null; duration_ms: number | null; status: string }>;
+  tier: string | null;
+  pageCount: number;
+  charCount: number;
+  revenueIqd: number;
+  costIqd: number;
+  grossProfitIqd: number;
+}) {
+  const totals = events.reduce(
+    (acc, e) => {
+      if (e.status !== "success") return acc;
+      acc.tokens += Number(e.total_tokens ?? 0);
+      acc.images += Number(e.image_count ?? 0);
+      acc.usd += Number(e.cost_usd ?? 0);
+      acc.iqd += Number(e.cost_iqd ?? 0);
+      acc.credits += Number(e.cost_credits ?? 0);
+      acc.ms += Number(e.duration_ms ?? 0);
+      return acc;
+    },
+    { tokens: 0, images: 0, usd: 0, iqd: 0, credits: 0, ms: 0 },
+  );
+  const netProfit = revenueIqd - costIqd;
+  return (
+    <div className="rounded-2xl border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="text-sm font-semibold">استهلاك الذكاء لهذا الطلب</div>
+        <div className="text-[11px] text-muted-foreground">
+          نوع: <span className="font-medium text-foreground">{tierLabel(tier)}</span>
+          {" · "}صفحات: <span className="font-mono text-foreground">{pageCount}</span>
+          {" · "}شخصيات: <span className="font-mono text-foreground">{charCount}</span>
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3 mb-3">
+        <MiniStat label="إجمالي تكلفة الذكاء" value={`$${totals.usd.toFixed(3)}`} sub={`${Math.round(totals.iqd).toLocaleString()} د.ع`} />
+        <MiniStat label="إجمالي التكلفة التشغيلية" value={`${Math.round(costIqd).toLocaleString()} د.ع`} sub="ذكاء + طباعة + شحن" tone="rose" />
+        <MiniStat label="الربح الصافي" value={`${Math.round(netProfit).toLocaleString()} د.ع`} sub={`إيراد ${Math.round(revenueIqd).toLocaleString()} د.ع`} tone={netProfit >= 0 ? "emerald" : "rose"} />
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border">
+        <table className="min-w-full text-xs">
+          <thead className="text-muted-foreground bg-secondary/40">
+            <tr>
+              <th className="px-2 py-1.5 text-start">العملية</th>
+              <th className="px-2 py-1.5 text-end">التوكِنز</th>
+              <th className="px-2 py-1.5 text-end">صور</th>
+              <th className="px-2 py-1.5 text-end">USD</th>
+              <th className="px-2 py-1.5 text-end">IQD</th>
+              <th className="px-2 py-1.5 text-end">ms</th>
+              <th className="px-2 py-1.5 text-start">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.length === 0 && (
+              <tr><td colSpan={7} className="px-2 py-4 text-center text-muted-foreground">لا توجد عمليات بعد</td></tr>
+            )}
+            {events.map((e) => (
+              <tr key={e.id} className="border-t">
+                <td className="px-2 py-1.5 font-medium">{labelForStep(e.step)}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{e.total_tokens ?? 0}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{e.image_count ?? 0}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{Number(e.cost_usd ?? 0).toFixed(4)}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{Number(e.cost_iqd ?? 0).toFixed(0)}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{e.duration_ms ?? 0}</td>
+                <td className="px-2 py-1.5">
+                  <span className={e.status === "success" ? "text-primary" : "text-destructive"}>
+                    {e.status === "success" ? "ناجحة" : e.status === "failed" ? "فشلت" : e.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {events.length > 0 && (
+              <tr className="border-t bg-secondary/30 font-semibold">
+                <td className="px-2 py-1.5">الإجمالي</td>
+                <td className="px-2 py-1.5 text-end font-mono">{totals.tokens.toLocaleString()}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{totals.images}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{totals.usd.toFixed(4)}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{Math.round(totals.iqd).toLocaleString()}</td>
+                <td className="px-2 py-1.5 text-end font-mono">{totals.ms.toLocaleString()}</td>
+                <td className="px-2 py-1.5 text-[10px] text-muted-foreground">{totals.credits.toFixed(2)} كريدت</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "rose" | "emerald" }) {
+  const cls = tone === "rose" ? "text-destructive" : tone === "emerald" ? "text-primary" : "text-foreground";
+  return (
+    <div className="rounded-xl border bg-background p-3">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={`mt-0.5 text-base font-bold ${cls}`}>{value}</div>
+      {sub && <div className="mt-0.5 text-[10px] text-muted-foreground">{sub}</div>}
     </div>
   );
 }
