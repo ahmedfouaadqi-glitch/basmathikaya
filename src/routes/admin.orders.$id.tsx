@@ -66,6 +66,8 @@ function OrderDetail() {
     order_number: number; tier: string | null; amount_iqd: number; status: string; page_count?: number;
     customer_phone: string; title?: string | null; moods?: string[]; custom_instructions?: string | null;
     images_status?: string; images_error?: string | null;
+    rejection_reason?: string | null;
+    redownload_status?: string | null; redownload_amount_iqd?: number | null;
   };
   const user = q.data.user as { full_name?: string; phone?: string } | null;
   const chars = q.data.characters ?? [];
