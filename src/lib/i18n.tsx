@@ -111,7 +111,6 @@ const D: Dict = {
   order_rejected: { ar: "تم رفض هذا الطلب", en: "This order was rejected" },
   rejected: { ar: "مرفوض", en: "Rejected" },
   status_rejected: { ar: "مرفوض", en: "Rejected" },
-  status_cancelled: { ar: "ملغى", en: "Cancelled" },
   amount_due: { ar: "المبلغ المستحق", en: "Amount due" },
   redownload_request_pending: { ar: "طلب إعادة تحميل قيد الانتظار", en: "Re-download request pending" },
   confirm_redownload_payment: { ar: "تأكيد استلام مبلغ إعادة التحميل", en: "Confirm re-download payment" },
