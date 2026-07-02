@@ -35,6 +35,7 @@ function SettingsPage() {
   const q = useQuery({ queryKey: ["admin-pricing"], queryFn: () => getFn() });
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (q.data && !form) {
