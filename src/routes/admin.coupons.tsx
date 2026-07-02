@@ -20,6 +20,9 @@ type Draft = {
   valid_to: string;
   applies_to: "all" | "new";
   active: boolean;
+  min_pages: number;
+  applies_quality: Array<"standard" | "premium">;
+  applies_tier: Array<"pdf" | "printed" | "video">;
 };
 
 const emptyDraft: Draft = {
@@ -31,7 +34,11 @@ const emptyDraft: Draft = {
   valid_to: "",
   applies_to: "all",
   active: true,
+  min_pages: 0,
+  applies_quality: ["standard", "premium"],
+  applies_tier: ["pdf", "printed", "video"],
 };
+
 
 function CouponsPage() {
   const { t } = useT();
