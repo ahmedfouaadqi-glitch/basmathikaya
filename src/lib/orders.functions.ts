@@ -516,7 +516,7 @@ export const getStoryProgress = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path, order_number, moods")
+      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path, order_number, moods, rejection_reason, redownload_status, redownload_amount_iqd, delivered_at")
       .eq("id", data.orderId)
       .maybeSingle();
     const { data: user } = order?.user_id
