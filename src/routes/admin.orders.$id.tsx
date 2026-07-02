@@ -377,44 +377,15 @@ function OrderDetail() {
             </div>
           )}
 
-          <div className="rounded-2xl border bg-card p-2">
-            <div className="px-3 py-2 text-sm font-semibold">{t("cost_events")}</div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-xs">
-                <thead className="text-muted-foreground bg-secondary/40">
-                  <tr>
-                    <th className="px-2 py-1.5 text-start">step</th>
-                    <th className="px-2 py-1.5 text-start">model</th>
-                    <th className="px-2 py-1.5 text-end">tokens</th>
-                    <th className="px-2 py-1.5 text-end">imgs</th>
-                    <th className="px-2 py-1.5 text-end">USD</th>
-                    <th className="px-2 py-1.5 text-end">IQD</th>
-                    <th className="px-2 py-1.5 text-end">ms</th>
-                    <th className="px-2 py-1.5 text-start">status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.length === 0 && (
-                    <tr><td colSpan={8} className="px-2 py-4 text-center text-muted-foreground">—</td></tr>
-                  )}
-                  {events.map((e) => (
-                    <tr key={e.id} className="border-t">
-                      <td className="px-2 py-1.5 font-medium">{e.step}</td>
-                      <td className="px-2 py-1.5 text-muted-foreground text-[10px]">{e.model}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{e.total_tokens}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{e.image_count}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{Number(e.cost_usd).toFixed(4)}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{Number(e.cost_iqd).toFixed(0)}</td>
-                      <td className="px-2 py-1.5 text-end font-mono">{e.duration_ms}</td>
-                      <td className="px-2 py-1.5">
-                        <span className={e.status === "success" ? "text-primary" : "text-destructive"}>{e.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <AICostSection
+            events={events as Array<{ id: string; step: string; operation: string | null; total_tokens: number | null; image_count: number | null; cost_usd: number | string | null; cost_iqd: number | string | null; cost_credits: number | string | null; duration_ms: number | null; status: string }>}
+            tier={order.tier}
+            pageCount={order.page_count ?? 5}
+            charCount={chars.length}
+            revenueIqd={Number(order.amount_iqd ?? 0)}
+            costIqd={Number(cost?.cost_iqd ?? 0)}
+            grossProfitIqd={Number(cost?.gross_profit_iqd ?? 0)}
+          />
         </div>
       </div>
 
