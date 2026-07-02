@@ -3,13 +3,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { adminListOrders } from "../lib/orders.functions";
+import { getAICreditBalance } from "../lib/ai-credits.functions";
 import { useT } from "../lib/i18n";
 import { supabase } from "../integrations/supabase/client";
-import { Eye, Search, FileDown } from "lucide-react";
+import { Eye, Search, FileDown, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminOrders,
 });
+
 
 function fmt(n: number | string | null | undefined) {
   if (n === null || n === undefined) return "—";
