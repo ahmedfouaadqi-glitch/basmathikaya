@@ -1269,16 +1269,19 @@ export const adminListUsers = createServerFn({ method: "GET" }).handler(async ()
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: users } = await supabaseAdmin
     .from("users")
-    .select("id, full_name, phone, marketing_consent, notes, last_login_at, created_at")
+    .select("id, full_name, phone, marketing_consent, notes, last_login_at, created_at, status")
     .order("created_at", { ascending: false })
     .limit(500);
   const ids = (users ?? []).map((u) => u.id);
-  const { data: orders } = ids.length
-    ? await supabaseAdmin
-        .from("orders")
-        .select("user_id, amount_iqd, status")
-        .in("user_id", ids)
-    : { data: [] };
+  const phones = (users ?? []).map((u) => u.phone).filter(Boolean) as string[];
+  const [{ data: orders }, { data: bans }] = await Promise.all([
+    ids.length
+      ? supabaseAdmin.from("orders").select("user_id, amount_iqd, status").in("user_id", ids)
+      : Promise.resolve({ data: [] as { user_id: string | null; amount_iqd: number | null; status: string }[] }),
+    phones.length
+      ? supabaseAdmin.from("phone_bans").select("phone, reason").in("phone", phones)
+      : Promise.resolve({ data: [] as { phone: string; reason: string | null }[] }),
+  ]);
   const stats = new Map<string, { count: number; spent: number }>();
   for (const o of orders ?? []) {
     if (!o.user_id) continue;
@@ -1287,11 +1290,18 @@ export const adminListUsers = createServerFn({ method: "GET" }).handler(async ()
     if (o.status === "paid" || o.status === "delivered") s.spent += Number(o.amount_iqd) || 0;
     stats.set(o.user_id, s);
   }
-  return (users ?? []).map((u) => ({
-    ...u,
-    order_count: stats.get(u.id)?.count ?? 0,
-    total_spent_iqd: stats.get(u.id)?.spent ?? 0,
-  }));
+  const bannedPhones = new Map<string, string | null>();
+  for (const b of bans ?? []) bannedPhones.set(b.phone, b.reason);
+  return (users ?? []).map((u) => {
+    const isBanned = (u.phone && bannedPhones.has(u.phone)) || u.status === "banned";
+    return {
+      ...u,
+      order_count: stats.get(u.id)?.count ?? 0,
+      total_spent_iqd: stats.get(u.id)?.spent ?? 0,
+      status: (isBanned ? "banned" : (u.status ?? "active")) as "active" | "suspended" | "banned",
+      ban_reason: u.phone ? bannedPhones.get(u.phone) ?? null : null,
+    };
+  });
 });
 
 // ============= User moderation (admin) =============
