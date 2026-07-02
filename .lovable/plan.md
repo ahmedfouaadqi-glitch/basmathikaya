@@ -1,83 +1,104 @@
+# خطة التنفيذ
 
-## نظرة عامة على الطلب
+## 1) التحقق التلقائي من الكوبون في صفحة الطلب
+- في `src/routes/create.tsx`: عند تغيير حقل الكوبون (debounce ~500ms) استدعاء server fn جديدة `validateCoupon({ code, quality, pageCount, tier })` تُرجع `{ valid, reason, discount_value, discount_type }`.
+- إظهار أيقونة ✓ خضراء عند الصلاحية أو ✗ حمراء مع سبب (منتهي / غير موجود / لا يشمل هذا التير / أقل من الحد الأدنى للصفحات / استُنفد).
+- تحديث السعر النهائي مباشرة.
 
-كل النقاط الثمانية قابلة للتنفيذ ضمن نفس البنية الحالية (TanStack Start + Lovable Cloud + Supabase + الجداول الموجودة). لا حاجة لتغيير المنطق العام للموقع ولا البنية التحتية. سيبقى نفس تدفق الدفع (WhatsApp → تأكيد الادارة → توليد الصور).
+## 2) تدفق الطلب عبر واتساب بدون توليد
+- في `create.tsx` عند تأكيد الحوار: بدل استدعاء `adminConfirmPaymentAndGenerate`، تُنشأ فقط سجل طلب بحالة `pending_payment` عبر server fn جديدة `createOrderDraft` (تحفظ: الشخصيات، الأجواء، الجودة، الصفحات، الكوبون، السعر النهائي).
+- توجيه المستخدم فوراً إلى `wa.me/<admin>?text=<تفاصيل الطلب + رقم الطلب + الكوبون + السعر>`.
+- لا يتم توليد أي نص أو صورة إلى أن يضغط الأدمن "تأكيد الدفع" في `admin.orders.$id.tsx` — عندها فقط يُشغّل `adminConfirmPaymentAndGenerate` الحالي.
+- عند تأكيد الأدمن: يُرسَل إشعار داخل التطبيق (سطر جديد في جدول `notifications` أو حقل `notice` على الطلب) يظهر في `my-orders.tsx`: «تم استلام الدفع، القصة قيد الإعداد وقد تستغرق بعض الوقت».
 
-بخصوص ملاحظتك حول أن صفحة التأكيد ما تزال تُظهر «الأسعار السابقة» وبطاقة الفيديو رغم تغبيشها: نعم مؤكدة. السبب أن `/preview/$orderId` يستخدم `useQuery(["pricing-public"])` بنفس المفتاح لكن مع `staleTime: 60_000` ولا يُبطَل عند تحديث الأسعار من الإدارة، وأيضاً لا يمرّر `qualityTier` و`characterCount` الحقيقيَّين إلى `computeTierAmount` — سنُصلح ذلك بحيث تُقرأ من الطلب نفسه ويُبطَل الكاش تلقائياً بعد أي حفظ في الإدارة.
+## 3) منع فتح/توليد الطلبات الملغاة أو المرفوضة أو المحذوفة
+- في `preview.$orderId.tsx`: إذا كان `status ∈ {cancelled, rejected}` أو `deleted_at != null` → عرض بطاقة سبب فقط (`rejection_reason` أو "ملغى/محذوف")، بدون تشغيل `useEffect` التوليد ولا زر التحميل ولا الفيديو ولا شارة "قيد الإنشاء".
+- في `my-orders.tsx`: النقر على مثل هذه الطلبات يفتح نفس الصفحة ولكن بوضع للقراءة فقط.
+
+## 4) إعادة الطلب المكتمل (Reorder)
+- في `my-orders.tsx` للطلبات `delivered`: زر «إعادة الطلب» يفتح Dialog يختار فيه المستخدم الجودة (قياسي/احترافي) وإدخال كوبون اختياري.
+- server fn `reorderExisting({ orderId, quality, coupon })` تنسخ الطلب الأصلي (نفس الشخصيات/الأجواء/العنوان/الصفحات) كطلب جديد بحالة `pending_payment`، تحسب السعر بالجودة الجديدة، تُنشئ إشعار للأدمن، ثم تُعيد رابط واتساب مُجهّز بكل التفاصيل ورقم الطلب الجديد.
+- خيار ثانٍ داخل نفس الحوار: «إعادة تحميل مدفوعة فقط» (يبقى المسار الحالي `requestRedownload`).
+- بعد تأكيد الأدمن الدفع → يبدأ التوليد الطبيعي.
+
+## 5) توسيع صلاحيات الكوبون
+- ترحيل: إضافة إلى `coupons`: `min_pages int`, `applies_quality text[]` (قيم: standard/premium)، `applies_tier text[]` (pdf/printed/video).
+- تحديث `admin.coupons.tsx`: حقل «يبدأ من عدد صفحات»، checkboxes للجودة، checkboxes للتير.
+- منطق `validateCoupon` و `applyCoupon` يتحقق من هذه القيود ويُرجع سبباً محدداً عند الرفض.
+
+## 6) العملاء: حظر فقط (على رقم الهاتف)
+- في `admin.users.tsx`: إزالة أزرار الحذف والتعليق، الإبقاء على «حظر / فك الحظر».
+- ترحيل: جدول جديد `phone_bans(phone text pk, reason text, banned_at, banned_by)` مع GRANT + RLS.
+- تعديل `auth.functions.ts`: منع تسجيل الدخول/التسجيل إذا كان الرقم محظوراً + رسالة السبب.
+- server fn `adminBanPhone({phone, reason})` / `adminUnbanPhone({phone, reason})` — تُنشئ إشعاراً داخل التطبيق للمستخدم صاحب الرقم بنص السبب.
+- إزالة `adminDeleteUser` و `adminSuspendUser` من الواجهة (يمكن ترك الدوال موجودة لكن غير مستدعاة).
+
+## 7) عرض رصيد الذكاء الاصطناعي للأدمن
+- في `admin.index.tsx` (لوحة الأدمن): بطاقة جديدة «الرصيد المتبقي».
+- server fn `getAICreditBalance()` تستدعي Lovable AI Gateway (`credits--get_my_usage` عبر REST داخلياً أو حساب تقريبي من `pricing_settings` + متوسط استهلاك القصة).
+- الحساب المعروض: `عدد القصص المتبقي (قياسي, 5 صفحات) = floor(balance / cost_standard_per_story)` و نفسه للاحترافي، بدون ذكر اسم النموذج.
+- التكلفة التقديرية للقصة تُخزَّن كحقلين في `pricing_settings`: `ai_cost_estimate_standard`, `ai_cost_estimate_premium` (قابلين للتعديل من `admin.settings.tsx`).
 
 ---
 
-## 1) الصور المرجعية (منع «صورة داخل صورة»)
+## التفاصيل التقنية
 
-- تعديل `analyzeCharacterPhoto` (في `src/lib/orders.functions.ts`) ليُضاف إلى الوصف: الجنس التقريبي + الفئة العمرية (طفل/بالغ) بشكل صريح، وإلزام الاختيار.
-- في `adminConfirmPaymentAndGenerate` تعديل `likenessTag` و`style` وبناء الـ`prompt` بحيث تُضاف قواعد سلبية صريحة قبل وصف المشهد:
-  > "Use the reference photo ONLY to preserve facial features, hair, skin tone and body build. The final image MUST be a single full-scene storybook illustration. Absolutely NO: original photo, photo-in-photo, thumbnails, side panels, picture-in-picture, framed reference, before/after comparison, collage, polaroid, or any inset image. Never show the reference photo or any cropped part of it. Only the illustrated scene."
-- إضافة النص العربي المطلوب حرفياً كذيل للـ prompt.
-- إبقاء تمرير `referenceImages` لنماذج Gemini كما هو (فقط للتوجيه)، بدون تغيير على استدعاء الـ AI Gateway.
+### ترحيلات SQL
+```sql
+ALTER TABLE coupons
+  ADD COLUMN min_pages int DEFAULT 0,
+  ADD COLUMN applies_quality text[] DEFAULT ARRAY['standard','premium'],
+  ADD COLUMN applies_tier text[] DEFAULT ARRAY['pdf','printed','video'];
 
-## 2) نص الزر
+CREATE TABLE phone_bans (
+  phone text PRIMARY KEY,
+  reason text,
+  banned_at timestamptz DEFAULT now(),
+  banned_by uuid
+);
+GRANT SELECT ON phone_bans TO authenticated;
+GRANT ALL ON phone_bans TO service_role;
+ALTER TABLE phone_bans ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "read own ban" ON phone_bans FOR SELECT TO authenticated USING (true);
 
-- في `src/routes/create.tsx` تغيير الزر من «اصنع معاينة» إلى «اصنع حكايتي» عبر مفاتيح i18n (`form_submit`) في `src/lib/i18n.tsx` — بدون تغيير في المنطق.
+ALTER TABLE orders ADD COLUMN payment_status text DEFAULT 'pending_payment';
+ALTER TABLE pricing_settings
+  ADD COLUMN ai_cost_estimate_standard numeric DEFAULT 0.05,
+  ADD COLUMN ai_cost_estimate_premium numeric DEFAULT 0.15,
+  ADD COLUMN whatsapp_admin_number text DEFAULT '';
 
-## 3) صفحة تأكيد قبل التوليد + 4) شاشة تحميل + 5) منع الاستهلاك المكرر
+CREATE TABLE notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  order_id uuid,
+  title text NOT NULL,
+  body text,
+  read_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+GRANT SELECT, UPDATE ON notifications TO authenticated;
+GRANT ALL ON notifications TO service_role;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own notifications" ON notifications FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+```
 
-- في `create.tsx`: عند الضغط، بدل الاستدعاء المباشر لـ `createOrderDraft`، يفتح `<Dialog>` (shadcn) بعنوان «تأكيد إنشاء الحكاية» ونص التأكيد وزرَّي «نعم، اصنع حكايتي» / «رجوع للتعديل». الاستدعاء يحصل فقط بعد التأكيد.
-- تعطيل الزر أثناء `submitting` وإظهار رسالة «جاري إنشاء الحكاية، يرجى الانتظار...» — لا استدعاءات مكرّرة (يوجد `submitting` مسبقاً، سنشدّه بحارس `if (submitting) return`).
-- في `preview.$orderId.tsx`: استبدال `LoadingCard` البسيط بشاشة تحميل احترافية تحتوي شعار «بصمة حكاية» + شريط تقدّم (`<Progress>` من shadcn، قيمة تصاعدية زمنية) + رسائل متغيّرة كل ~3 ثوانٍ: «نكتب أحداث القصة…» → «نصمم الشخصيات…» → «نرسم المشاهد…» → «نراجع الحكاية…».
-- الحماية من الاستدعاء المزدوج لتوليد النص عبر `useRef` بديلاً عن `useState(genStarted)` (React 18 StrictMode يشغل الـ effect مرتين).
+### الملفات المُعدَّلة
+- `src/lib/orders.functions.ts` — `createOrderDraft`, `reorderExisting`, `validateCoupon`, تحديث تدفق التأكيد.
+- `src/lib/pricing.ts` — دالة `evaluateCoupon` مع قيود min_pages/tier/quality.
+- `src/lib/auth.functions.ts` — فحص `phone_bans`.
+- `src/lib/notifications.functions.ts` (جديد) — `listMyNotifications`, `markRead`.
+- `src/lib/ai-credits.functions.ts` (جديد) — رصيد Lovable AI.
+- `src/routes/create.tsx` — تحقق الكوبون الفوري + توجيه واتساب.
+- `src/routes/my-orders.tsx` — إشعارات، حالة "بانتظار الدفع"، إعادة الطلب.
+- `src/routes/preview.$orderId.tsx` — حراسة الحالات الملغاة/المرفوضة.
+- `src/routes/admin.users.tsx` — حظر فقط.
+- `src/routes/admin.coupons.tsx` — الحقول الجديدة.
+- `src/routes/admin.orders.$id.tsx` — زر «تأكيد الدفع وبدء التوليد».
+- `src/routes/admin.index.tsx` — بطاقة الرصيد.
+- `src/routes/admin.settings.tsx` — رقم واتساب الأدمن + تقديرات التكلفة.
 
-## 6) «طلباتي» + إعادة تحميل مدفوع
-
-- الصفحة `my-orders.tsx` تعمل حالياً وتُظهر طلبات المستخدم المرتبطة برقم هاتفه (`myOrders` تفلتر بـ `user_id`).
-- إضافة زر «إعادة تحميل مدفوع» لكل طلب `delivered` أو `paid` بحيث ينشئ سجلاً في جدول جديد `redownload_requests` وينقل الحالة إلى `redownload_pending`.
-- الإدارة (شاشة الطلبات) ترى الطلب مع سعر إعادة التحميل الذي حدّدته في `pricing_settings` (حقل جديد `redownload_iqd_pdf/printed/video`)، وتضغط «تأكيد الدفع» → يفتح تحميل PDF للمستخدم مثل الحالة الاعتيادية (بنفس زر التحميل الحالي).
-
-## 7) صلاحيات إدارة أوسع للعملاء والطلبات
-
-- إضافة أعمدة على `users`: `status` (`active` | `suspended` | `banned`)، ملء تلقائي.
-- server fns جديدة (كلها خلف `gate()`): `adminDeleteUser`, `adminSuspendUser`, `adminBanUser`, `adminDeleteOrder`, `adminRejectOrder({orderId, reason})`.
-- `adminRejectOrder` يضبط `status='cancelled'` مع `rejection_reason` و`rejected_at`، ويظهر للمستخدم في `my-orders` كإشعار «تم الرفض: <السبب>».
-- في `admin.users.tsx` أعمدة إجراءات (تعليق/حظر/حذف). في `admin.orders.$id.tsx` أزرار حذف/رفض مع نافذة إدخال السبب.
-- عند تسجيل الدخول (`user-session`) نتحقق من `status`؛ الحساب المحظور لا يستطيع إنشاء طلب.
-
-## 8) الكوبونات + تسعير الأجواء
-
-- جدول جديد `coupons`: `code, discount_type (percent|fixed), discount_value, max_uses, uses_count, valid_from, valid_to, applies_to (new|all), active`.
-- جدول `coupon_redemptions` لربط الاستخدام بالمستخدم/الطلب.
-- server fns: `adminListCoupons/adminUpsertCoupon/adminDeleteCoupon` + مسار `admin.coupons.tsx`.
-- في `create.tsx` حقل «كود خصم» اختياري؛ التحقق `validateCoupon` عند الإرسال، ويُخصم من `amount_iqd` عند `confirmTierAndPrepareWhatsapp`.
-- تسعير الأجواء: إضافة إلى `pricing_settings` حقلين: `free_moods_count` (افتراضي 1) و `mood_extra_iqd` (السعر لكل جو إضافي فوق الحد المجاني). تعديل `computeTierAmount` لتقبل `moodCount` وإضافة `Math.max(0, moods - free) * mood_extra_iqd`. يظهر السعر تحت شبكة الأجواء ويتحدث لحظياً في `create.tsx` و`preview`.
-
-## إصلاح صفحة التأكيد (المشكلة التي أشرت إليها الآن)
-
-- في `preview.$orderId.tsx`: قراءة `image_quality_tier` و`character_count` الفعليَّين من الطلب (نضيفهما إلى `getOrderPublic`) وتمريرهما إلى `computeTierAmount` بدلاً من `1` و`standard` الثابتَين.
-- إخفاء بطاقة «فيديو» تماماً عندما `video_tier_enabled=false` (بدل التغبيش) — أو الإبقاء عليها مغبَّشة بلا سعر مضلِّل: سنعرض السعر فقط عند التفعيل، ونضع «قريباً» بدلاً منه عند الإيقاف.
-- إبطال الكاش تلقائياً: كل mutation إدارية تعدّل الأسعار/الثيمات/الفيديوهات/الأجواء تستدعي `queryClient.invalidateQueries({ queryKey: ["pricing-public"] })` (وما يشابهها). كذلك تخفيض `staleTime` إلى `0` مع الإبقاء على `refetchOnWindowFocus` ليأخذ المستخدم آخر الأسعار عند العودة للصفحة.
-- إضافة `refetchInterval` معتدل (60s) على `pricing-public` في صفحة المعاينة تحسّباً لتحديث السعر أثناء تصفح المستخدم.
-
-## هجرات قاعدة البيانات (Supabase)
-
-1. `ALTER TABLE users ADD status text DEFAULT 'active' CHECK (...)`.
-2. `ALTER TABLE orders ADD rejection_reason text, rejected_at timestamptz, redownload_status text`.
-3. `ALTER TABLE pricing_settings ADD free_moods_count int DEFAULT 1, mood_extra_iqd int DEFAULT 0, redownload_iqd_pdf/printed/video int DEFAULT 0`.
-4. إنشاء `coupons` + `coupon_redemptions` + `redownload_requests` مع `GRANT` صحيحة و`RLS` مغلقة (كل الوصول عبر server fns).
-
-## ملفات تُلمس
-
-- `src/routes/create.tsx` (زر، حوار التأكيد، كوبون، منع تكرار، مبلغ الجو)
-- `src/routes/preview.$orderId.tsx` (شاشة تحميل، سعر صحيح، إخفاء/إبطال الكاش)
-- `src/routes/my-orders.tsx` (زر إعادة تحميل + إشعار الرفض)
-- `src/routes/admin.users.tsx` (تعليق/حظر/حذف)
-- `src/routes/admin.orders.$id.tsx` (رفض/حذف/سبب/تأكيد إعادة التحميل)
-- `src/routes/admin.settings.tsx` (حقول الكوبون والأجواء وإعادة التحميل)
-- ملف جديد `src/routes/admin.coupons.tsx`
-- `src/lib/orders.functions.ts` (prompt سلبي، fns الإدارة الجديدة، إبطال الكاش عبر revalidation)
-- `src/lib/pricing.ts` (moods pricing)
-- `src/lib/i18n.tsx` (نصوص جديدة)
-- هجرات SQL جديدة.
-
-## غير المتأثر
-
-- منطق التوليد نفسه (Gemini/AI Gateway) والـ style lock والـ art DNA يبقى.
-- تدفق WhatsApp وتأكيد الإدارة يبقى.
-- بنية المصادقة (OTP بالهاتف) والثيمات والفيديوهات الترويجية تبقى كما هي.
+### ملاحظات
+- لن يتم استهلاك أي رصيد ذكاء اصطناعي قبل تأكيد الدفع من الأدمن (يحل مشكلة الطلبات الوهمية).
+- كل تعديل من الأدمن يستدعي `qc.invalidateQueries` للطلبات والإعدادات لضمان تحديث الكاش تلقائياً.
+- لا تغيير في البنية التحتية (نفس Supabase، نفس server functions، نفس TanStack).

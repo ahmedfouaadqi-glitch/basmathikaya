@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { adminListUsers, adminSetUserStatus, adminDeleteUser } from "../lib/orders.functions";
+import { adminListUsers, adminBanPhone, adminUnbanPhone } from "../lib/orders.functions";
 import { useT } from "../lib/i18n";
 import { Download, Search } from "lucide-react";
 
@@ -15,11 +15,12 @@ function AdminUsersPage() {
   const { t } = useT();
   const qc = useQueryClient();
   const fn = useServerFn(adminListUsers);
-  const setStatusFn = useServerFn(adminSetUserStatus);
-  const delFn = useServerFn(adminDeleteUser);
+  const banFn = useServerFn(adminBanPhone);
+  const unbanFn = useServerFn(adminUnbanPhone);
   const q = useQuery({ queryKey: ["admin-users"], queryFn: () => fn(), refetchInterval: 30_000 });
   const allRows = q.data ?? [];
   const [search, setSearch] = useState("");
+
 
   const rows = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -88,6 +89,7 @@ function AdminUsersPage() {
             {rows.map((u) => {
               const uu = u as typeof u & { status?: "active" | "suspended" | "banned" };
               const status = uu.status ?? "active";
+              const isBanned = status === "banned";
               return (
                 <tr key={u.id} className="border-t hover:bg-secondary/30">
                   <td className="px-3 py-2.5 font-medium">{u.full_name}</td>
@@ -96,57 +98,46 @@ function AdminUsersPage() {
                   <td className="px-3 py-2.5 text-end font-mono text-primary">{Number(u.total_spent_iqd).toLocaleString()}</td>
                   <td className="px-3 py-2.5">
                     <span className={`rounded-full px-2 py-0.5 text-xs ${
-                      status === "banned" ? "bg-destructive/15 text-destructive" :
-                      status === "suspended" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400" :
-                      "bg-primary/15 text-primary"
+                      isBanned ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"
                     }`}>
-                      {t(`user_status_${status}` as never)}
+                      {isBanned ? "محظور" : "نشط"}
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground text-xs">{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "—"}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex flex-wrap gap-1">
-                      {status !== "active" && (
+                      {isBanned ? (
                         <button
                           onClick={async () => {
-                            try { await setStatusFn({ data: { userId: u.id, status: "active" } }); qc.invalidateQueries({ queryKey: ["admin-users"] }); }
-                            catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                            const reason = prompt("سبب رفع الحظر (اختياري):") ?? "";
+                            try {
+                              await unbanFn({ data: { phone: u.phone ?? "", reason } });
+                              qc.invalidateQueries({ queryKey: ["admin-users"] });
+                              toast.success("تم رفع الحظر");
+                            } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
                           }}
                           className="rounded border px-2 py-0.5 text-xs hover:bg-secondary"
-                        >{t("admin_unblock")}</button>
-                      )}
-                      {status !== "suspended" && (
+                        >فك الحظر</button>
+                      ) : (
                         <button
                           onClick={async () => {
-                            try { await setStatusFn({ data: { userId: u.id, status: "suspended" } }); qc.invalidateQueries({ queryKey: ["admin-users"] }); }
-                            catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
-                          }}
-                          className="rounded border px-2 py-0.5 text-xs text-amber-700 hover:bg-amber-500/10"
-                        >{t("admin_suspend")}</button>
-                      )}
-                      {status !== "banned" && (
-                        <button
-                          onClick={async () => {
-                            if (!confirm("حظر هذا العميل؟")) return;
-                            try { await setStatusFn({ data: { userId: u.id, status: "banned" } }); qc.invalidateQueries({ queryKey: ["admin-users"] }); }
-                            catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                            const reason = prompt("سبب الحظر (يُرسَل للعميل كإشعار):") ?? "";
+                            if (!confirm(`حظر رقم ${u.phone}؟`)) return;
+                            try {
+                              await banFn({ data: { phone: u.phone ?? "", reason } });
+                              qc.invalidateQueries({ queryKey: ["admin-users"] });
+                              toast.success("تم الحظر");
+                            } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
                           }}
                           className="rounded border px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
-                        >{t("admin_ban")}</button>
+                        >حظر</button>
                       )}
-                      <button
-                        onClick={async () => {
-                          if (!confirm("حذف العميل وكل طلباته نهائياً؟")) return;
-                          try { await delFn({ data: { userId: u.id } }); qc.invalidateQueries({ queryKey: ["admin-users"] }); }
-                          catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
-                        }}
-                        className="rounded border px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10"
-                      >{t("admin_delete_user")}</button>
                     </div>
                   </td>
                 </tr>
               );
             })}
+
           </tbody>
         </table>
       </div>

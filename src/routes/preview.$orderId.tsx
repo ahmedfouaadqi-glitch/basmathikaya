@@ -1,119 +1,62 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Download, Hourglass, ImageIcon } from "lucide-react";
+import { Loader2, Sparkles, Download, Hourglass, ImageIcon, Ban, Clock } from "lucide-react";
 import { useT } from "../lib/i18n";
-import {
-  generateFullStory,
-  getStoryProgress,
-  confirmTierAndPrepareWhatsapp,
-  getOrderPublic,
-  getPublicPricing,
-} from "../lib/orders.functions";
+import { getStoryProgress, getOrderPublic, getPublicPricing } from "../lib/orders.functions";
 import { getActiveTheme } from "../lib/themes.functions";
 import { getHomeContent } from "../lib/site-content.functions";
 import { buildAndDownloadStoryPdf } from "../lib/pdf-client";
-import { computeTierAmount, DEFAULT_PRICING } from "../lib/pricing";
 
 export const Route = createFileRoute("/preview/$orderId")({
   head: () => ({ meta: [{ title: "معاينة حكايتك — بصمة حكاية" }] }),
   component: PreviewPage,
 });
 
-const WHATSAPP_NUMBER = "9647733570130";
-
 function PreviewPage() {
   const { orderId } = Route.useParams();
   const { t, lang } = useT();
-  const generateFn = useServerFn(generateFullStory);
   const progressFn = useServerFn(getStoryProgress);
   const orderFn = useServerFn(getOrderPublic);
-  const confirmFn = useServerFn(confirmTierAndPrepareWhatsapp);
   const pricingFn = useServerFn(getPublicPricing);
-
   const themeFn = useServerFn(getActiveTheme);
   const contentFn = useServerFn(getHomeContent);
 
-
-  const [confirming, setConfirming] = useState<string | null>(null);
-  const [genStarted, setGenStarted] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
-  const [textReady, setTextReady] = useState(false);
   const [building, setBuilding] = useState(false);
 
   const orderQ = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => orderFn({ data: { orderId } }),
   });
-  const pricingQ = useQuery({
+  useQuery({
     queryKey: ["pricing-public"],
     queryFn: () => pricingFn(),
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
 
-  useEffect(() => {
-    if (genStarted) return;
-    setGenStarted(true);
-    generateFn({ data: { orderId } })
-      .then(() => setTextReady(true))
-      .catch((e) => setGenError(e instanceof Error ? e.message : "Generation failed"));
-  }, [genStarted, generateFn, orderId]);
-
   const progressQ = useQuery({
     queryKey: ["story-progress", orderId],
     queryFn: () => progressFn({ data: { orderId } }),
     refetchInterval: (q) => {
       const data = q.state.data;
-      if (!data) return 2500;
+      if (!data) return 4000;
       if (data.ready) return false;
-      // Poll faster while text loads, then slow down while waiting for admin payment confirmation
-      return data.pages_ready && data.images_status === "idle" ? 8000 : 3000;
+      return data.images_status === "generating" ? 3000 : 8000;
     },
   });
 
   const progress = progressQ.data;
   const order = orderQ.data;
-  const pageCount = order?.page_count ?? progress?.page_count ?? 5;
-  const pricing = pricingQ.data ?? DEFAULT_PRICING;
-  const videoEnabled = Boolean((pricingQ.data as { video_tier_enabled?: boolean } | undefined)?.video_tier_enabled ?? false);
-  const charCount = Number((order as { character_count?: number } | null | undefined)?.character_count ?? 1);
-  const qualityTier = ((order as { image_quality_tier?: "standard" | "premium" } | null | undefined)?.image_quality_tier ?? "standard") as "standard" | "premium";
-  const moodCount = Array.isArray(order?.moods) ? Math.max(1, order!.moods.length) : 1;
-  const estimates = useMemo(() => {
-    return {
-      pdf: computeTierAmount("pdf", pageCount, pricing, charCount, qualityTier, moodCount),
-      printed: computeTierAmount("printed", pageCount, pricing, charCount, qualityTier, moodCount),
-      video: computeTierAmount("video", pageCount, pricing, charCount, qualityTier, moodCount),
-    };
-  }, [pageCount, pricing, charCount, qualityTier, moodCount]);
 
-  async function pick(tier: "pdf" | "printed" | "video") {
-    setConfirming(tier);
-    try {
-      const r = await confirmFn({ data: { orderId, tier } });
-      const isAr = lang === "ar";
-      const tierLabel =
-        tier === "pdf"
-          ? isAr ? "PDF فوري" : "Instant PDF"
-          : tier === "printed"
-            ? isAr ? "نسخة مطبوعة" : "Printed copy"
-            : isAr ? "فيديو فاخر" : "Premium video";
-      const msg = isAr
-        ? `مرحباً، أود إكمال طلبي في بصمة حكاية.\nرقم الطلب: #${r.order_number}\nالباقة: ${tierLabel}\nعدد الصفحات: ${r.page_count}\nعدد الشخصيات: ${r.character_count}\nالمبلغ: ${r.amount_iqd} د.ع\nالاسم: ${progress?.customer_name ?? ""}`
-        : `Hello, I'd like to complete my order at Basma Hekaya.\nOrder #: ${r.order_number}\nTier: ${tierLabel}\nPages: ${r.page_count}\nCharacters: ${r.character_count}\nAmount: ${r.amount_iqd} IQD\nName: ${progress?.customer_name ?? ""}`;
-      const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-      window.open(url, "_blank");
-      orderQ.refetch();
-      progressQ.refetch();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "خطأ");
-    } finally {
-      setConfirming(null);
-    }
-  }
+  const orderStatus = (order?.status ?? progress?.order_status ?? "") as string;
+  const rejectionReason =
+    (order as { rejection_reason?: string | null } | null | undefined)?.rejection_reason ??
+    progress?.rejection_reason ??
+    null;
+  const isBlocked = orderStatus === "cancelled" || orderStatus === "rejected";
 
   async function handleDownload() {
     if (!progress) return;
@@ -123,7 +66,7 @@ function PreviewPage() {
         themeFn().catch(() => null),
         contentFn().catch(() => null),
       ]);
-      const th = theme as (null | { accent_color?: string | null; frame_style?: string | null; palette?: string[] | null });
+      const th = theme as null | { accent_color?: string | null; frame_style?: string | null; palette?: string[] | null };
       await buildAndDownloadStoryPdf({
         title: progress.title || (lang === "ar" ? "حكايتي" : "My Story"),
         language: lang,
@@ -144,111 +87,127 @@ function PreviewPage() {
     }
   }
 
+  if (isBlocked) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-8 text-center">
+          <Ban className="mx-auto mb-3 size-10 text-destructive" />
+          <h2 className="text-lg font-bold text-destructive mb-1">
+            {orderStatus === "rejected" ? "تم رفض الطلب" : "الطلب ملغى"}
+          </h2>
+          <p className="text-sm text-muted-foreground">{rejectionReason ?? "لا توجد تفاصيل إضافية."}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const imagesStatus = progress?.images_status ?? "idle";
+  const notStartedYet = !progress || (imagesStatus === "idle" && progress.pages.length === 0);
+
+  if (notStartedYet) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <div className="rounded-2xl border bg-card p-8 text-center">
+          <Clock className="mx-auto mb-3 size-10 text-accent" />
+          <h2 className="text-lg font-bold mb-1">بانتظار تأكيد الدفع</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            سيبدأ إعداد حكايتك تلقائياً فور تأكيد الإدارة استلام الدفع عبر واتساب.
+            ستصلك رسالة داخل «طلباتي» عند البدء.
+          </p>
+          {order?.order_number ? (
+            <div className="mt-4 font-mono text-sm text-muted-foreground">#{order.order_number}</div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
-      {genError ? (
-        <div className="rounded-2xl border bg-card p-8 text-center">
-          <p className="text-destructive">{genError}</p>
-        </div>
-      ) : !progress || (!textReady && progress.pages.length === 0) ? (
-        <LoadingCard />
-      ) : (
-        <>
-          {/* Status banner */}
-          <StatusBanner imagesStatus={progress.images_status} tier={progress.tier} />
+      <StatusBanner imagesStatus={imagesStatus} tier={progress!.tier} />
 
-          {/* Title + first paragraph */}
-          <div className="grid gap-6 md:grid-cols-[260px_1fr] items-start mt-4">
-            <CoverArea progress={progress} />
-            <div>
-              <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                <Sparkles className="size-3.5" /> {progress.ready ? t("story_ready") : t("preview_done")}
-              </div>
-              <h1 className="text-3xl font-extrabold leading-tight">
-                {progress.title || (progress.customer_name ? `حكاية ${progress.customer_name}` : "")}
-              </h1>
-              <p className="mt-2 text-xs text-muted-foreground">{t("preview_blurb_no_images")}</p>
-              <div className="mt-4 rounded-xl border bg-card/60 p-4">
-                <div className="text-xs font-medium text-muted-foreground mb-1">{t("preview_first_para")}</div>
-                <p className="text-base leading-relaxed">{progress.first_paragraph || "…"}</p>
-              </div>
-            </div>
+      <div className="grid gap-6 md:grid-cols-[260px_1fr] items-start mt-4">
+        <CoverArea progress={progress!} />
+        <div>
+          <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+            <Sparkles className="size-3.5" /> {progress!.ready ? t("story_ready") : t("preview_done")}
           </div>
+          <h1 className="text-3xl font-extrabold leading-tight">
+            {progress!.title || (progress!.customer_name ? `حكاية ${progress!.customer_name}` : "")}
+          </h1>
+          <p className="mt-2 text-xs text-muted-foreground">{t("preview_blurb_no_images")}</p>
+          <div className="mt-4 rounded-xl border bg-card/60 p-4">
+            <div className="text-xs font-medium text-muted-foreground mb-1">{t("preview_first_para")}</div>
+            <p className="text-base leading-relaxed">{progress!.first_paragraph || "…"}</p>
+          </div>
+        </div>
+      </div>
 
-          {/* Pages text */}
-          {progress.pages.length > 0 && (
-            <div className="mt-10">
-              <h2 className="mb-3 text-lg font-bold">{t("story_pages")}</h2>
-              <div className="space-y-3">
-                {progress.pages.map((p) => (
-                  <div key={p.page_number} className="rounded-2xl border bg-card p-4 md:p-5">
-                    <div className="flex items-start gap-4">
-                      <div className="size-12 shrink-0 rounded-xl bg-primary/10 grid place-items-center font-bold text-primary">
-                        {p.page_number}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-xs font-medium text-muted-foreground mb-1">{t("page_n")} {p.page_number}</div>
-                        <p className="text-base leading-relaxed whitespace-pre-wrap">{p.text || "…"}</p>
-                        {p.image_url && (
-                          <img src={p.image_url} alt={`page-${p.page_number}`} className="mt-3 w-full max-w-md rounded-xl border" />
-                        )}
-                      </div>
-                    </div>
+      {progress!.pages.length > 0 && (
+        <div className="mt-10">
+          <h2 className="mb-3 text-lg font-bold">{t("story_pages")}</h2>
+          <div className="space-y-3">
+            {progress!.pages.map((p) => (
+              <div key={p.page_number} className="rounded-2xl border bg-card p-4 md:p-5">
+                <div className="flex items-start gap-4">
+                  <div className="size-12 shrink-0 rounded-xl bg-primary/10 grid place-items-center font-bold text-primary">
+                    {p.page_number}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* PDF download when ready — gated by delivery/redownload payment */}
-          {progress.ready && (() => {
-            const p = progress as typeof progress & { order_status?: string; redownload_status?: string | null; redownload_amount_iqd?: number | null };
-            const canDownload = p.order_status === "delivered" || p.redownload_status === "paid";
-            if (canDownload) {
-              return (
-                <button
-                  type="button"
-                  disabled={building}
-                  onClick={handleDownload}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
-                >
-                  {building ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                  {building ? t("building_pdf") : t("download_pdf")}
-                </button>
-              );
-            }
-            if (p.redownload_status === "pending") {
-              return (
-                <div className="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-center text-sm text-amber-700 dark:text-amber-400">
-                  {t("redownload_awaiting_admin")}
-                  {p.redownload_amount_iqd ? <span className="ms-1 font-mono">· {Number(p.redownload_amount_iqd).toLocaleString()} {t("iqd")}</span> : null}
+                  <div className="flex-1">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                      {t("page_n")} {p.page_number}
+                    </div>
+                    <p className="text-base leading-relaxed whitespace-pre-wrap">{p.text || "…"}</p>
+                    {p.image_url && (
+                      <img
+                        src={p.image_url}
+                        alt={`page-${p.page_number}`}
+                        className="mt-3 w-full max-w-md rounded-xl border"
+                      />
+                    )}
+                  </div>
                 </div>
-              );
-            }
-            return null;
-          })()}
-
-          {/* Tier selection (only if not yet picked) */}
-          {!progress.tier && (
-            <div className="mt-10">
-              <h2 className="mb-4 text-xl font-bold">{t("choose_tier")}</h2>
-              <div className="grid gap-3 md:grid-cols-3">
-                <TierCard price={estimates.pdf} label={t("tier_pdf")} desc={t("tier_pdf_d")} onPick={() => pick("pdf")} loading={confirming === "pdf"} accent />
-                <TierCard price={estimates.printed} label={t("tier_printed")} desc={t("tier_printed_d")} onPick={() => pick("printed")} loading={confirming === "printed"} />
-                <TierCard
-                  price={estimates.video}
-                  label={t("tier_video")}
-                  desc={t("tier_video_d")}
-                  onPick={() => videoEnabled && pick("video")}
-                  loading={confirming === "video"}
-                  disabled={!videoEnabled}
-                />
               </div>
-              <p className="mt-4 text-center text-xs text-muted-foreground">{t("whatsapp_msg_open")}</p>
-            </div>
-          )}
-        </>
+            ))}
+          </div>
+        </div>
       )}
+
+      {progress!.ready &&
+        (() => {
+          const p = progress! as typeof progress & {
+            order_status?: string;
+            redownload_status?: string | null;
+            redownload_amount_iqd?: number | null;
+          };
+          const canDownload = p!.order_status === "delivered" || p!.redownload_status === "paid";
+          if (canDownload) {
+            return (
+              <button
+                type="button"
+                disabled={building}
+                onClick={handleDownload}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
+              >
+                {building ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                {building ? t("building_pdf") : t("download_pdf")}
+              </button>
+            );
+          }
+          if (p!.redownload_status === "pending") {
+            return (
+              <div className="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-center text-sm text-amber-700 dark:text-amber-400">
+                {t("redownload_awaiting_admin")}
+                {p!.redownload_amount_iqd ? (
+                  <span className="ms-1 font-mono">
+                    · {Number(p!.redownload_amount_iqd).toLocaleString()} {t("iqd")}
+                  </span>
+                ) : null}
+              </div>
+            );
+          }
+          return null;
+        })()}
     </div>
   );
 }
@@ -297,62 +256,6 @@ function CoverArea({ progress }: { progress: { cover_url: string | null; images_
           <span>{t("awaiting_payment")}</span>
         </div>
       )}
-    </div>
-  );
-}
-
-function LoadingCard() {
-  const { t } = useT();
-  const steps = [
-    t("loading_step_write"),
-    t("loading_step_design"),
-    t("loading_step_draw"),
-    t("loading_step_review"),
-  ];
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const id = window.setInterval(() => setI((x) => (x + 1) % steps.length), 2200);
-    return () => window.clearInterval(id);
-  }, [steps.length]);
-  return (
-    <div className="rounded-2xl border bg-card p-10 text-center">
-      <img src="/logo.png" alt="بصمة حكاية" className="mx-auto mb-4 h-20 w-20 animate-pulse rounded-2xl object-contain" onError={(e) => ((e.currentTarget.style.display = "none"))} />
-      <Loader2 className="mx-auto size-8 animate-spin text-primary" />
-      <p className="mt-4 text-lg font-bold">{t("loading_making_story")}</p>
-      <p className="mt-2 min-h-[1.5rem] text-sm text-muted-foreground transition-all">{steps[i]}</p>
-      <div className="mx-auto mt-5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-secondary">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
-          style={{ width: `${((i + 1) / steps.length) * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function TierCard({
-  price, label, desc, onPick, loading, accent, disabled,
-}: { price: number; label: string; desc: string; onPick: () => void; loading: boolean; accent?: boolean; disabled?: boolean }) {
-  const { t } = useT();
-  return (
-    <div
-      className={`flex flex-col rounded-2xl border p-5 shadow-sm transition ${accent ? "border-primary bg-primary/5" : "bg-card"} ${disabled ? "opacity-60 blur-[1.5px] select-none pointer-events-none" : ""}`}
-      aria-disabled={disabled || undefined}
-      title={disabled ? "قريباً" : undefined}
-    >
-      <div className="text-base font-bold">{label}</div>
-      <div className="mt-1 text-2xl font-extrabold text-primary">
-        {price.toLocaleString()} <span className="text-sm font-medium text-muted-foreground">{t("iqd")}</span>
-      </div>
-      <p className="mt-2 text-sm text-muted-foreground flex-1">{desc}</p>
-      <button
-        onClick={onPick}
-        disabled={loading || disabled}
-        className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-2.5 text-sm font-bold text-primary-foreground shadow-warm disabled:opacity-60"
-      >
-        {loading && <Loader2 className="size-4 animate-spin" />}
-        {t("confirm_whatsapp")}
-      </button>
     </div>
   );
 }

@@ -106,6 +106,8 @@ export type Database = {
       coupons: {
         Row: {
           active: boolean
+          applies_quality: string[]
+          applies_tier: string[]
           applies_to: string
           code: string
           created_at: string
@@ -113,6 +115,7 @@ export type Database = {
           discount_value: number
           id: string
           max_uses: number | null
+          min_pages: number
           updated_at: string
           uses_count: number
           valid_from: string | null
@@ -120,6 +123,8 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          applies_quality?: string[]
+          applies_tier?: string[]
           applies_to?: string
           code: string
           created_at?: string
@@ -127,6 +132,7 @@ export type Database = {
           discount_value: number
           id?: string
           max_uses?: number | null
+          min_pages?: number
           updated_at?: string
           uses_count?: number
           valid_from?: string | null
@@ -134,6 +140,8 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          applies_quality?: string[]
+          applies_tier?: string[]
           applies_to?: string
           code?: string
           created_at?: string
@@ -141,6 +149,7 @@ export type Database = {
           discount_value?: number
           id?: string
           max_uses?: number | null
+          min_pages?: number
           updated_at?: string
           uses_count?: number
           valid_from?: string | null
@@ -280,6 +289,39 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          order_id: string | null
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          order_id?: string | null
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          order_id?: string | null
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_characters: {
         Row: {
           age: number | null
@@ -362,6 +404,8 @@ export type Database = {
           page_count: number
           paid_at: string | null
           payment_confirmed_at: string | null
+          payment_confirmed_notified_at: string | null
+          payment_status: string
           pdf_path: string | null
           redownload_amount_iqd: number | null
           redownload_paid_at: string | null
@@ -400,6 +444,8 @@ export type Database = {
           page_count?: number
           paid_at?: string | null
           payment_confirmed_at?: string | null
+          payment_confirmed_notified_at?: string | null
+          payment_status?: string
           pdf_path?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
@@ -438,6 +484,8 @@ export type Database = {
           page_count?: number
           paid_at?: string | null
           payment_confirmed_at?: string | null
+          payment_confirmed_notified_at?: string | null
+          payment_status?: string
           pdf_path?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
@@ -499,8 +547,31 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_bans: {
+        Row: {
+          banned_at: string
+          banned_by: string | null
+          phone: string
+          reason: string | null
+        }
+        Insert: {
+          banned_at?: string
+          banned_by?: string | null
+          phone: string
+          reason?: string | null
+        }
+        Update: {
+          banned_at?: string
+          banned_by?: string | null
+          phone?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       pricing_settings: {
         Row: {
+          ai_cost_estimate_premium: number
+          ai_cost_estimate_standard: number
           free_moods_count: number
           id: number
           image_quality_tier: string
@@ -529,8 +600,11 @@ export type Database = {
           updated_at: string
           usd_per_credit: number
           video_tier_enabled: boolean
+          whatsapp_admin_number: string
         }
         Insert: {
+          ai_cost_estimate_premium?: number
+          ai_cost_estimate_standard?: number
           free_moods_count?: number
           id?: number
           image_quality_tier?: string
@@ -559,8 +633,11 @@ export type Database = {
           updated_at?: string
           usd_per_credit?: number
           video_tier_enabled?: boolean
+          whatsapp_admin_number?: string
         }
         Update: {
+          ai_cost_estimate_premium?: number
+          ai_cost_estimate_standard?: number
           free_moods_count?: number
           id?: number
           image_quality_tier?: string
@@ -589,6 +666,7 @@ export type Database = {
           updated_at?: string
           usd_per_credit?: number
           video_tier_enabled?: boolean
+          whatsapp_admin_number?: string
         }
         Relationships: []
       }
