@@ -923,8 +923,20 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         : "";
       const consistencyTag = brief ? `Consistent cast across all pages — ${brief}. ` : "";
       const likenessTag = referenceImages.length
-        ? "Match the facial features, hair and skin tone of the reference photo as closely as possible while keeping a cartoon storybook style. "
+        ? "Use the reference photo ONLY to preserve facial features, hair, skin tone and body build of the illustrated character. "
         : "";
+
+      // Strong negative constraints — prevent Gemini from ever pasting the reference photo
+      // (or any inset/frame/thumbnail of it) into the final illustration.
+      const negatives =
+        "STRICT RULES: The output MUST be a single full-scene storybook illustration only. " +
+        "ABSOLUTELY NO photograph, no photo-of-a-photo, no photo-in-photo, no picture-in-picture, " +
+        "no inset image, no side panel, no thumbnail, no polaroid, no framed reference on any wall or table, " +
+        "no collage, no before/after comparison, no split screen, no reference sheet, no character turnaround, " +
+        "no watermark, no logo, no text, no letters, no captions, no signatures. " +
+        "Never render the original uploaded photo or any cropped part of it inside the scene. " +
+        "Only the illustrated storybook scene fills the frame. " +
+        "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. ";
 
       // Cover
       let coverPath = gen?.cover_image_path as string | null;
@@ -935,8 +947,8 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. Book cover composition, leave headroom for title, no text.`
-          : `${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. No text.`;
+          ? `${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${negatives} Book cover composition, leave headroom for title.`
+          : `${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${negatives}`;
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
@@ -958,7 +970,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       await runWithConcurrency(todo, 3, async (p) => {
         const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
         const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
-        const prompt = `${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. No text or letters in the image.`;
+        const prompt = `${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
         const path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
