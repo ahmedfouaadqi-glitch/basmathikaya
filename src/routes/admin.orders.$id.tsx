@@ -220,6 +220,66 @@ function OrderDetail() {
                 )}
               </>
             )}
+
+            {/* Redownload request from customer */}
+            {order.redownload_status === "requested" && (
+              <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+                <div className="font-semibold text-primary mb-1">{t("redownload_request_pending")}</div>
+                <div className="text-muted-foreground">
+                  {t("amount_due")}: <span className="font-mono">{Number(order.redownload_amount_iqd ?? 0).toLocaleString()} {t("iqd")}</span>
+                </div>
+                <button
+                  onClick={async () => {
+                    try { await redownloadFn({ data: { orderId: id } }); toast.success("تم"); qc.invalidateQueries({ queryKey: ["admin-order", id] }); }
+                    catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                  }}
+                  className="mt-2 w-full rounded-lg bg-primary py-2 text-xs font-bold text-primary-foreground"
+                >{t("confirm_redownload_payment")}</button>
+              </div>
+            )}
+
+            {order.status === "rejected" && order.rejection_reason && (
+              <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                <div className="font-semibold mb-0.5">{t("rejected")}</div>
+                <p>{order.rejection_reason}</p>
+              </div>
+            )}
+
+            {/* Admin moderation */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {order.status !== "rejected" && order.status !== "delivered" && (
+                <button
+                  onClick={() => setRejectOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                >
+                  <X className="size-3.5" /> {t("reject_order")}
+                </button>
+              )}
+              <button
+                onClick={async () => {
+                  if (!confirm("حذف الطلب نهائياً؟")) return;
+                  try {
+                    await deleteFn({ data: { orderId: id } });
+                    toast.success("تم");
+                    window.location.href = "/admin";
+                  } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="size-3.5" /> {t("delete_order")}
+              </button>
+              {order.status === "rejected" && (
+                <button
+                  onClick={async () => {
+                    try { await updateStatusFn({ data: { orderId: id, status: "pending" } }); toast.success("تم"); qc.invalidateQueries({ queryKey: ["admin-order", id] }); }
+                    catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs hover:bg-secondary"
+                >
+                  <RotateCcw className="size-3.5" /> {t("reopen_order")}
+                </button>
+              )}
+            </div>
           </div>
 
           {chars.length > 0 && (
