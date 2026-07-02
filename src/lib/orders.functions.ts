@@ -573,6 +573,10 @@ export const getStoryProgress = createServerFn({ method: "GET" })
       ready: imagesReady,
       moods: (order?.moods as string[] | null) ?? [],
       order_number: (order?.order_number as number | null) ?? null,
+      rejection_reason: (order?.rejection_reason as string | null) ?? null,
+      redownload_status: (order?.redownload_status as string | null) ?? null,
+      redownload_amount_iqd: (order?.redownload_amount_iqd as number | null) ?? null,
+      delivered_at: (order?.delivered_at as string | null) ?? null,
     };
   });
 
