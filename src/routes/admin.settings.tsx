@@ -67,9 +67,13 @@ function SettingsPage() {
         redownload_iqd_pdf: Number((q.data as { redownload_iqd_pdf?: number }).redownload_iqd_pdf ?? 1500),
         redownload_iqd_printed: Number((q.data as { redownload_iqd_printed?: number }).redownload_iqd_printed ?? 3000),
         redownload_iqd_video: Number((q.data as { redownload_iqd_video?: number }).redownload_iqd_video ?? 5000),
+        ai_cost_estimate_standard: Number((q.data as { ai_cost_estimate_standard?: number }).ai_cost_estimate_standard ?? 0.05),
+        ai_cost_estimate_premium: Number((q.data as { ai_cost_estimate_premium?: number }).ai_cost_estimate_premium ?? 0.15),
+        whatsapp_admin_number: String((q.data as { whatsapp_admin_number?: string }).whatsapp_admin_number ?? "9647733570130"),
       });
     }
   }, [q.data, form]);
+
 
   if (!form) return <div className="py-10 text-center">…</div>;
 
