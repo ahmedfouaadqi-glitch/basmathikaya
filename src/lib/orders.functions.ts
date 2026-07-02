@@ -26,6 +26,7 @@ const CreateInput = z.object({
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
   disclaimer_accepted: z.boolean().default(false),
+  coupon_code: z.string().trim().max(40).optional().nullable(),
   image_quality_tier: z
     .enum(["fast", "standard", "premium"])
     .default("standard")
@@ -110,6 +111,20 @@ export const createOrderDraft = createServerFn({ method: "POST" })
     const userId = session.data.userId!;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Block suspended/banned users at draft creation.
+    const { data: u } = await supabaseAdmin
+      .from("users")
+      .select("status")
+      .eq("id", userId)
+      .maybeSingle();
+    if (u && u.status && u.status !== "active") {
+      throw new Error(
+        u.status === "banned"
+          ? "حسابك محظور، لا يمكنك إنشاء طلبات."
+          : "حسابك موقوف مؤقتاً، تواصل مع الإدارة.",
+      );
+    }
+
     const { data: ord, error: ordErr } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -121,6 +136,7 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         custom_instructions: data.custom_instructions || null,
         image_quality_tier: data.image_quality_tier,
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
+        coupon_code: data.coupon_code ? data.coupon_code.toUpperCase() : null,
       })
       .select("id, order_number")
       .single();
