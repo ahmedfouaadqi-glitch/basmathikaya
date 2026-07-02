@@ -220,7 +220,14 @@ function PreviewPage() {
               <div className="grid gap-3 md:grid-cols-3">
                 <TierCard price={estimates.pdf} label={t("tier_pdf")} desc={t("tier_pdf_d")} onPick={() => pick("pdf")} loading={confirming === "pdf"} accent />
                 <TierCard price={estimates.printed} label={t("tier_printed")} desc={t("tier_printed_d")} onPick={() => pick("printed")} loading={confirming === "printed"} />
-                <TierCard price={estimates.video} label={t("tier_video")} desc={t("tier_video_d")} onPick={() => pick("video")} loading={confirming === "video"} muted />
+                <TierCard
+                  price={estimates.video}
+                  label={t("tier_video")}
+                  desc={t("tier_video_d")}
+                  onPick={() => videoEnabled && pick("video")}
+                  loading={confirming === "video"}
+                  disabled={!videoEnabled}
+                />
               </div>
               <p className="mt-4 text-center text-xs text-muted-foreground">{t("whatsapp_msg_open")}</p>
             </div>
