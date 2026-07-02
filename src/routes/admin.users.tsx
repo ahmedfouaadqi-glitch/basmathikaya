@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { adminListUsers } from "../lib/orders.functions";
+import { toast } from "sonner";
+import { adminListUsers, adminSetUserStatus, adminDeleteUser } from "../lib/orders.functions";
 import { useT } from "../lib/i18n";
 import { Download, Search } from "lucide-react";
 
@@ -12,7 +13,10 @@ export const Route = createFileRoute("/admin/users")({
 
 function AdminUsersPage() {
   const { t } = useT();
+  const qc = useQueryClient();
   const fn = useServerFn(adminListUsers);
+  const setStatusFn = useServerFn(adminSetUserStatus);
+  const delFn = useServerFn(adminDeleteUser);
   const q = useQuery({ queryKey: ["admin-users"], queryFn: () => fn(), refetchInterval: 30_000 });
   const allRows = q.data ?? [];
   const [search, setSearch] = useState("");
