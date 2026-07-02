@@ -75,6 +75,9 @@ function SettingsPage() {
     setSaving(true);
     try {
       await setFn({ data: form });
+      // Invalidate every place that reads pricing so the UI never shows stale numbers.
+      qc.invalidateQueries({ queryKey: ["pricing-public"] });
+      qc.invalidateQueries({ queryKey: ["admin-pricing"] });
       toast.success(t("saved"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "خطأ");
