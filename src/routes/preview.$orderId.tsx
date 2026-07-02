@@ -200,18 +200,33 @@ function PreviewPage() {
             </div>
           )}
 
-          {/* PDF download when ready (built in the browser) */}
-          {progress.ready && (
-            <button
-              type="button"
-              disabled={building}
-              onClick={handleDownload}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
-            >
-              {building ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              {building ? t("building_pdf") : t("download_pdf")}
-            </button>
-          )}
+          {/* PDF download when ready — gated by delivery/redownload payment */}
+          {progress.ready && (() => {
+            const p = progress as typeof progress & { order_status?: string; redownload_status?: string | null; redownload_amount_iqd?: number | null };
+            const canDownload = p.order_status === "delivered" || p.redownload_status === "paid";
+            if (canDownload) {
+              return (
+                <button
+                  type="button"
+                  disabled={building}
+                  onClick={handleDownload}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
+                >
+                  {building ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {building ? t("building_pdf") : t("download_pdf")}
+                </button>
+              );
+            }
+            if (p.redownload_status === "pending") {
+              return (
+                <div className="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-center text-sm text-amber-700 dark:text-amber-400">
+                  {t("redownload_awaiting_admin")}
+                  {p.redownload_amount_iqd ? <span className="ms-1 font-mono">· {Number(p.redownload_amount_iqd).toLocaleString()} {t("iqd")}</span> : null}
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {/* Tier selection (only if not yet picked) */}
           {!progress.tier && (
