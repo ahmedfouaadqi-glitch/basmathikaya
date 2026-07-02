@@ -20,6 +20,9 @@ type Draft = {
   valid_to: string;
   applies_to: "all" | "new";
   active: boolean;
+  min_pages: number;
+  applies_quality: Array<"standard" | "premium">;
+  applies_tier: Array<"pdf" | "printed" | "video">;
 };
 
 const emptyDraft: Draft = {
@@ -31,7 +34,11 @@ const emptyDraft: Draft = {
   valid_to: "",
   applies_to: "all",
   active: true,
+  min_pages: 0,
+  applies_quality: ["standard", "premium"],
+  applies_tier: ["pdf", "printed", "video"],
 };
+
 
 function CouponsPage() {
   const { t } = useT();
@@ -57,8 +64,12 @@ function CouponsPage() {
           valid_to: draft.valid_to || null,
           applies_to: draft.applies_to,
           active: draft.active,
+          min_pages: Number(draft.min_pages) || 0,
+          applies_quality: draft.applies_quality.length ? draft.applies_quality : ["standard", "premium"],
+          applies_tier: draft.applies_tier.length ? draft.applies_tier : ["pdf", "printed", "video"],
         },
       });
+
       setDraft(emptyDraft);
       qc.invalidateQueries({ queryKey: ["admin-coupons"] });
       toast.success(t("saved"));
@@ -149,11 +160,63 @@ function CouponsPage() {
               <option value="new">المستخدمين الجدد فقط</option>
             </select>
           </Field>
+          <Field label="يبدأ من عدد صفحات">
+            <input
+              type="number"
+              min={0}
+              value={draft.min_pages}
+              onChange={(e) => setDraft({ ...draft, min_pages: Number(e.target.value) })}
+              className="w-full rounded-lg border bg-background px-3 py-2"
+            />
+          </Field>
+          <Field label="الجودة المسموحة">
+            <div className="flex gap-3 text-xs">
+              {(["standard", "premium"] as const).map((q) => (
+                <label key={q} className="inline-flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={draft.applies_quality.includes(q)}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        applies_quality: e.target.checked
+                          ? [...draft.applies_quality, q]
+                          : draft.applies_quality.filter((x) => x !== q),
+                      })
+                    }
+                  />
+                  {q === "standard" ? "قياسي" : "احترافي"}
+                </label>
+              ))}
+            </div>
+          </Field>
+          <Field label="الباقات المسموحة">
+            <div className="flex gap-3 text-xs">
+              {(["pdf", "printed", "video"] as const).map((tt) => (
+                <label key={tt} className="inline-flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={draft.applies_tier.includes(tt)}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        applies_tier: e.target.checked
+                          ? [...draft.applies_tier, tt]
+                          : draft.applies_tier.filter((x) => x !== tt),
+                      })
+                    }
+                  />
+                  {tt === "pdf" ? "PDF" : tt === "printed" ? "مطبوع" : "فيديو"}
+                </label>
+              ))}
+            </div>
+          </Field>
           <label className="flex items-center gap-2 text-sm mt-6">
             <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} />
             نشط
           </label>
         </div>
+
         <button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent px-4 py-2.5 font-bold text-primary-foreground disabled:opacity-60">
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
           حفظ الكوبون

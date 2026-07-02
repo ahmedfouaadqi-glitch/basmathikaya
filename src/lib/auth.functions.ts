@@ -24,8 +24,14 @@ export const requestOtp = createServerFn({ method: "POST" })
     const { normalizePhone, sendOtp } = await import("./sms.server");
     const phone = normalizePhone(data.phone);
 
+    // Block banned phones before anything else.
+    const { data: banned } = await supabaseAdmin
+      .from("phone_bans").select("reason").eq("phone", phone).maybeSingle();
+    if (banned) throw new Error(`رقم الهاتف محظور${banned.reason ? ` — ${banned.reason}` : ""}`);
+
     // Rate limit: max 3 codes per hour per phone
     const sinceIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
     const { data: recent } = await supabaseAdmin
       .from("otp_codes")
       .select("id")

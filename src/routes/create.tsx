@@ -1,14 +1,15 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, Plus, UserCircle, Camera, X } from "lucide-react";
+import { Loader2, Trash2, Plus, UserCircle, Camera, X, CheckCircle2, XCircle } from "lucide-react";
 import { useT } from "../lib/i18n";
-import { createOrderDraft, getPublicPricing } from "../lib/orders.functions";
+import { createOrderDraft, getPublicPricing, validateCoupon } from "../lib/orders.functions";
 import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
+
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -70,6 +71,7 @@ function CreatePage() {
   const create = useServerFn(createOrderDraft);
   const uploadPhoto = useServerFn(uploadCharacterPhoto);
   const pricingFn = useServerFn(getPublicPricing);
+  const validateCouponFn = useServerFn(validateCoupon);
   const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
 
   const draftIdRef = useRef<string>(newDraftId());
@@ -81,10 +83,14 @@ function CreatePage() {
   const [instructions, setInstructions] = useState("");
   const [pages, setPages] = useState<number>(5);
   const [qualityTier, setQualityTier] = useState<"standard" | "premium">("standard");
+  const [tier, setTier] = useState<"pdf" | "printed" | "video">("pdf");
   const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
+  const [couponState, setCouponState] = useState<
+    { status: "idle" } | { status: "checking" } | { status: "valid"; label: string } | { status: "invalid"; reason: string }
+  >({ status: "idle" });
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
   const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
@@ -95,6 +101,35 @@ function CreatePage() {
     printed: computeTierAmount("printed", pages, pricing, characters.length, qualityTier, moods.length),
     video: computeTierAmount("video", pages, pricing, characters.length, qualityTier, moods.length),
   }), [pages, pricing, characters.length, qualityTier, moods.length]);
+
+  const gross = estimates[tier];
+  const discount = useMemo(() => {
+    if (couponState.status !== "valid") return 0;
+    const m = couponState.label.match(/^(percent|fixed):(\d+(?:\.\d+)?)$/);
+    if (!m) return 0;
+    const val = Number(m[2]);
+    const d = m[1] === "percent" ? Math.round((gross * val) / 100) : Math.round(val);
+    return Math.max(0, Math.min(d, gross));
+  }, [couponState, gross]);
+  const finalAmount = Math.max(0, gross - discount);
+
+  // Live coupon validation (debounced).
+  useEffect(() => {
+    const code = couponCode.trim();
+    if (!code) { setCouponState({ status: "idle" }); return; }
+    let cancelled = false;
+    setCouponState({ status: "checking" });
+    const id = window.setTimeout(async () => {
+      try {
+        const r = await validateCouponFn({ data: { code, pageCount: pages, quality: qualityTier, tier } });
+        if (cancelled) return;
+        if (r.ok) setCouponState({ status: "valid", label: `${r.discount_type}:${r.discount_value}` });
+        else setCouponState({ status: "invalid", reason: (r as { reason?: string }).reason ?? "غير صالح" });
+      } catch { if (!cancelled) setCouponState({ status: "invalid", reason: "خطأ" }); }
+    }, 500);
+    return () => { cancelled = true; window.clearTimeout(id); };
+  }, [couponCode, pages, qualityTier, tier, validateCouponFn]);
+
 
   function updateChar(i: number, patch: Partial<CharacterDraft>) {
     setCharacters((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
@@ -168,18 +203,23 @@ function CreatePage() {
           language: lang,
           page_count: pages,
           image_quality_tier: qualityTier,
+          tier,
           draft_id: draftIdRef.current,
           disclaimer_accepted: true,
           coupon_code: couponCode.trim() || undefined,
         },
       });
       setConfirmOpen(false);
-      navigate({ to: "/preview/$orderId", params: { orderId: res.orderId } });
+      // Open WhatsApp with the full order details, then send the user to /my-orders.
+      if (res.whatsapp_url) window.open(res.whatsapp_url, "_blank");
+      toast.success("تم إنشاء الطلب. يرجى إكمال الدفع عبر واتساب.");
+      navigate({ to: "/my-orders" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "خطأ");
       setSubmitting(false);
     }
   }
+
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
@@ -360,22 +400,23 @@ function CreatePage() {
           <p className="mt-1 text-xs text-muted-foreground">{t("field_pages_hint")}</p>
 
           <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl border bg-secondary/30 p-2 text-center text-xs">
-            <div>
-              <div className="text-muted-foreground">{t("tier_pdf")}</div>
-              <div className="font-bold text-primary">{estimates.pdf.toLocaleString()} {t("iqd")}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">{t("tier_printed")}</div>
-              <div className="font-bold text-primary">{estimates.printed.toLocaleString()} {t("iqd")}</div>
-            </div>
-            <div
-              className={videoEnabled ? "" : "opacity-50 blur-[1px] select-none pointer-events-none"}
-              aria-disabled={!videoEnabled}
-              title={videoEnabled ? undefined : "قريباً"}
-            >
-              <div className="text-muted-foreground">{t("tier_video")}</div>
-              <div className="font-bold text-primary">{estimates.video.toLocaleString()} {t("iqd")}</div>
-            </div>
+            {(["pdf", "printed", "video"] as const).map((tv) => {
+              const disabled = tv === "video" && !videoEnabled;
+              const active = tier === tv;
+              return (
+                <button
+                  key={tv}
+                  type="button"
+                  onClick={() => !disabled && setTier(tv)}
+                  disabled={disabled}
+                  className={`rounded-lg p-2 transition text-start ${active ? "border-2 border-primary bg-primary/10 font-bold" : "border border-transparent"} ${disabled ? "opacity-50 blur-[1px] select-none pointer-events-none" : ""}`}
+                  aria-pressed={active}
+                >
+                  <div className="text-muted-foreground text-center">{t(`tier_${tv}` as never)}</div>
+                  <div className="font-bold text-primary text-center">{estimates[tv].toLocaleString()} {t("iqd")}</div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -403,17 +444,38 @@ function CreatePage() {
           </div>
         </div>
 
-        {/* Coupon code */}
+        {/* Coupon code — live validation with tier/quality/page-count awareness */}
         <div>
           <label className="mb-2 block text-sm font-bold">{t("coupon_field")}</label>
-          <input
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-            placeholder="CODE2025"
-            maxLength={40}
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-          />
+          <div className="relative">
+            <input
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              placeholder="CODE2025"
+              maxLength={40}
+              className="w-full rounded-lg border bg-background px-3 py-2 pe-9 text-sm outline-none focus:ring-2 focus:ring-primary"
+            />
+            <div className="pointer-events-none absolute top-1/2 -translate-y-1/2 end-2">
+              {couponState.status === "checking" && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+              {couponState.status === "valid" && <CheckCircle2 className="size-5 text-emerald-500" />}
+              {couponState.status === "invalid" && <XCircle className="size-5 text-destructive" />}
+            </div>
+          </div>
+          {couponState.status === "valid" && (
+            <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+              كوبون فعّال — الخصم: {discount.toLocaleString()} {t("iqd")}
+            </p>
+          )}
+          {couponState.status === "invalid" && (
+            <p className="mt-1 text-xs text-destructive">{couponState.reason}</p>
+          )}
+          <div className="mt-2 rounded-lg border bg-secondary/30 p-2 text-xs flex justify-between">
+            <span className="text-muted-foreground">المبلغ النهائي</span>
+            <span className="font-bold text-primary">{finalAmount.toLocaleString()} {t("iqd")}</span>
+          </div>
         </div>
+
+
 
         {/* Disclaimer acceptance — required before creating */}
         <label className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed">

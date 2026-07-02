@@ -3,13 +3,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { adminListOrders } from "../lib/orders.functions";
+import { getAICreditBalance } from "../lib/ai-credits.functions";
 import { useT } from "../lib/i18n";
 import { supabase } from "../integrations/supabase/client";
-import { Eye, Search, FileDown } from "lucide-react";
+import { Eye, Search, FileDown, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminOrders,
 });
+
 
 function fmt(n: number | string | null | undefined) {
   if (n === null || n === undefined) return "—";
@@ -70,6 +72,9 @@ function AdminOrders() {
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">{t("admin_orders")}</h1>
+
+      <CreditBalanceCard />
+
 
       <div className="mb-3 relative">
         <Search className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3 size-4 text-muted-foreground" />
@@ -136,3 +141,25 @@ function AdminOrders() {
     </div>
   );
 }
+
+function CreditBalanceCard() {
+  const fn = useServerFn(getAICreditBalance);
+  const q = useQuery({ queryKey: ["ai-credits"], queryFn: () => fn(), refetchInterval: 60_000 });
+  if (!q.data || !q.data.available) return null;
+  const d = q.data as { stories_left_standard: number | null; stories_left_premium: number | null };
+  return (
+    <div className="mb-4 rounded-2xl border bg-card p-4 flex items-center gap-4">
+      <div className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
+        <Sparkles className="size-5" />
+      </div>
+      <div className="flex-1">
+        <div className="text-xs text-muted-foreground">الرصيد المتبقي (تقدير)</div>
+        <div className="mt-0.5 flex flex-wrap gap-4 text-sm">
+          <span>قياسي: <span className="font-mono font-bold text-primary">{d.stories_left_standard ?? "—"}</span> قصة (5 صفحات)</span>
+          <span>احترافي: <span className="font-mono font-bold text-primary">{d.stories_left_premium ?? "—"}</span> قصة</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+

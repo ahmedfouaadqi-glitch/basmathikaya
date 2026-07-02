@@ -27,11 +27,13 @@ const CreateInput = z.object({
   draft_id: z.string().trim().min(1).max(64).optional(),
   disclaimer_accepted: z.boolean().default(false),
   coupon_code: z.string().trim().max(40).optional().nullable(),
+  tier: z.enum(["pdf", "printed", "video"]).default("pdf"),
   image_quality_tier: z
     .enum(["fast", "standard", "premium"])
     .default("standard")
     .transform((v) => (v === "fast" ? "standard" : v)),
 });
+
 
 type PricingRow = PricingLike & {
   usd_per_credit: number | string;
@@ -103,6 +105,8 @@ async function getPricing(): Promise<PricingRow> {
 }
 
 // === Create draft (text-only flow: requires authenticated user) ===
+// Also picks tier + applies coupon + returns a WhatsApp URL so the client
+// can hand the customer off immediately without any AI generation.
 export const createOrderDraft = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => CreateInput.parse(d))
   .handler(async ({ data }) => {
@@ -111,10 +115,10 @@ export const createOrderDraft = createServerFn({ method: "POST" })
     const userId = session.data.userId!;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Block suspended/banned users at draft creation.
+    // Block banned users at draft creation — by user status OR phone-ban list.
     const { data: u } = await supabaseAdmin
       .from("users")
-      .select("status")
+      .select("status, phone")
       .eq("id", userId)
       .maybeSingle();
     if (u && u.status && u.status !== "active") {
@@ -124,6 +128,48 @@ export const createOrderDraft = createServerFn({ method: "POST" })
           : "حسابك موقوف مؤقتاً، تواصل مع الإدارة.",
       );
     }
+    const phoneToCheck = (u?.phone ?? session.data.phone ?? "").trim();
+    if (phoneToCheck) {
+      const { data: banned } = await supabaseAdmin
+        .from("phone_bans").select("reason").eq("phone", phoneToCheck).maybeSingle();
+      if (banned) throw new Error(`رقم الهاتف محظور${banned.reason ? ` — السبب: ${banned.reason}` : ""}`);
+    }
+
+    // Compute price (server-side) so the client can't tamper with amount.
+    const pricing = await getPricing();
+    const chars = data.characters.length;
+    const moods = data.moods.length || 1;
+    const gross = computeTierAmount(
+      data.tier as Tier, data.page_count, pricing, chars, data.image_quality_tier, moods,
+    );
+
+    // Coupon validation with new min_pages / applies_quality / applies_tier constraints.
+    let discount = 0;
+    let couponId: string | null = null;
+    const code = data.coupon_code ? data.coupon_code.toUpperCase() : null;
+    if (code) {
+      const { data: c } = await supabaseAdmin
+        .from("coupons")
+        .select("id, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, active, applies_to, min_pages, applies_quality, applies_tier")
+        .eq("code", code)
+        .maybeSingle();
+      const now = Date.now();
+      if (c && c.active
+        && (!c.valid_from || new Date(c.valid_from).getTime() <= now)
+        && (!c.valid_to   || new Date(c.valid_to).getTime()   >= now)
+        && (c.max_uses == null || (c.uses_count ?? 0) < c.max_uses)
+        && data.page_count >= (c.min_pages ?? 0)
+        && ((c.applies_quality ?? []).length === 0 || (c.applies_quality as string[]).includes(data.image_quality_tier))
+        && ((c.applies_tier    ?? []).length === 0 || (c.applies_tier    as string[]).includes(data.tier))
+      ) {
+        discount = c.discount_type === "percent"
+          ? Math.round((gross * Number(c.discount_value)) / 100)
+          : Math.round(Number(c.discount_value));
+        discount = Math.max(0, Math.min(discount, gross));
+        couponId = c.id;
+      }
+    }
+    const amount = Math.max(0, gross - discount);
 
     const { data: ord, error: ordErr } = await supabaseAdmin
       .from("orders")
@@ -131,12 +177,17 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         user_id: userId,
         customer_phone: session.data.phone ?? "",
         status: "pending",
+        payment_status: "pending_payment",
+        tier: data.tier,
+        amount_iqd: amount,
+        coupon_discount_iqd: discount,
         page_count: data.page_count,
         moods: data.moods,
         custom_instructions: data.custom_instructions || null,
         image_quality_tier: data.image_quality_tier,
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
-        coupon_code: data.coupon_code ? data.coupon_code.toUpperCase() : null,
+        coupon_code: code,
+        whatsapp_sent_at: new Date().toISOString(),
       })
       .select("id, order_number")
       .single();
@@ -155,8 +206,41 @@ export const createOrderDraft = createServerFn({ method: "POST" })
     const { error: chErr } = await supabaseAdmin.from("order_characters").insert(rows);
     if (chErr) throw new Error(chErr.message);
 
-    return { orderId: ord.id as string, orderNumber: ord.order_number as number };
+    if (couponId && discount > 0) {
+      await supabaseAdmin.from("coupon_redemptions").insert({
+        coupon_id: couponId, order_id: ord.id, user_id: userId, discount_iqd: discount,
+      });
+      const { data: cRow } = await supabaseAdmin.from("coupons").select("uses_count").eq("id", couponId).maybeSingle();
+      await supabaseAdmin.from("coupons").update({ uses_count: (cRow?.uses_count ?? 0) + 1 }).eq("id", couponId);
+    }
+
+    // Build WhatsApp deep link with full order details.
+    const waNumber = (pricing as PricingRow & { whatsapp_admin_number?: string }).whatsapp_admin_number || "9647733570130";
+    const tierLabel = data.tier === "pdf" ? "PDF فوري" : data.tier === "printed" ? "نسخة مطبوعة" : "فيديو فاخر";
+    const qualityLabel = data.image_quality_tier === "premium" ? "احترافي" : "قياسي";
+    const lines = [
+      "مرحباً، أود إكمال طلبي في بصمة حكاية.",
+      `رقم الطلب: #${ord.order_number}`,
+      `الباقة: ${tierLabel}`,
+      `الجودة: ${qualityLabel}`,
+      `عدد الصفحات: ${data.page_count}`,
+      `عدد الشخصيات: ${chars}`,
+      `الأجواء: ${data.moods.join("، ")}`,
+    ];
+    if (code) lines.push(`الكوبون: ${code}${discount > 0 ? ` (خصم ${discount.toLocaleString()} د.ع)` : " (غير صالح — لم يُطبَّق)"}`);
+    lines.push(`المبلغ الإجمالي: ${amount.toLocaleString()} د.ع`);
+    lines.push(`الاسم: ${session.data.name ?? ""}`);
+    const whatsapp_url = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines.join("\n"))}`;
+
+    return {
+      orderId: ord.id as string,
+      orderNumber: ord.order_number as number,
+      amount_iqd: amount,
+      discount_iqd: discount,
+      whatsapp_url,
+    };
   });
+
 
 const OrderIdInput = z.object({ orderId: z.string().uuid() });
 
@@ -868,12 +952,45 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       .from("orders")
       .update({
         status: "paid",
+        payment_status: "paid",
         paid_at: new Date().toISOString(),
         payment_confirmed_at: new Date().toISOString(),
         images_status: "generating",
         images_error: null,
       })
       .eq("id", data.orderId);
+
+    // Notify the customer (once) that payment is received and generation began.
+    const { data: notifyOrder } = await supabaseAdmin
+      .from("orders")
+      .select("user_id, order_number, payment_confirmed_notified_at")
+      .eq("id", data.orderId).maybeSingle();
+    if (notifyOrder?.user_id && !notifyOrder.payment_confirmed_notified_at) {
+      await supabaseAdmin.from("notifications").insert({
+        user_id: notifyOrder.user_id,
+        order_id: data.orderId,
+        title: "تم استلام الدفع",
+        body: `طلبك #${notifyOrder.order_number} قيد الإعداد الآن، قد يستغرق ذلك بعض الوقت.`,
+        kind: "payment_confirmed",
+      });
+      await supabaseAdmin.from("orders")
+        .update({ payment_confirmed_notified_at: new Date().toISOString() })
+        .eq("id", data.orderId);
+    }
+
+    // Ensure the story text is generated BEFORE we start images (nothing runs before admin confirms).
+    try {
+      const { data: existingGen } = await supabaseAdmin
+        .from("generations").select("full_story").eq("order_id", data.orderId).maybeSingle();
+      if (!existingGen?.full_story) {
+        await (generateFullStory as unknown as (a: { data: { orderId: string } }) => Promise<unknown>)({ data: { orderId: data.orderId } });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await supabaseAdmin.from("orders").update({ images_status: "failed", images_error: msg }).eq("id", data.orderId);
+      throw e;
+    }
+
 
     try {
       const { data: order } = await supabaseAdmin
@@ -1102,7 +1219,11 @@ const PricingInput = z.object({
   redownload_iqd_pdf: z.coerce.number().int().nonnegative().default(1500),
   redownload_iqd_printed: z.coerce.number().int().nonnegative().default(3000),
   redownload_iqd_video: z.coerce.number().int().nonnegative().default(5000),
+  ai_cost_estimate_standard: z.coerce.number().nonnegative().default(0.05),
+  ai_cost_estimate_premium: z.coerce.number().nonnegative().default(0.15),
+  whatsapp_admin_number: z.string().trim().min(3).max(40).default("9647733570130"),
 });
+
 
 export const adminUpdatePricing = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => PricingInput.parse(d))
@@ -1250,6 +1371,9 @@ const CouponInput = z.object({
   valid_from: z.string().optional().nullable(),
   valid_to: z.string().optional().nullable(),
   applies_to: z.enum(["all", "new"]).default("all"),
+  min_pages: z.coerce.number().int().nonnegative().default(0),
+  applies_quality: z.array(z.enum(["standard", "premium"])).default(["standard", "premium"]),
+  applies_tier: z.array(z.enum(["pdf", "printed", "video"])).default(["pdf", "printed", "video"]),
   active: z.boolean().default(true),
 });
 
@@ -1265,33 +1389,29 @@ export const adminUpsertCoupon = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const payload = {
+      code: data.code,
+      discount_type: data.discount_type,
+      discount_value: data.discount_value,
+      max_uses: data.max_uses ?? null,
+      valid_from: data.valid_from || null,
+      valid_to: data.valid_to || null,
+      applies_to: data.applies_to,
+      min_pages: data.min_pages,
+      applies_quality: data.applies_quality,
+      applies_tier: data.applies_tier,
+      active: data.active,
+    };
     if (data.id) {
-      const { error } = await supabaseAdmin.from("coupons").update({
-        code: data.code,
-        discount_type: data.discount_type,
-        discount_value: data.discount_value,
-        max_uses: data.max_uses ?? null,
-        valid_from: data.valid_from || null,
-        valid_to: data.valid_to || null,
-        applies_to: data.applies_to,
-        active: data.active,
-      }).eq("id", data.id);
+      const { error } = await supabaseAdmin.from("coupons").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
     } else {
-      const { error } = await supabaseAdmin.from("coupons").insert({
-        code: data.code,
-        discount_type: data.discount_type,
-        discount_value: data.discount_value,
-        max_uses: data.max_uses ?? null,
-        valid_from: data.valid_from || null,
-        valid_to: data.valid_to || null,
-        applies_to: data.applies_to,
-        active: data.active,
-      });
+      const { error } = await supabaseAdmin.from("coupons").insert(payload);
       if (error) throw new Error(error.message);
     }
     return { ok: true as const };
   });
+
 
 export const adminDeleteCoupon = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
@@ -1304,22 +1424,39 @@ export const adminDeleteCoupon = createServerFn({ method: "POST" })
   });
 
 // Public: check a coupon before submitting.
+// Accepts optional pageCount/quality/tier for constraint-aware validation.
 export const validateCoupon = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ code: z.string().trim().min(1).max(40) }).parse(d))
+  .inputValidator((d: unknown) => z.object({
+    code: z.string().trim().min(1).max(40),
+    pageCount: z.coerce.number().int().min(1).max(100).optional(),
+    quality: z.enum(["standard", "premium"]).optional(),
+    tier: z.enum(["pdf", "printed", "video"]).optional(),
+  }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const code = data.code.toUpperCase();
     const { data: c } = await supabaseAdmin
       .from("coupons")
-      .select("code, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, active")
+      .select("code, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, active, min_pages, applies_quality, applies_tier")
       .eq("code", code)
       .maybeSingle();
+    if (!c) return { ok: false as const, reason: "الكوبون غير موجود" };
+    if (!c.active) return { ok: false as const, reason: "الكوبون متوقف" };
     const now = Date.now();
-    const valid = !!c && c.active &&
-      (!c.valid_from || new Date(c.valid_from).getTime() <= now) &&
-      (!c.valid_to || new Date(c.valid_to).getTime() >= now) &&
-      (c.max_uses == null || (c.uses_count ?? 0) < c.max_uses);
-    if (!valid || !c) return { ok: false as const };
+    if (c.valid_from && new Date(c.valid_from).getTime() > now)
+      return { ok: false as const, reason: "الكوبون لم يبدأ بعد" };
+    if (c.valid_to && new Date(c.valid_to).getTime() < now)
+      return { ok: false as const, reason: "الكوبون منتهي الصلاحية" };
+    if (c.max_uses != null && (c.uses_count ?? 0) >= c.max_uses)
+      return { ok: false as const, reason: "استُنفدَ حد استخدام الكوبون" };
+    if (data.pageCount != null && data.pageCount < (c.min_pages ?? 0))
+      return { ok: false as const, reason: `الكوبون يبدأ من ${c.min_pages} صفحات` };
+    const aq = (c.applies_quality ?? []) as string[];
+    if (data.quality && aq.length > 0 && !aq.includes(data.quality))
+      return { ok: false as const, reason: "الكوبون لا يشمل هذه الجودة" };
+    const at = (c.applies_tier ?? []) as string[];
+    if (data.tier && at.length > 0 && !at.includes(data.tier))
+      return { ok: false as const, reason: "الكوبون لا يشمل هذه الباقة" };
     return {
       ok: true as const,
       code: c.code,
@@ -1327,6 +1464,105 @@ export const validateCoupon = createServerFn({ method: "POST" })
       discount_value: Number(c.discount_value),
     };
   });
+
+// ============= Phone bans (admin) =============
+const PhoneBanInput = z.object({ phone: z.string().trim().min(3).max(40), reason: z.string().trim().max(500).optional() });
+
+export const adminBanPhone = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => PhoneBanInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { normalizePhone } = await import("./sms.server");
+    const phone = normalizePhone(data.phone);
+    await supabaseAdmin.from("phone_bans").upsert(
+      { phone, reason: data.reason ?? null, banned_at: new Date().toISOString() },
+      { onConflict: "phone" },
+    );
+    // Also mark the user row (if any) and drop an in-app notification.
+    const { data: u } = await supabaseAdmin.from("users").select("id").eq("phone", phone).maybeSingle();
+    if (u) {
+      await supabaseAdmin.from("users").update({ status: "banned" }).eq("id", u.id);
+      await supabaseAdmin.from("notifications").insert({
+        user_id: u.id,
+        title: "تم حظر حسابك",
+        body: data.reason ? `السبب: ${data.reason}` : "تواصل مع الإدارة لمزيد من التفاصيل.",
+        kind: "ban",
+      });
+    }
+    return { ok: true as const };
+  });
+
+export const adminUnbanPhone = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => PhoneBanInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { normalizePhone } = await import("./sms.server");
+    const phone = normalizePhone(data.phone);
+    await supabaseAdmin.from("phone_bans").delete().eq("phone", phone);
+    const { data: u } = await supabaseAdmin.from("users").select("id").eq("phone", phone).maybeSingle();
+    if (u) {
+      await supabaseAdmin.from("users").update({ status: "active" }).eq("id", u.id);
+      await supabaseAdmin.from("notifications").insert({
+        user_id: u.id,
+        title: "تم رفع الحظر عن حسابك",
+        body: data.reason ? `السبب: ${data.reason}` : "يمكنك الآن استخدام الموقع من جديد.",
+        kind: "unban",
+      });
+    }
+    return { ok: true as const };
+  });
+
+// ============= Reorder (completed order) =============
+export const reorderExisting = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    orderId: z.string().uuid(),
+    quality: z.enum(["standard", "premium"]),
+    coupon_code: z.string().trim().max(40).optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { requireUserSession } = await import("./user-session.server");
+    const s = await requireUserSession();
+    const userId = s.data.userId!;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: src } = await supabaseAdmin
+      .from("orders")
+      .select("id, user_id, page_count, moods, custom_instructions, tier")
+      .eq("id", data.orderId).maybeSingle();
+    if (!src || src.user_id !== userId) throw new Error("غير مصرح");
+
+    const { data: chars } = await supabaseAdmin
+      .from("order_characters")
+      .select("name, age, role, description, photo_path, is_primary, position")
+      .eq("order_id", data.orderId)
+      .order("position");
+    const characters = (chars ?? []).map((c) => ({
+      name: c.name, age: c.age ?? null, role: c.role,
+      description: c.description ?? "", photo_path: c.photo_path ?? null,
+    }));
+    // Delegate to createOrderDraft's logic by inlining the safe parts here.
+    // We reuse `createOrderDraft` handler by calling its innards via a small trick:
+    // just build a synthetic input and route through the same logic path.
+    // For simplicity we call it directly with the same auth session already present.
+    const input = {
+      characters,
+      moods: (src.moods as string[]) ?? ["adventure"],
+      custom_instructions: src.custom_instructions ?? "",
+      language: "ar" as const,
+      page_count: src.page_count ?? 5,
+      disclaimer_accepted: true,
+      coupon_code: data.coupon_code ?? undefined,
+      tier: (src.tier as "pdf" | "printed" | "video") ?? "pdf",
+      image_quality_tier: data.quality,
+    };
+    // Direct call — we're already inside a server context with the same session.
+    return await createOrderDraft({ data: input });
+
+  });
+
+
 
 // ============= Redownload (paid re-download) =============
 
