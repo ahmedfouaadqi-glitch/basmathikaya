@@ -73,6 +73,9 @@ function AdminOrders() {
     <div>
       <h1 className="mb-4 text-2xl font-bold">{t("admin_orders")}</h1>
 
+      <CreditBalanceCard />
+
+
       <div className="mb-3 relative">
         <Search className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3 size-4 text-muted-foreground" />
         <input
