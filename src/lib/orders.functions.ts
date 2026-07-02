@@ -1093,6 +1093,11 @@ const PricingInput = z.object({
   image_tier_premium_extra_iqd: z.coerce.number().int().nonnegative().default(0),
   quality_premium_multiplier: z.coerce.number().positive().max(20).default(2),
   video_tier_enabled: z.coerce.boolean().default(false),
+  free_moods_count: z.coerce.number().int().nonnegative().default(1),
+  mood_extra_iqd: z.coerce.number().int().nonnegative().default(0),
+  redownload_iqd_pdf: z.coerce.number().int().nonnegative().default(1500),
+  redownload_iqd_printed: z.coerce.number().int().nonnegative().default(3000),
+  redownload_iqd_video: z.coerce.number().int().nonnegative().default(5000),
 });
 
 export const adminUpdatePricing = createServerFn({ method: "POST" })
