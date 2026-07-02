@@ -153,6 +153,23 @@ function SettingsPage() {
           <Row label="Video (د.ع)" type="number" value={form.redownload_iqd_video} onChange={(v) => set("redownload_iqd_video", v)} />
         </div>
 
+        <div className="text-xs font-semibold text-muted-foreground mt-4">إعدادات أخرى</div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Row label="تقدير تكلفة الذكاء (قياسي, USD)" type="number" step="0.001" value={form.ai_cost_estimate_standard} onChange={(v) => set("ai_cost_estimate_standard", v)} />
+          <Row label="تقدير تكلفة الذكاء (احترافي, USD)" type="number" step="0.001" value={form.ai_cost_estimate_premium} onChange={(v) => set("ai_cost_estimate_premium", v)} />
+          <label className="block">
+            <span className="block text-sm font-medium mb-1.5">رقم واتساب الإدارة (بصيغة دولية)</span>
+            <input
+              type="text"
+              value={form.whatsapp_admin_number}
+              onChange={(e) => set("whatsapp_admin_number", e.target.value)}
+              className="w-full rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
+            />
+          </label>
+        </div>
+
+
+
         <button disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3 font-bold text-primary-foreground disabled:opacity-60">
           {saving && <Loader2 className="size-4 animate-spin" />}
           {t("save")}
