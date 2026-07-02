@@ -58,6 +58,11 @@ function SettingsPage() {
         image_tier_premium_extra_iqd: (q.data as { image_tier_premium_extra_iqd?: number }).image_tier_premium_extra_iqd ?? 0,
         quality_premium_multiplier: Number((q.data as { quality_premium_multiplier?: number | string }).quality_premium_multiplier ?? 2),
         video_tier_enabled: Boolean((q.data as { video_tier_enabled?: boolean }).video_tier_enabled ?? false),
+        free_moods_count: Number((q.data as { free_moods_count?: number }).free_moods_count ?? 1),
+        mood_extra_iqd: Number((q.data as { mood_extra_iqd?: number }).mood_extra_iqd ?? 0),
+        redownload_iqd_pdf: Number((q.data as { redownload_iqd_pdf?: number }).redownload_iqd_pdf ?? 1500),
+        redownload_iqd_printed: Number((q.data as { redownload_iqd_printed?: number }).redownload_iqd_printed ?? 3000),
+        redownload_iqd_video: Number((q.data as { redownload_iqd_video?: number }).redownload_iqd_video ?? 5000),
       });
     }
   }, [q.data, form]);
