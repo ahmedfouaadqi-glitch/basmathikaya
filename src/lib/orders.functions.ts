@@ -652,7 +652,7 @@ export const confirmTierAndPrepareWhatsapp = createServerFn({ method: "POST" })
         user_id: o0?.user_id ?? null,
         discount_iqd: discount,
       });
-      await supabaseAdmin.rpc("noop_unused_fn"); // safe no-op — coupon counters incremented via trigger not required
+      // (uses_count is bumped below via direct update)
       // increment uses_count via update
       const { data: cRow } = await supabaseAdmin
         .from("coupons")
