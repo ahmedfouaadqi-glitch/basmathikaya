@@ -1168,3 +1168,211 @@ export const adminListUsers = createServerFn({ method: "GET" }).handler(async ()
     total_spent_iqd: stats.get(u.id)?.spent ?? 0,
   }));
 });
+
+// ============= User moderation (admin) =============
+
+const UserIdInput = z.object({ userId: z.string().uuid() });
+
+export const adminSetUserStatus = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      status: z.enum(["active", "suspended", "banned"]),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("users").update({ status: data.status }).eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const adminDeleteUser = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => UserIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // orders have ON DELETE CASCADE via user_id? If not, null user_id or delete orders too.
+    // Delete cascade child data first to be safe (orders may not have cascade).
+    const { data: orders } = await supabaseAdmin.from("orders").select("id").eq("user_id", data.userId);
+    for (const o of orders ?? []) {
+      await supabaseAdmin.from("orders").delete().eq("id", o.id);
+    }
+    const { error } = await supabaseAdmin.from("users").delete().eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ============= Order moderation (admin) =============
+
+export const adminRejectOrder = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({ orderId: z.string().uuid(), reason: z.string().trim().min(1).max(500) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        status: "cancelled",
+        rejection_reason: data.reason,
+        rejected_at: new Date().toISOString(),
+      })
+      .eq("id", data.orderId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const adminDeleteOrder = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("orders").delete().eq("id", data.orderId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ============= Coupons (admin) =============
+
+const CouponInput = z.object({
+  id: z.string().uuid().optional(),
+  code: z.string().trim().min(2).max(40).transform((s) => s.toUpperCase()),
+  discount_type: z.enum(["percent", "fixed"]),
+  discount_value: z.coerce.number().positive(),
+  max_uses: z.coerce.number().int().positive().nullable().optional(),
+  valid_from: z.string().optional().nullable(),
+  valid_to: z.string().optional().nullable(),
+  applies_to: z.enum(["all", "new"]).default("all"),
+  active: z.boolean().default(true),
+});
+
+export const adminListCoupons = createServerFn({ method: "GET" }).handler(async () => {
+  await gate();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("coupons").select("*").order("created_at", { ascending: false });
+  return data ?? [];
+});
+
+export const adminUpsertCoupon = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => CouponInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.id) {
+      const { error } = await supabaseAdmin.from("coupons").update({
+        code: data.code,
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        max_uses: data.max_uses ?? null,
+        valid_from: data.valid_from || null,
+        valid_to: data.valid_to || null,
+        applies_to: data.applies_to,
+        active: data.active,
+      }).eq("id", data.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabaseAdmin.from("coupons").insert({
+        code: data.code,
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        max_uses: data.max_uses ?? null,
+        valid_from: data.valid_from || null,
+        valid_to: data.valid_to || null,
+        applies_to: data.applies_to,
+        active: data.active,
+      });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true as const };
+  });
+
+export const adminDeleteCoupon = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("coupons").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// Public: check a coupon before submitting.
+export const validateCoupon = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ code: z.string().trim().min(1).max(40) }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const code = data.code.toUpperCase();
+    const { data: c } = await supabaseAdmin
+      .from("coupons")
+      .select("code, discount_type, discount_value, max_uses, uses_count, valid_from, valid_to, active")
+      .eq("code", code)
+      .maybeSingle();
+    const now = Date.now();
+    const valid = !!c && c.active &&
+      (!c.valid_from || new Date(c.valid_from).getTime() <= now) &&
+      (!c.valid_to || new Date(c.valid_to).getTime() >= now) &&
+      (c.max_uses == null || (c.uses_count ?? 0) < c.max_uses);
+    if (!valid || !c) return { ok: false as const };
+    return {
+      ok: true as const,
+      code: c.code,
+      discount_type: c.discount_type,
+      discount_value: Number(c.discount_value),
+    };
+  });
+
+// ============= Redownload (paid re-download) =============
+
+export const requestRedownload = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    const { requireUserSession } = await import("./user-session.server");
+    const s = await requireUserSession();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id, tier, user_id, redownload_status")
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (!order || order.user_id !== s.data.userId) throw new Error("غير مصرح");
+    if (order.redownload_status === "pending") throw new Error("طلبك موجود مسبقاً");
+    const pricing = await getPricing();
+    const { redownloadPrice } = await import("./pricing");
+    const amount = redownloadPrice(pricing, order.tier);
+    await supabaseAdmin.from("redownload_requests").insert({
+      order_id: order.id,
+      user_id: s.data.userId!,
+      amount_iqd: amount,
+    });
+    await supabaseAdmin
+      .from("orders")
+      .update({
+        redownload_status: "pending",
+        redownload_amount_iqd: amount,
+        redownload_requested_at: new Date().toISOString(),
+      })
+      .eq("id", order.id);
+    return { ok: true as const, amount_iqd: amount };
+  });
+
+export const adminConfirmRedownload = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date().toISOString();
+    await supabaseAdmin
+      .from("orders")
+      .update({ redownload_status: "paid", redownload_paid_at: now })
+      .eq("id", data.orderId);
+    await supabaseAdmin
+      .from("redownload_requests")
+      .update({ status: "paid", paid_at: now })
+      .eq("order_id", data.orderId)
+      .eq("status", "pending");
+    return { ok: true as const };
+  });
+
