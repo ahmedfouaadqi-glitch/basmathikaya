@@ -141,11 +141,17 @@ function CreatePage() {
     });
   }
 
-  async function onSubmit(e: React.FormEvent) {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     if (!characters[0].name.trim()) return toast.error("اكتب اسم البطل الرئيسي");
     if (moods.length === 0) return toast.error("اختر جواً واحداً على الأقل");
     if (!acceptedDisclaimer) return toast.error("يرجى الموافقة على إخلاء المسؤولية للمتابعة");
+    setConfirmOpen(true);
+  }
+
+  async function doCreate() {
+    if (submitting) return;
     setSubmitting(true);
     try {
       const res = await create({
@@ -164,8 +170,10 @@ function CreatePage() {
           image_quality_tier: qualityTier,
           draft_id: draftIdRef.current,
           disclaimer_accepted: true,
+          coupon_code: couponCode.trim() || undefined,
         },
       });
+      setConfirmOpen(false);
       navigate({ to: "/preview/$orderId", params: { orderId: res.orderId } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "خطأ");
