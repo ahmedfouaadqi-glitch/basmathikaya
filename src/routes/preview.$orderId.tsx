@@ -288,20 +288,43 @@ function CoverArea({ progress }: { progress: { cover_url: string | null; images_
 
 function LoadingCard() {
   const { t } = useT();
+  const steps = [
+    t("loading_step_write"),
+    t("loading_step_design"),
+    t("loading_step_draw"),
+    t("loading_step_review"),
+  ];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setI((x) => (x + 1) % steps.length), 2200);
+    return () => window.clearInterval(id);
+  }, [steps.length]);
   return (
-    <div className="rounded-2xl border bg-card p-12 text-center">
-      <Loader2 className="mx-auto size-10 animate-spin text-primary" />
-      <p className="mt-4 text-lg font-medium">{t("preview_loading")}</p>
+    <div className="rounded-2xl border bg-card p-10 text-center">
+      <img src="/logo.png" alt="بصمة حكاية" className="mx-auto mb-4 h-20 w-20 animate-pulse rounded-2xl object-contain" onError={(e) => ((e.currentTarget.style.display = "none"))} />
+      <Loader2 className="mx-auto size-8 animate-spin text-primary" />
+      <p className="mt-4 text-lg font-bold">{t("loading_making_story")}</p>
+      <p className="mt-2 min-h-[1.5rem] text-sm text-muted-foreground transition-all">{steps[i]}</p>
+      <div className="mx-auto mt-5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-secondary">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
+          style={{ width: `${((i + 1) / steps.length) * 100}%` }}
+        />
+      </div>
     </div>
   );
 }
 
 function TierCard({
-  price, label, desc, onPick, loading, accent, muted,
-}: { price: number; label: string; desc: string; onPick: () => void; loading: boolean; accent?: boolean; muted?: boolean }) {
+  price, label, desc, onPick, loading, accent, disabled,
+}: { price: number; label: string; desc: string; onPick: () => void; loading: boolean; accent?: boolean; disabled?: boolean }) {
   const { t } = useT();
   return (
-    <div className={`flex flex-col rounded-2xl border p-5 shadow-sm transition ${accent ? "border-primary bg-primary/5" : "bg-card"} ${muted ? "opacity-70" : ""}`}>
+    <div
+      className={`flex flex-col rounded-2xl border p-5 shadow-sm transition ${accent ? "border-primary bg-primary/5" : "bg-card"} ${disabled ? "opacity-60 blur-[1.5px] select-none pointer-events-none" : ""}`}
+      aria-disabled={disabled || undefined}
+      title={disabled ? "قريباً" : undefined}
+    >
       <div className="text-base font-bold">{label}</div>
       <div className="mt-1 text-2xl font-extrabold text-primary">
         {price.toLocaleString()} <span className="text-sm font-medium text-muted-foreground">{t("iqd")}</span>
@@ -309,7 +332,7 @@ function TierCard({
       <p className="mt-2 text-sm text-muted-foreground flex-1">{desc}</p>
       <button
         onClick={onPick}
-        disabled={loading}
+        disabled={loading || disabled}
         className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-2.5 text-sm font-bold text-primary-foreground shadow-warm disabled:opacity-60"
       >
         {loading && <Loader2 className="size-4 animate-spin" />}
