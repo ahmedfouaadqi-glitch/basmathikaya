@@ -47,7 +47,12 @@ function PreviewPage() {
     queryKey: ["order", orderId],
     queryFn: () => orderFn({ data: { orderId } }),
   });
-  const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
+  const pricingQ = useQuery({
+    queryKey: ["pricing-public"],
+    queryFn: () => pricingFn(),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
 
   useEffect(() => {
     if (genStarted) return;
@@ -73,15 +78,17 @@ function PreviewPage() {
   const order = orderQ.data;
   const pageCount = order?.page_count ?? progress?.page_count ?? 5;
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
+  const videoEnabled = Boolean((pricingQ.data as { video_tier_enabled?: boolean } | undefined)?.video_tier_enabled ?? false);
+  const charCount = Number((order as { character_count?: number } | null | undefined)?.character_count ?? 1);
+  const qualityTier = ((order as { image_quality_tier?: "standard" | "premium" } | null | undefined)?.image_quality_tier ?? "standard") as "standard" | "premium";
+  const moodCount = Array.isArray(order?.moods) ? Math.max(1, order!.moods.length) : 1;
   const estimates = useMemo(() => {
-    // We don't know the exact character count from progress; fetch from order via separate query would be ideal.
-    // For tier card display we assume 1; the server recomputes exact amount on confirmTier.
     return {
-      pdf: computeTierAmount("pdf", pageCount, pricing, 1),
-      printed: computeTierAmount("printed", pageCount, pricing, 1),
-      video: computeTierAmount("video", pageCount, pricing, 1),
+      pdf: computeTierAmount("pdf", pageCount, pricing, charCount, qualityTier, moodCount),
+      printed: computeTierAmount("printed", pageCount, pricing, charCount, qualityTier, moodCount),
+      video: computeTierAmount("video", pageCount, pricing, charCount, qualityTier, moodCount),
     };
-  }, [pageCount, pricing]);
+  }, [pageCount, pricing, charCount, qualityTier, moodCount]);
 
   async function pick(tier: "pdf" | "printed" | "video") {
     setConfirming(tier);
