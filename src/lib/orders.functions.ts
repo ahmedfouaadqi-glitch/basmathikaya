@@ -253,8 +253,8 @@ async function analyzeCharacterPhoto(args: {
     const { callChat } = await import("./ai-gateway.server");
     const isAr = args.language === "ar";
     const prompt = isAr
-      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (4-6 أسطر، عربي) مايلي: الجنس التقريبي، الفئة العمرية، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، الملابس البارزة، أي ميزات مميزة. لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.`
-      : `Analyze this person (${args.name}) and describe in 4-6 short lines: apparent gender, age group, skin tone, hair (length/color/style), eye color, notable clothing, distinctive features. No real names. Pure visual brief for drawing a consistent cartoon character.`;
+      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (5-7 أسطر، عربي) وبإلزام تام: الجنس (ذكر/أنثى)، الفئة العمرية (طفل صغير/طفل/مراهق/شاب/بالغ/مسنّ)، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، شكل الوجه، بنية الجسم، الملابس البارزة، أي ميزات مميزة. يجب أن يبدأ الوصف بسطر: "الجنس والعمر: <ذكر/أنثى> · <الفئة العمرية>". لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.`
+      : `Analyze this person (${args.name}) and produce 5-7 short lines describing (mandatory): gender (male/female), age group (toddler/child/teen/young adult/adult/senior), skin tone, hair (length/color/style), eye color, face shape, body build, notable clothing, distinctive features. Start with: "Gender & age: <male/female> · <age group>". No real names. Pure visual brief for drawing a consistent cartoon character.`;
     const r = await callChat({
       model: "google/gemini-2.5-flash",
       messages: [
@@ -264,7 +264,7 @@ async function analyzeCharacterPhoto(args: {
         ] },
       ],
     });
-    return r.content.trim().slice(0, 800);
+    return r.content.trim().slice(0, 900);
   } catch {
     return null;
   }
@@ -628,10 +628,15 @@ export const getOrderPublic = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: o } = await supabaseAdmin
       .from("orders")
-      .select("id, order_number, tier, amount_iqd, status, images_status, page_count, title, moods, custom_instructions, user_id, pdf_path")
+      .select("id, order_number, tier, amount_iqd, status, images_status, page_count, title, moods, custom_instructions, user_id, pdf_path, image_quality_tier, rejection_reason, rejected_at, redownload_status, redownload_amount_iqd, coupon_code, coupon_discount_iqd")
       .eq("id", data.orderId)
       .maybeSingle();
-    return o;
+    if (!o) return null;
+    const { count: charCount } = await supabaseAdmin
+      .from("order_characters")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", data.orderId);
+    return { ...o, character_count: charCount ?? 1 };
   });
 
 // Public pricing snapshot for /create and /preview
