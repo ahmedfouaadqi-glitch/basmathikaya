@@ -146,17 +146,62 @@ function CreditBalanceCard() {
   const fn = useServerFn(getAICreditBalance);
   const q = useQuery({ queryKey: ["ai-credits"], queryFn: () => fn(), refetchInterval: 60_000 });
   if (!q.data || !q.data.available) return null;
-  const d = q.data as { stories_left_standard: number | null; stories_left_premium: number | null };
+  const d = q.data as {
+    gateway_ok: boolean;
+    credits_remaining: number;
+    balance_usd: number;
+    balance_iqd: number;
+    avg_cost_usd_standard: number;
+    avg_cost_usd_premium: number;
+    stories_sampled_standard: number;
+    stories_sampled_premium: number;
+    stories_left_standard: number | null;
+    stories_left_premium: number | null;
+    source_standard: "actual" | "estimate";
+    source_premium: "actual" | "estimate";
+  };
+  const src = (s: "actual" | "estimate") => s === "actual" ? "من متوسط آخر 30 يوم" : "تقدير افتراضي — لا توجد بيانات فعلية بعد";
   return (
-    <div className="mb-4 rounded-2xl border bg-card p-4 flex items-center gap-4">
-      <div className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
-        <Sparkles className="size-5" />
-      </div>
-      <div className="flex-1">
-        <div className="text-xs text-muted-foreground">الرصيد المتبقي (تقدير)</div>
-        <div className="mt-0.5 flex flex-wrap gap-4 text-sm">
-          <span>قياسي: <span className="font-mono font-bold text-primary">{d.stories_left_standard ?? "—"}</span> قصة (5 صفحات)</span>
-          <span>احترافي: <span className="font-mono font-bold text-primary">{d.stories_left_premium ?? "—"}</span> قصة</span>
+    <div className="mb-4 rounded-2xl border bg-card p-4">
+      <div className="flex items-start gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+          <Sparkles className="size-5" />
+        </div>
+        <div className="flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <div className="text-xs text-muted-foreground">الرصيد الحالي لخدمة الذكاء</div>
+              <div className="mt-0.5 text-lg font-bold">
+                ${d.balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span className="ms-2 text-sm font-normal text-muted-foreground">≈ {d.balance_iqd.toLocaleString()} د.ع</span>
+              </div>
+            </div>
+            {!d.gateway_ok && (
+              <span className="rounded-full bg-destructive/15 text-destructive text-[10px] px-2 py-0.5">تعذّر الاتصال بمزوّد الذكاء</span>
+            )}
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl border bg-background p-3">
+              <div className="text-xs text-muted-foreground">قصص متبقية — جودة قياسية</div>
+              <div className="mt-1 font-mono text-2xl font-bold text-primary">{d.stories_left_standard ?? "—"}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                متوسط تكلفة القصة: ${d.avg_cost_usd_standard.toFixed(3)} · {src(d.source_standard)}
+                {d.source_standard === "actual" && ` (${d.stories_sampled_standard} قصة)`}
+              </div>
+            </div>
+            <div className="rounded-xl border bg-background p-3">
+              <div className="text-xs text-muted-foreground">قصص متبقية — جودة احترافية</div>
+              <div className="mt-1 font-mono text-2xl font-bold text-primary">{d.stories_left_premium ?? "—"}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                متوسط تكلفة القصة: ${d.avg_cost_usd_premium.toFixed(3)} · {src(d.source_premium)}
+                {d.source_premium === "actual" && ` (${d.stories_sampled_premium} قصة)`}
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 text-[10px] text-muted-foreground">
+            الأرقام تقديرية: تُقسَم قيمة الرصيد الحالي على متوسط تكلفة القصة الفعلي؛ عند غياب قصص من نفس الجودة تُستخدَم قيمة "تقدير التكلفة" في إعدادات التسعير.
+          </div>
         </div>
       </div>
     </div>
