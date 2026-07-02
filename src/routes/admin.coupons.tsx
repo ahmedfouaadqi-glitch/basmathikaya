@@ -64,8 +64,12 @@ function CouponsPage() {
           valid_to: draft.valid_to || null,
           applies_to: draft.applies_to,
           active: draft.active,
+          min_pages: Number(draft.min_pages) || 0,
+          applies_quality: draft.applies_quality.length ? draft.applies_quality : ["standard", "premium"],
+          applies_tier: draft.applies_tier.length ? draft.applies_tier : ["pdf", "printed", "video"],
         },
       });
+
       setDraft(emptyDraft);
       qc.invalidateQueries({ queryKey: ["admin-coupons"] });
       toast.success(t("saved"));
