@@ -417,6 +417,42 @@ function OrderDetail() {
           </div>
         </div>
       </div>
+
+      {rejectOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-card p-5 shadow-lg">
+            <div className="mb-2 text-lg font-bold">{t("reject_order")}</div>
+            <p className="mb-3 text-xs text-muted-foreground">{t("reject_reason_hint")}</p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={4}
+              className="w-full rounded-lg border bg-background p-2 text-sm"
+              placeholder={t("reject_reason_placeholder")}
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => { setRejectOpen(false); setRejectReason(""); }}
+                className="flex-1 rounded-lg border py-2 text-sm hover:bg-secondary"
+              >{t("cancel")}</button>
+              <button
+                disabled={rejecting || rejectReason.trim().length < 3}
+                onClick={async () => {
+                  setRejecting(true);
+                  try {
+                    await rejectFn({ data: { orderId: id, reason: rejectReason.trim() } });
+                    toast.success("تم");
+                    setRejectOpen(false); setRejectReason("");
+                    qc.invalidateQueries({ queryKey: ["admin-order", id] });
+                  } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+                  finally { setRejecting(false); }
+                }}
+                className="flex-1 rounded-lg bg-destructive py-2 text-sm font-bold text-destructive-foreground disabled:opacity-60"
+              >{rejecting ? "..." : t("confirm_reject")}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
