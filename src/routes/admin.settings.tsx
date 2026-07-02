@@ -131,6 +131,20 @@ function SettingsPage() {
           <input type="checkbox" checked={form.video_tier_enabled} onChange={(e) => set("video_tier_enabled", e.target.checked)} />
           تفعيل مستوى الفيديو (إن أُلغيَ سيظل السعر ظاهراً ولكن لا يمكن اختياره)
         </label>
+
+        <div className="text-xs font-semibold text-muted-foreground mt-4">تسعير الأجواء</div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Row label="عدد الأجواء المجانية" type="number" value={form.free_moods_count} onChange={(v) => set("free_moods_count", v)} />
+          <Row label="سعر كل جو إضافي (د.ع)" type="number" value={form.mood_extra_iqd} onChange={(v) => set("mood_extra_iqd", v)} />
+        </div>
+
+        <div className="text-xs font-semibold text-muted-foreground mt-4">تسعير إعادة التحميل (مدفوع)</div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Row label="PDF (د.ع)" type="number" value={form.redownload_iqd_pdf} onChange={(v) => set("redownload_iqd_pdf", v)} />
+          <Row label="Printed (د.ع)" type="number" value={form.redownload_iqd_printed} onChange={(v) => set("redownload_iqd_printed", v)} />
+          <Row label="Video (د.ع)" type="number" value={form.redownload_iqd_video} onChange={(v) => set("redownload_iqd_video", v)} />
+        </div>
+
         <button disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3 font-bold text-primary-foreground disabled:opacity-60">
           {saving && <Loader2 className="size-4 animate-spin" />}
           {t("save")}
