@@ -75,3 +75,55 @@ export async function sendOtp(phoneE164: string, code: string, lang: "ar" | "en"
 
   return { ok: false, via: "dev", error: "No SMS/WhatsApp sender configured" };
 }
+
+/**
+ * Send an arbitrary body via WhatsApp (falls back to SMS). Used for admin magic
+ * links, where the body is a URL rather than a code.
+ */
+export async function sendWhatsappOrSms(
+  phoneE164: string,
+  body: string,
+): Promise<SendResult> {
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  const twilioKey = process.env.TWILIO_API_KEY;
+  const fromWhatsapp = process.env.TWILIO_WHATSAPP_FROM;
+  const fromSms = process.env.TWILIO_SMS_FROM;
+
+  if (!lovableKey || !twilioKey || (!fromWhatsapp && !fromSms)) {
+    // eslint-disable-next-line no-console
+    console.log(`[MSG DEV] phone=${phoneE164}\n${body}`);
+    return { ok: true, via: "dev" };
+  }
+
+  async function postForm(params: Record<string, string>): Promise<Response> {
+    return fetch(`${GATEWAY_URL}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": twilioKey!,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams(params),
+    });
+  }
+
+  if (fromWhatsapp) {
+    try {
+      const res = await postForm({ To: `whatsapp:${phoneE164}`, From: fromWhatsapp, Body: body });
+      if (res.ok) return { ok: true, via: "whatsapp" };
+    } catch (e) {
+      console.error("WhatsApp send failed", e);
+    }
+  }
+  if (fromSms) {
+    try {
+      const res = await postForm({ To: phoneE164, From: fromSms, Body: body });
+      if (res.ok) return { ok: true, via: "sms" };
+      const txt = await res.text().catch(() => "");
+      return { ok: false, via: "sms", error: `Twilio ${res.status}: ${txt.slice(0, 200)}` };
+    } catch (e) {
+      return { ok: false, via: "sms", error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+  return { ok: false, via: "dev", error: "No SMS/WhatsApp sender configured" };
+}

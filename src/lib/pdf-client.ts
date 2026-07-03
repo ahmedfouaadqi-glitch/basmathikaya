@@ -15,11 +15,15 @@ export type StoryPdfAssets = {
   disclaimer?: string | null;
   frameStyle?: "classic" | "arabesque" | "ribbon" | "stars" | "floral" | "geometric" | "none" | null;
   palette?: string[] | null;
+  orientation?: "portrait" | "landscape" | null;
+  reflectiveQuestion?: string | null;
 };
 
-// A4 at 96dpi: 794 x 1123 px
-const PAGE_W = 794;
-const PAGE_H = 1123;
+// A4 at 96dpi: 794 x 1123 px (portrait) — swapped for landscape below.
+const PORTRAIT_W = 794;
+const PORTRAIT_H = 1123;
+let PAGE_W = PORTRAIT_W;
+let PAGE_H = PORTRAIT_H;
 
 function escapeHtml(s: string): string {
   return s
@@ -230,9 +234,23 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
   const note = isAr ? "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة." : "Follow us on TikTok and tell us your next story idea.";
   const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
   const disclaimerTitle = isAr ? "إخلاء مسؤولية" : "Disclaimer";
+  const certTitle = isAr ? "شهادة البطل" : "Hero Certificate";
+  const certLine = isAr ? "هذه الحكاية من نصيب البطل" : "This story belongs to";
+  const questionTitle = isAr ? "سؤال لك يا بطل" : "A question for you, hero";
+  const signature = isAr ? "توقيع: بصمة حكاية" : "Signed: Basma Hekaya";
+  const heroName = a.customerName || (isAr ? "بطلنا" : "our hero");
+  const orderNum = a.orderNumber ? `#${a.orderNumber}` : "";
+  const dateStr = new Date().toLocaleDateString(isAr ? "ar-IQ" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+  const question = (a.reflectiveQuestion ?? "").trim();
   const logoImg = opts.logo
-    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:120px;height:120px;object-fit:contain;display:block;margin:0 auto 16px;" />`
+    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:70px;height:70px;object-fit:contain;display:block;margin:0 auto 8px;" />`
     : "";
+  const logoSmall = opts.logo
+    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:34px;height:34px;object-fit:contain;display:inline-block;vertical-align:middle;margin:0 8px;" />`
+    : "";
+
+  // Decorative corner ornaments (pure CSS — no external assets).
+  const corner = (pos: string) => `<div style="position:absolute;${pos};width:38px;height:38px;border:3px solid ${opts.gold};border-radius:6px;opacity:.85;"></div>`;
 
   return `
   <div dir="${dir}" style="
@@ -241,21 +259,75 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
     font-family:'Tajawal',sans-serif;
     color:#1a2128;
     box-sizing:border-box;
-    display:flex;flex-direction:column;
+    display:flex;flex-direction:column;position:relative;
   ">
     <div style="height:18px;background:${opts.accent};"></div>
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px 60px;text-align:center;">
-      ${logoImg}
-      <div style="font-size:30px;font-weight:900;color:${opts.accent};margin-bottom:10px;">${escapeHtml(thanks)}</div>
-      <div style="font-size:15px;color:#6b7079;margin-bottom:14px;">${escapeHtml(note)}</div>
-      <div style="font-size:15px;font-weight:700;color:${opts.gold};margin-bottom:22px;">@basmathikaya1 · tiktok.com</div>
 
-      <div style="width:100%;max-width:640px;border:2px solid ${opts.accent}44;border-radius:14px;padding:16px 20px;background:${opts.accent}08;text-align:${isAr ? "right" : "left"};">
-        <div style="font-size:12px;font-weight:900;color:${opts.accent};margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">${disclaimerTitle}</div>
-        <div style="font-size:13px;line-height:1.9;color:#3a3f47;">${escapeHtml(opts.disclaimer)}</div>
+    <!-- Outer decorative frame -->
+    <div style="flex:1;padding:22px 30px;display:flex;flex-direction:column;">
+      <div style="
+        flex:1;position:relative;
+        border:3px double ${opts.accent};
+        border-radius:16px;
+        padding:26px 34px;
+        background:linear-gradient(180deg, ${opts.accent}05, ${opts.gold}05);
+        display:flex;flex-direction:column;gap:14px;
+      ">
+        ${corner("top:8px;inset-inline-start:8px")}
+        ${corner("top:8px;inset-inline-end:8px")}
+        ${corner("bottom:8px;inset-inline-start:8px")}
+        ${corner("bottom:8px;inset-inline-end:8px")}
+
+        <div style="text-align:center;">
+          ${logoImg}
+          <div style="font-size:24px;font-weight:900;color:${opts.accent};margin-bottom:4px;">${escapeHtml(thanks)}</div>
+          <div style="font-size:12px;color:#6b7079;">${escapeHtml(note)}</div>
+          <div style="font-size:12px;font-weight:700;color:${opts.gold};margin-top:2px;">@basmathikaya1 · tiktok.com</div>
+        </div>
+
+        <!-- Hero Certificate -->
+        <div style="
+          border:2px solid ${opts.gold};
+          border-radius:14px;
+          padding:16px 20px;
+          background:${opts.gold}10;
+          text-align:center;
+        ">
+          <div style="font-size:11px;font-weight:900;color:${opts.gold};letter-spacing:2px;margin-bottom:6px;text-transform:uppercase;">${escapeHtml(certTitle)}</div>
+          <div style="font-size:13px;color:#3a3f47;margin-bottom:4px;">${escapeHtml(certLine)}</div>
+          <div style="font-size:26px;font-weight:900;color:${opts.accent};margin:2px 0 8px;">« ${escapeHtml(heroName)} »</div>
+          <div style="font-size:11px;color:#6b7079;">${escapeHtml(dateStr)}${orderNum ? ` · <span style="font-family:monospace">${orderNum}</span>` : ""}</div>
+          <div style="margin-top:8px;font-size:11px;color:${opts.accent};font-weight:700;">${logoSmall}${escapeHtml(signature)}</div>
+        </div>
+
+        ${question ? `
+        <!-- Reflective question -->
+        <div style="
+          border:2px dashed ${opts.accent}66;
+          border-radius:14px;
+          padding:14px 18px;
+          background:${opts.accent}08;
+          text-align:${isAr ? "right" : "left"};
+        ">
+          <div style="font-size:11px;font-weight:900;color:${opts.accent};letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">${escapeHtml(questionTitle)}</div>
+          <div style="font-size:15px;line-height:1.9;color:#1a2128;font-weight:500;">${escapeHtml(question)}</div>
+        </div>` : ""}
+
+        <!-- Disclaimer -->
+        <div style="
+          border:1px solid ${opts.accent}44;
+          border-radius:12px;
+          padding:12px 16px;
+          background:#FFFFFF80;
+          text-align:${isAr ? "right" : "left"};
+        ">
+          <div style="font-size:10px;font-weight:900;color:${opts.accent};margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">${escapeHtml(disclaimerTitle)}</div>
+          <div style="font-size:11px;line-height:1.75;color:#3a3f47;">${escapeHtml(opts.disclaimer)}</div>
+        </div>
       </div>
     </div>
-    <div style="text-align:center;font-size:13px;font-weight:700;color:${opts.accent};padding:12px 0;">${tag}</div>
+
+    <div style="text-align:center;font-size:12px;font-weight:700;color:${opts.accent};padding:8px 0;">${tag}</div>
     <div style="height:12px;background:${opts.gold};"></div>
   </div>`;
 }
@@ -263,6 +335,10 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
 export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void> {
   const accent = (a.accentColor && /^#[0-9a-fA-F]{6}$/.test(a.accentColor.trim())) ? a.accentColor.trim() : "#169CA3";
   const gold = "#D4A537";
+
+  const isLandscape = a.orientation === "landscape";
+  PAGE_W = isLandscape ? PORTRAIT_H : PORTRAIT_W;
+  PAGE_H = isLandscape ? PORTRAIT_W : PORTRAIT_H;
 
   await ensureTajawal();
 
@@ -324,7 +400,7 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
       import("html2canvas-pro"),
     ]);
 
-    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: isLandscape ? "landscape" : "portrait" });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
 

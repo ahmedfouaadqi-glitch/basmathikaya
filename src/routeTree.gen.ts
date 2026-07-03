@@ -25,6 +25,7 @@ import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin.orders.$id'
+import { Route as AdminMagicTokenRouteImport } from './routes/admin.magic.$token'
 
 const MyOrdersRoute = MyOrdersRouteImport.update({
   id: '/my-orders',
@@ -106,6 +107,11 @@ const AdminOrdersIdRoute = AdminOrdersIdRouteImport.update({
   path: '/orders/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminMagicTokenRoute = AdminMagicTokenRouteImport.update({
+  id: '/magic/$token',
+  path: '/magic/$token',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/magic/$token': typeof AdminMagicTokenRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
 }
 export interface FileRoutesByTo {
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/magic/$token': typeof AdminMagicTokenRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
 }
 export interface FileRoutesById {
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/magic/$token': typeof AdminMagicTokenRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
 }
 export interface FileRouteTypes {
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/admin/videos'
     | '/preview/$orderId'
     | '/admin/'
+    | '/admin/magic/$token'
     | '/admin/orders/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/admin/videos'
     | '/preview/$orderId'
     | '/admin'
+    | '/admin/magic/$token'
     | '/admin/orders/$id'
   id:
     | '__root__'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/admin/videos'
     | '/preview/$orderId'
     | '/admin/'
+    | '/admin/magic/$token'
     | '/admin/orders/$id'
   fileRoutesById: FileRoutesById
 }
@@ -340,6 +352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrdersIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/magic/$token': {
+      id: '/admin/magic/$token'
+      path: '/magic/$token'
+      fullPath: '/admin/magic/$token'
+      preLoaderRoute: typeof AdminMagicTokenRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
@@ -353,6 +372,7 @@ interface AdminRouteChildren {
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVideosRoute: typeof AdminVideosRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminMagicTokenRoute: typeof AdminMagicTokenRoute
   AdminOrdersIdRoute: typeof AdminOrdersIdRoute
 }
 
@@ -366,6 +386,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminUsersRoute: AdminUsersRoute,
   AdminVideosRoute: AdminVideosRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminMagicTokenRoute: AdminMagicTokenRoute,
   AdminOrdersIdRoute: AdminOrdersIdRoute,
 }
 
@@ -382,13 +403,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

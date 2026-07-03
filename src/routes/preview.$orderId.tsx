@@ -79,6 +79,8 @@ function PreviewPage() {
         disclaimer: content ? (lang === "ar" ? content.disclaimer_ar : content.disclaimer_en) : null,
         frameStyle: (th?.frame_style as never) ?? null,
         palette: th?.palette ?? null,
+        orientation: progress.pdf_orientation ?? "portrait",
+        reflectiveQuestion: progress.reflective_question ?? null,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");

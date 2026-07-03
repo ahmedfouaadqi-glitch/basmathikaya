@@ -443,6 +443,7 @@ function labelForStep(step: string): string {
   if (step === "story_plan") return "خطة القصة";
   if (step === "first_paragraph") return "نص افتتاحي";
   if (step === "cover_image") return "صورة الغلاف";
+  if (step === "reflection_question") return "سؤال تأمّلي للطفل";
   const pageImage = step.match(/^page_(\d+)_image$/);
   if (pageImage) return `صورة صفحة ${pageImage[1]}`;
   const pageRegen = step.match(/^page_(\d+)_regen$/);
