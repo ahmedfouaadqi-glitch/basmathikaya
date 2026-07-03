@@ -336,6 +336,10 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
   const accent = (a.accentColor && /^#[0-9a-fA-F]{6}$/.test(a.accentColor.trim())) ? a.accentColor.trim() : "#169CA3";
   const gold = "#D4A537";
 
+  const isLandscape = a.orientation === "landscape";
+  PAGE_W = isLandscape ? PORTRAIT_H : PORTRAIT_W;
+  PAGE_H = isLandscape ? PORTRAIT_W : PORTRAIT_H;
+
   await ensureTajawal();
 
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
