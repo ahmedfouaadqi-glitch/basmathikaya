@@ -84,6 +84,7 @@ function CreatePage() {
   const [pages, setPages] = useState<number>(5);
   const [qualityTier, setQualityTier] = useState<"standard" | "premium">("standard");
   const [tier, setTier] = useState<"pdf" | "printed" | "video">("pdf");
+  const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
   const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -204,6 +205,7 @@ function CreatePage() {
           page_count: pages,
           image_quality_tier: qualityTier,
           tier,
+          pdf_orientation: pdfOrientation,
           draft_id: draftIdRef.current,
           disclaimer_accepted: true,
           coupon_code: couponCode.trim() || undefined,
@@ -443,6 +445,39 @@ function CreatePage() {
             ))}
           </div>
         </div>
+
+
+        {/* PDF orientation — no price difference */}
+        <div>
+          <label className="block text-sm font-bold mb-2">اتجاه ملف القصة</label>
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            اختر شكل الصفحات في ملف PDF — بدون فرق في السعر.
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-center text-xs">
+            {([
+              { v: "portrait", label: "عمودي", hint: "الشكل الكلاسيكي — مناسب للطباعة" },
+              { v: "landscape", label: "أفقي", hint: "مساحة أوسع للصور — مناسب للعرض" },
+            ] as const).map((o) => (
+              <button
+                type="button"
+                key={o.v}
+                onClick={() => setPdfOrientation(o.v)}
+                aria-pressed={pdfOrientation === o.v}
+                className={`rounded-xl border p-3 transition ${pdfOrientation === o.v ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30"}`}
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <div
+                    className={`border-2 ${pdfOrientation === o.v ? "border-primary" : "border-muted-foreground/40"} rounded-sm bg-background`}
+                    style={o.v === "portrait" ? { width: 22, height: 30 } : { width: 30, height: 22 }}
+                  />
+                  <div>{o.label}</div>
+                  <div className="text-[10px] text-muted-foreground">{o.hint}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
 
         {/* Coupon code — live validation with tier/quality/page-count awareness */}
         <div>

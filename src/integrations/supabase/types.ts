@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_login_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          ip: string | null
+          phone: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip?: string | null
+          phone: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          phone?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       characters: {
         Row: {
           age: number
@@ -406,11 +436,13 @@ export type Database = {
           payment_confirmed_at: string | null
           payment_confirmed_notified_at: string | null
           payment_status: string
+          pdf_orientation: string
           pdf_path: string | null
           redownload_amount_iqd: number | null
           redownload_paid_at: string | null
           redownload_requested_at: string | null
           redownload_status: string | null
+          reflective_question: string | null
           rejected_at: string | null
           rejection_reason: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -446,11 +478,13 @@ export type Database = {
           payment_confirmed_at?: string | null
           payment_confirmed_notified_at?: string | null
           payment_status?: string
+          pdf_orientation?: string
           pdf_path?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
           redownload_requested_at?: string | null
           redownload_status?: string | null
+          reflective_question?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -486,11 +520,13 @@ export type Database = {
           payment_confirmed_at?: string | null
           payment_confirmed_notified_at?: string | null
           payment_status?: string
+          pdf_orientation?: string
           pdf_path?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
           redownload_requested_at?: string | null
           redownload_status?: string | null
+          reflective_question?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["order_status"]

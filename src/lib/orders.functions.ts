@@ -32,6 +32,7 @@ const CreateInput = z.object({
     .enum(["fast", "standard", "premium"])
     .default("standard")
     .transform((v) => (v === "fast" ? "standard" : v)),
+  pdf_orientation: z.enum(["portrait", "landscape"]).default("portrait"),
 });
 
 
@@ -185,6 +186,7 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         moods: data.moods,
         custom_instructions: data.custom_instructions || null,
         image_quality_tier: data.image_quality_tier,
+        pdf_orientation: data.pdf_orientation,
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
         coupon_code: code,
         whatsapp_sent_at: new Date().toISOString(),
@@ -590,6 +592,46 @@ Return JSON exactly like:
       opening: (pagesPlan[0]?.text ?? "").slice(0, 240),
     }).then(() => {/* ignore conflicts */});
 
+    // === Generate a short reflective question for the child, derived from the
+    // story — printed on the thank-you page. Kept separate & cheap.
+    try {
+      const heroAge = (chars.find((c) => c.is_primary)?.age as number | null) ?? 7;
+      const heroName = chars.find((c) => c.is_primary)?.name ?? "";
+      const storyText = pagesPlan.map((p) => p.text).filter(Boolean).join("\n").slice(0, 3000);
+      const qSys = isAr
+        ? "أنت مربي أطفال. تُخرج سؤالاً واحداً فقط دون أي شرح."
+        : "You are a children's mentor. Output ONE question only, no extra text.";
+      const qPrompt = isAr
+        ? `من هذه القصة، اكتب سؤالاً تأمّلياً واحداً لطفل عمره ${heroAge}${heroName ? ` اسمه ${heroName}` : ""} يشجّعه على التفكير بأخلاق البطل. جملة واحدة، أقل من 20 كلمة، بدون مقدمات.\n\nنص القصة:\n${storyText}`
+        : `From this story, write ONE reflective question for a ${heroAge}-year-old child${heroName ? ` named ${heroName}` : ""} that invites them to think about the hero's values. One sentence, under 20 words, no preamble.\n\nStory:\n${storyText}`;
+      const qChat = await callChat({
+        model: textModel,
+        messages: [
+          { role: "system", content: qSys },
+          { role: "user", content: qPrompt },
+        ],
+      });
+      await logEvent(
+        data.orderId,
+        "reflection_question",
+        textModel,
+        "chat",
+        qChat.meta,
+        estimateTextCostUsd(textModel, qChat.meta.usage),
+        0,
+        pricing,
+      );
+      const question = qChat.content.trim().replace(/^["'«»\s]+|["'«»\s]+$/g, "").split("\n")[0]?.trim() ?? "";
+      if (question) {
+        await supabaseAdmin
+          .from("orders")
+          .update({ reflective_question: question })
+          .eq("id", data.orderId);
+      }
+    } catch (e) {
+      console.error("reflection_question generation failed", e);
+    }
+
     return { ok: true as const };
   });
 
@@ -600,7 +642,7 @@ export const getStoryProgress = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path, order_number, moods, rejection_reason, redownload_status, redownload_amount_iqd, delivered_at")
+      .select("id, page_count, title, status, images_status, tier, amount_iqd, user_id, pdf_path, order_number, moods, rejection_reason, redownload_status, redownload_amount_iqd, delivered_at, pdf_orientation, reflective_question")
       .eq("id", data.orderId)
       .maybeSingle();
     const { data: user } = order?.user_id
@@ -661,6 +703,8 @@ export const getStoryProgress = createServerFn({ method: "GET" })
       redownload_status: (order?.redownload_status as string | null) ?? null,
       redownload_amount_iqd: (order?.redownload_amount_iqd as number | null) ?? null,
       delivered_at: (order?.delivered_at as string | null) ?? null,
+      pdf_orientation: ((order?.pdf_orientation as string | null) ?? "portrait") as "portrait" | "landscape",
+      reflective_question: (order?.reflective_question as string | null) ?? null,
     };
   });
 
