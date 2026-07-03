@@ -400,7 +400,7 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
       import("html2canvas-pro"),
     ]);
 
-    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+    const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: isLandscape ? "landscape" : "portrait" });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
 
