@@ -44,6 +44,39 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_otp_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          ip: string | null
+          phone: string
+          used_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip?: string | null
+          phone: string
+          used_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          phone?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       characters: {
         Row: {
           age: number
