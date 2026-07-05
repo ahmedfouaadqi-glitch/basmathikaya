@@ -411,11 +411,12 @@ function CreatePage() {
                   type="button"
                   onClick={() => !disabled && setTier(tv)}
                   disabled={disabled}
-                  className={`rounded-lg p-2 transition text-start ${active ? "border-2 border-primary bg-primary/10 font-bold" : "border border-transparent"} ${disabled ? "opacity-50 blur-[1px] select-none pointer-events-none" : ""}`}
+                  className={`rounded-lg p-2 transition text-start ${active ? "border-2 border-primary bg-primary/10 font-bold" : "border border-transparent"} ${disabled ? "cursor-not-allowed" : ""}`}
                   aria-pressed={active}
                 >
                   <div className="text-muted-foreground text-center">{t(`tier_${tv}` as never)}</div>
                   <div className="font-bold text-primary text-center">{estimates[tv].toLocaleString()} {t("iqd")}</div>
+                  {disabled && <div className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 text-center">قريباً</div>}
                 </button>
               );
             })}
