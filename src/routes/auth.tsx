@@ -58,7 +58,13 @@ function AuthPage() {
       await verFn({ data: { phone: phone.trim(), code: code.trim(), full_name: name.trim() } });
       toast.success("تم تسجيل الدخول");
       await router.invalidate();
-      navigate({ to: redirect || "/create" });
+      // When the login was triggered from the preview page, stay on /auth
+      // and let the user return manually instead of auto-redirecting.
+      if (redirect && redirect.startsWith("/preview")) {
+        setSignedIn(true);
+      } else {
+        navigate({ to: redirect || "/create" });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");
     } finally {
