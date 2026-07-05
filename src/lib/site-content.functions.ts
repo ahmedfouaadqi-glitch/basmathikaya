@@ -12,7 +12,7 @@ export type HomeContent = {
 };
 
 const DEFAULT_DISCLAIMER_AR =
-  "تنويه: منصة «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة، ولا يوجد أي تدخل بشري في توليد النصوص أو الصور. المستخدم وحده مسؤول عن كل المُدخلات والنتائج بلا استثناء، ولا يتم استرجاع أي مبالغ تحت أي ظرف. تحتفظ الإدارة بحق قبول أو رفض أي طلب.";
+  "تنويه: منصة «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة، ولا يوجد أي تدخل بشري في توليد النصوص أو الصور. المستخدم وحده مسؤول عن كل المُدخلات والنتائج بلا استثناء، بعد تسديد المبالغ لا يتم استرجاعها. تحتفظ الإدارة بحق قبول أو رفض أي طلب.";
 const DEFAULT_DISCLAIMER_EN =
   "Disclaimer: Basma Hekaya is an AI tool built for this concept; there is no human involvement in generating the text or images. The user is solely responsible for all inputs and outputs without exception; no refunds are issued under any circumstances. The admin reserves the right to accept or reject any order.";
 
