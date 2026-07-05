@@ -28,6 +28,7 @@ function AuthPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
 
   async function onRequest(e: React.FormEvent) {
     e.preventDefault();
