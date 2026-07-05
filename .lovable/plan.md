@@ -1,73 +1,40 @@
-## تعديل تسجيل دخول الأدمن ليعمل عبر رمز OTP بالإيميل (بدون واتساب)
+## الخطة
 
-### الهدف
-استبدال آلية "الرابط السحري عبر واتساب" برمز OTP مكوّن من 6 أرقام يُرسل إلى إيميل الأدمن، مع بقاء رابط الدخول كما هو `/admin/login` والعملية كاملة في نفس الصفحة.
+### 1) تعديل نص إخلاء المسؤولية
+- في `src/lib/site-content.functions.ts` (السطر 15) نستبدل فقط عبارة **"ولا يتم استرجاع أي مبالغ تحت أي ظرف"** بعبارة **"بعد تسديد المبالغ لا يتم استرجاعها"**، مع إبقاء بقية النص كما هو.
+- لا توجد نسخة أخرى من العبارة في الكود (تم البحث `rg`)، ما تبقى محفوظ داخل قاعدة البيانات ضمن `site_content` — نُحدّثه بنفس التعديل عبر `UPDATE` لضمان ظهور النص الجديد للجميع فوراً.
 
-### 1) قاعدة البيانات (migration جديدة)
-- جدول جديد `admin_otp_codes`:
-  - `id uuid pk`
-  - `phone text not null`
-  - `code_hash text not null` (SHA-256 للرمز، لا نخزّن الرمز الأصلي)
-  - `expires_at timestamptz not null` (الآن + 5 دقائق)
-  - `used_at timestamptz`
-  - `attempts int default 0` (لإيقاف التخمين بعد 5 محاولات فاشلة)
-  - `ip text`, `created_at timestamptz default now()`
-- RLS مفعّل + سياسة "لا وصول للعموم" (كل الوصول عبر `service_role` من السيرفر).
-- GRANT فقط لـ `service_role`.
-- جدول `admin_login_tokens` القديم يبقى موجوداً لكن نتوقّف عن استخدامه (يمكن حذفه لاحقاً).
+### 2) إرجاع دخول الإدارة إلى الطريقة القديمة (رقم هاتف + رمز ثابت 7979)
+- تعديل `src/routes/admin.login.tsx`: إزالة خطوة OTP بالإيميل، الإبقاء على واجهة تحتوي حقل «رقم الهاتف» وحقل «الرمز» على نفس الصفحة، وعند الضغط على «دخول» يُستدعى `adminLegacyLogin`.
+- إضافة `adminLegacyLogin` في `src/lib/admin.functions.ts`:
+  - يتحقق أن الهاتف ضمن whitelist (`ADMIN_PHONES` أو `ADMIN_PHONE` env) و`code === "7979"` (يمكن استبدالها بـ `process.env.ADMIN_CODE` الموجودة أصلاً كسر بيئة إن وُجدت).
+  - عند النجاح يفتح جلسة الإدارة (`readAdminSession` → `update({ authenticated: true })`).
+- الإبقاء على `adminRequestOtp`/`adminVerifyOtp` كما هي (غير مستخدمة الآن — لا حذف كي لا نكسر شيئاً)، مع إمكانية إعادة تفعيلها لاحقاً.
+- لا تغيير لرابط الإدارة `/admin/login`.
 
-### 2) إعداد قائمة الأدمن + الإيميل
-- قائمة أرقام الأدمن تبقى في الكود كما هي (`07733570130`, `07705828333`, + `ADMIN_PHONE` من المتغيرات).
-- إضافة خريطة `phone → email` داخل `admin.functions.ts`:
-  - `07733570130` → `ahmedfouaad.qi@gmail.com`
-  - إمكانية استبدالها عبر متغير `ADMIN_EMAIL` (اختياري).
+### 3) ربط MCP: يبقى بلا مصادقة، مخصّص لـ ChatGPT/Claude
+- تأكيد فقط: الحالي `auth: none` مناسب. لا تغييرات على الكود، فقط نُبقي الأدوات القراءة (`get_active_theme`, `get_pricing`) — تعزّز جودة القصص والصور لأن المساعدَين الخارجيَين يستطيعان قراءة الثيم النشط والأسعار قبل توليد الاقتراحات.
 
-### 3) توليد رمز OTP آمن (سيرفر فقط)
-- استخدام `crypto.randomInt(0, 1_000_000)` من `node:crypto` للحصول على 6 أرقام عشوائية آمنة (ليست متسلسلة، مقاومة للتخمين).
-- تخزين SHA-256 فقط + `expires_at` (5 دقائق).
-- حد أقصى 3 طلبات OTP لكل رقم/IP خلال 15 دقيقة (rate limit).
+### 4) عدم توجيه المستخدم تلقائياً بعد تسجيل الدخول من `preview`
+- في `src/routes/auth.tsx`: بعد `verifyOtp` الناجح لا نُنفّذ `navigate({ to: redirect || "/create" })` عندما تكون `redirect` تشير إلى `/preview/...`. بدلاً من ذلك نعرض رسالة نجاح داخل نفس الصفحة (تنبيه أخضر: «تم تسجيل الدخول، يمكنك متابعة تصفح طلبك») ونُبقي المستخدم على `/auth`.
+- في الحالات الأخرى (redirect غير موجود، أو غير `/preview`) يبقى السلوك الحالي دون تغيير.
 
-### 4) إرسال الإيميل
-- استخدام بنية إيميلات Lovable المدمجة:
-  - تشغيل `email_domain--setup_email_infra` ثم `email_domain--scaffold_transactional_email` إن لم تكن مهيّأة.
-  - إن لم يكن هناك domain، عرض حوار إعداد الإيميل قبل المتابعة.
-- إنشاء قالب جديد `src/lib/email-templates/admin-otp.tsx`:
-  - يعرض الرمز بحجم كبير، صلاحية 5 دقائق، تحذير أمني.
-  - علامة "بصمة حكاية" وألوان المشروع.
-- الاستدعاء عبر `sendTransactionalEmail({ templateName: "admin-otp", recipientEmail, idempotencyKey, templateData: { code, expiresInMinutes: 5 } })`.
+### 5) تعطيل طلب «الفيديو الفاخر» مع إبقاء الأسعار ظاهرة
+- في `src/routes/create.tsx`:
+  - إزالة `opacity-50 blur-[1px] pointer-events-none` عن بطاقة الـ tier الخاصة بـ `video` حتى تظهر بشكل طبيعي مع سعرها.
+  - يبقى `disabled={tv === "video" && !videoEnabled}` بحيث لا تتغيّر قيمة `tier` عند النقر (نستبدلها بمنع `setTier` فقط للـ video عند التعطيل بدلاً من `disabled` كي تبدو البطاقة عادية بصرياً — لكن مع overlay نصّي صغير «قريباً» بجانب السعر).
+  - زر «إرسال الطلب» (الـ submit CTA): عندما يكون `tier === "video"` أو (`!videoEnabled` وvideo مُختارة) يصبح الزر معطلاً ونصّه «قريباً» بدل «إرسال الطلب». نتحقق من موقع زر الإرسال في نفس الملف (أسفل النموذج) ونُضيف الشرط.
+- في `src/lib/orders.functions.ts` (الخادم): إضافة تحقّق أمان — إذا `data.tier === "video"` و`pricing.video_tier_enabled === false` نرفض الطلب برسالة «هذه الخدمة غير متاحة حالياً». هذا يمنع أي محاولة تجاوز من الواجهة.
 
-### 5) الـ Server Functions الجديدة (في `src/lib/admin.functions.ts`)
-- `adminRequestOtp({ phone })`:
-  - يتحقّق من كون الرقم أدمن (رد موحّد "ok" حتى لو لم يكن، لمنع كشف الأرقام).
-  - يطبّق rate limit.
-  - يولّد OTP، يخزّن hash، يرسل الإيميل للأدمن، يرجّع `{ ok: true }`.
-- `adminVerifyOtp({ phone, code })`:
-  - يبحث عن أحدث OTP غير مستخدم وغير منتهي للرقم.
-  - يقارن hash بأمان زمني ثابت.
-  - عند النجاح: `used_at = now()` + فتح جلسة `readAdminSession().update({ authenticated: true })` + `{ ok: true }`.
-  - عند الفشل: `attempts++`، وبعد 5 محاولات يُبطل الرمز.
-- حذف/تعطيل `adminRequestMagicLink` و`adminConsumeMagicLink` (والصفحة `admin.magic.$token.tsx`).
+### الملفات المُعدَّلة
+- `src/lib/site-content.functions.ts` — تعديل نص التنويه.
+- `src/routes/admin.login.tsx` — واجهة قديمة (هاتف + رمز).
+- `src/lib/admin.functions.ts` — إضافة `adminLegacyLogin`.
+- `src/routes/auth.tsx` — منع التوجيه التلقائي عند `redirect=/preview/...`.
+- `src/routes/create.tsx` — تعطيل زر الإرسال للفيديو مع بقاء السعر مرئياً.
+- `src/lib/orders.functions.ts` — رفض الطلب في السيرفر إذا كان الفيديو معطّلاً.
+- تحديث بيانات `site_content` في قاعدة البيانات بعد التغيير.
 
-### 6) واجهة `/admin/login`
-- خطوة 1: حقل "رقم الهاتف" + زر "دخول" → يستدعي `adminRequestOtp`.
-- خطوة 2 (في نفس الصفحة): يظهر `InputOTP` بستة خانات + زر "تحقق" → يستدعي `adminVerifyOtp`.
-  - عدّاد تنازلي 5 دقائق.
-  - رابط "إعادة إرسال الرمز" (مقيّد بـ rate limit).
-- عند النجاح: `navigate({ to: "/admin" })`.
-- الرسائل المعروضة عامة (لا تكشف صحة الرقم).
-
-### 7) الأمان
-- لا رموز ثابتة في الكود إطلاقاً (نتأكد من إزالة أي بقايا لـ `ADMIN_CODE` من التحقق).
-- OTP عشوائي 6 أرقام، مخزّن كـ SHA-256، صلاحية 5 دقائق، استخدام واحد.
-- مقارنة hash عبر `timingSafeEqual`.
-- Rate limit على الطلب + عدّاد محاولات على التحقق.
-- ردود مبهمة تمنع تعداد الأرقام.
-- كل الجلسة تُفتح داخل السيرفر عبر cookie مشفّرة (`SESSION_SECRET`).
-
-### الملفات
-- جديدة: migration لجدول `admin_otp_codes`، `src/lib/email-templates/admin-otp.tsx`.
-- تُعدَّل: `src/lib/admin.functions.ts`, `src/routes/admin.login.tsx`, `src/lib/email-templates/registry.ts`.
-- تُحذف: `src/routes/admin.magic.$token.tsx`.
-
-### ملاحظة قبل التنفيذ
-سنحتاج إلى تهيئة بنية الإيميلات (نطاق إيميل + بنية الإرسال) في هذا المشروع إن لم تكن مُفعّلة. إن لم يكن هناك نطاق إيميل، سأعرض شاشة إعداد النطاق أولاً ثم أكمل بقية الخطوات في نفس المهمة.
+### ملاحظات فنية
+- لا تعديلات على مخطط قاعدة البيانات ولا على جدول `admin_otp_codes` (يبقى موجوداً معطّلاً).
+- الرمز `7979` ثابت في هذه المرحلة كطلب مؤقت — يمكن لاحقاً نقله إلى env `ADMIN_CODE` الموجود أصلاً.
