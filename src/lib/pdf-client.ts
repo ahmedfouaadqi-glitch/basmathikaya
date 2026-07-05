@@ -372,7 +372,7 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
     const disclaimer =
       a.disclaimer ??
       (a.language === "ar"
-        ? "منصة «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة، بدون أي تدخّل بشري. المستخدم مسؤول عن كل المُدخلات والنتائج، ولا يوجد استرجاع للمبالغ تحت أي ظرف."
+        ? "منصة «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة، بدون أي تدخّل بشري. المستخدم مسؤول عن كل المُدخلات والنتائج، بعد تسديد المبالغ لا يتم استرجاعها."
         : "Basma Hekaya is an AI tool built for this concept, with no human involvement. The user is solely responsible for all inputs and outputs; no refunds under any circumstances.");
     const opts = { accent, gold, logo: logoData, disclaimer };
     const htmlParts: string[] = [

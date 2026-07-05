@@ -411,11 +411,12 @@ function CreatePage() {
                   type="button"
                   onClick={() => !disabled && setTier(tv)}
                   disabled={disabled}
-                  className={`rounded-lg p-2 transition text-start ${active ? "border-2 border-primary bg-primary/10 font-bold" : "border border-transparent"} ${disabled ? "opacity-50 blur-[1px] select-none pointer-events-none" : ""}`}
+                  className={`rounded-lg p-2 transition text-start ${active ? "border-2 border-primary bg-primary/10 font-bold" : "border border-transparent"} ${disabled ? "cursor-not-allowed" : ""}`}
                   aria-pressed={active}
                 >
                   <div className="text-muted-foreground text-center">{t(`tier_${tv}` as never)}</div>
                   <div className="font-bold text-primary text-center">{estimates[tv].toLocaleString()} {t("iqd")}</div>
+                  {disabled && <div className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 text-center">قريباً</div>}
                 </button>
               );
             })}
@@ -523,17 +524,17 @@ function CreatePage() {
           <span>
             <span className="font-bold text-amber-700 dark:text-amber-400">إخلاء مسؤولية:</span>{" "}
             «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة بدون أي تدخّل بشري. أنا المسؤول الوحيد عن كل المُدخلات والنتائج،
-            ولا يوجد استرجاع للمبالغ تحت أي ظرف. تحتفظ الإدارة بحق قبول أو رفض الطلب.
+            بعد تسديد المبالغ لا يتم استرجاعها. تحتفظ الإدارة بحق قبول أو رفض الطلب.
           </span>
         </label>
 
         <button
           type="submit"
-          disabled={submitting || !acceptedDisclaimer}
+          disabled={submitting || !acceptedDisclaimer || (tier === "video" && !videoEnabled)}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 text-base font-bold text-primary-foreground shadow-warm disabled:opacity-60"
         >
           {submitting && <Loader2 className="size-4 animate-spin" />}
-          {submitting ? t("creating_now") : t("submit_create")}
+          {tier === "video" && !videoEnabled ? "قريباً" : submitting ? t("creating_now") : t("submit_create")}
         </button>
       </form>
 

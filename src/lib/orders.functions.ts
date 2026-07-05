@@ -138,6 +138,9 @@ export const createOrderDraft = createServerFn({ method: "POST" })
 
     // Compute price (server-side) so the client can't tamper with amount.
     const pricing = await getPricing();
+    if (data.tier === "video" && !pricing.video_tier_enabled) {
+      throw new Error("خدمة الفيديو الفاخر غير متاحة حالياً");
+    }
     const chars = data.characters.length;
     const moods = data.moods.length || 1;
     const gross = computeTierAmount(
