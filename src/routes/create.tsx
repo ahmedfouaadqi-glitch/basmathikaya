@@ -530,11 +530,11 @@ function CreatePage() {
 
         <button
           type="submit"
-          disabled={submitting || !acceptedDisclaimer}
+          disabled={submitting || !acceptedDisclaimer || (tier === "video" && !videoEnabled)}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3.5 text-base font-bold text-primary-foreground shadow-warm disabled:opacity-60"
         >
           {submitting && <Loader2 className="size-4 animate-spin" />}
-          {submitting ? t("creating_now") : t("submit_create")}
+          {tier === "video" && !videoEnabled ? "قريباً" : submitting ? t("creating_now") : t("submit_create")}
         </button>
       </form>
 
