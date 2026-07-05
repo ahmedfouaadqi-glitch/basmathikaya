@@ -78,7 +78,11 @@ function AuthPage() {
         <h1 className="text-2xl font-extrabold text-center">{t("auth_title")}</h1>
         <p className="mt-2 text-center text-sm text-muted-foreground">{t("auth_subtitle")}</p>
 
-        {step === "request" ? (
+        {signedIn ? (
+          <div className="mt-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-center text-sm text-emerald-700 dark:text-emerald-400">
+            تم تسجيل الدخول بنجاح. يمكنك الآن العودة إلى صفحة معاينة طلبك.
+          </div>
+        ) : step === "request" ? (
           <form onSubmit={onRequest} className="mt-6 space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1.5">{t("auth_full_name")}</label>
