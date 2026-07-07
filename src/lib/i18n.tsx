@@ -1,41 +1,45 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type Lang = "ar" | "en";
+export type Lang = "ar" | "en" | "ku";
 
-type Dict = Record<string, { ar: string; en: string }>;
+// Kurdish (Sorani) is optional per-key; falls back to Arabic script when missing
+// so the site is fully usable in Kurdish even where a specific string wasn't
+// translated yet (Sorani uses Arabic script and is readable by Kurdish users).
+type Dict = Record<string, { ar: string; en: string; ku?: string }>;
 
 const D: Dict = {
-  brand: { ar: "بصمة حكاية", en: "Basma Hekaya" },
-  tagline: { ar: "حكايتك أنت، لا تشبه أحداً", en: "Your one-of-a-kind story" },
-  nav_create: { ar: "ابدأ حكايتك", en: "Start your story" },
-  nav_admin: { ar: "الإدارة", en: "Admin" },
-  nav_my_orders: { ar: "طلباتي", en: "My orders" },
-  nav_login: { ar: "تسجيل الدخول", en: "Sign in" },
-  nav_logout: { ar: "خروج", en: "Sign out" },
-  cta_start: { ar: "اصنع حكايتي الآن", en: "Create my story now" },
+  brand: { ar: "بصمة حكاية", en: "Basma Hekaya", ku: "بەسمە حیکایە" },
+  tagline: { ar: "حكايتك أنت، لا تشبه أحداً", en: "Your one-of-a-kind story", ku: "چیرۆکی تۆ، وەک هیچ کەس نییە" },
+  nav_create: { ar: "ابدأ حكايتك", en: "Start your story", ku: "دەستپێکە بە چیرۆکەکەت" },
+  nav_admin: { ar: "الإدارة", en: "Admin", ku: "بەڕێوەبردن" },
+  nav_my_orders: { ar: "طلباتي", en: "My orders", ku: "داواکارییەکانم" },
+  nav_login: { ar: "تسجيل الدخول", en: "Sign in", ku: "چوونە ژوورەوە" },
+  nav_logout: { ar: "خروج", en: "Sign out", ku: "چوونە دەرەوە" },
+  cta_start: { ar: "اصنع حكايتي الآن", en: "Create my story now", ku: "ئێستا چیرۆکەکەم دروست بکە" },
   hero_lead: {
     ar: "اختر شخصياتك، حدد جوّك، أضف لمستك الخاصة، واحصل على حكاية فريدة. كل حكاية كبصمتك.",
     en: "Pick your characters, set the vibe, add your personal touch — get a story unique as your fingerprint.",
+    ku: "کارەکتەرەکانت هەڵبژێرە، کەشوهەوا دیاری بکە، دەستکاری تایبەتی خۆتی زیاد بکە و چیرۆکێکی بێهاوتا وەربگرە.",
   },
-  feat_1_t: { ar: "شخصيات متعددة", en: "Many characters" },
-  feat_1_d: { ar: "أضف العائلة والأصدقاء في نفس الحكاية", en: "Add family and friends to the same tale" },
-  feat_2_t: { ar: "نص يشبهك", en: "A tale that fits you" },
-  feat_2_d: { ar: "حكاية مصممة بأجواء واتجاه تختاره أنت", en: "Story tuned to the vibes & direction you choose" },
-  feat_3_t: { ar: "تسليم سريع", en: "Quick delivery" },
-  feat_3_d: { ar: "PDF فوري بعد الدفع أو نسخة مطبوعة للباب", en: "Instant PDF after payment or printed to your door" },
+  feat_1_t: { ar: "شخصيات متعددة", en: "Many characters", ku: "چەند کارەکتەرێک" },
+  feat_1_d: { ar: "أضف العائلة والأصدقاء في نفس الحكاية", en: "Add family and friends to the same tale", ku: "خێزان و هاوڕێکانت زیاد بکە بۆ هەمان چیرۆک" },
+  feat_2_t: { ar: "نص يشبهك", en: "A tale that fits you", ku: "چیرۆکێک لە شێوەی تۆ" },
+  feat_2_d: { ar: "حكاية مصممة بأجواء واتجاه تختاره أنت", en: "Story tuned to the vibes & direction you choose", ku: "چیرۆکێک بە کەشوهەوا و ئاراستەیەک کە خۆت هەڵدەبژێریت" },
+  feat_3_t: { ar: "تسليم سريع", en: "Quick delivery", ku: "گەیاندنی خێرا" },
+  feat_3_d: { ar: "PDF فوري بعد الدفع أو نسخة مطبوعة للباب", en: "Instant PDF after payment or printed to your door", ku: "PDF ی خێرا دوای پارەدان یان کۆپییەکی چاپکراو بۆ ماڵەکەت" },
 
   // Auth
-  auth_title: { ar: "تسجيل دخول", en: "Sign in" },
-  auth_subtitle: { ar: "أدخل اسمك ورقم هاتفك، نرسل لك رمز تحقق", en: "Enter your name and phone number; we'll send a code" },
-  auth_full_name: { ar: "الاسم الصريح", en: "Full name" },
-  auth_phone: { ar: "رقم الواتساب", en: "WhatsApp number" },
+  auth_title: { ar: "تسجيل دخول", en: "Sign in", ku: "چوونە ژوورەوە" },
+  auth_subtitle: { ar: "أدخل اسمك ورقم هاتفك، نرسل لك رمز تحقق", en: "Enter your name and phone number; we'll send a code", ku: "ناو و ژمارەی مۆبایلەکەت بنووسە، کۆدێکت بۆ دەنێرین" },
+  auth_full_name: { ar: "الاسم الصريح", en: "Full name", ku: "ناوی تەواو" },
+  auth_phone: { ar: "رقم الواتساب", en: "WhatsApp number", ku: "ژمارەی واتساپ" },
   auth_phone_placeholder: { ar: "07XXXXXXXXX", en: "07XXXXXXXXX" },
-  auth_send_code: { ar: "إرسال رمز التحقق", en: "Send code" },
-  auth_code: { ar: "رمز التحقق (6 أرقام)", en: "Verification code (6 digits)" },
-  auth_verify: { ar: "تحقق ودخول", en: "Verify & sign in" },
-  auth_resend: { ar: "إعادة إرسال", en: "Resend" },
-  auth_change_phone: { ar: "تغيير الرقم", en: "Change number" },
-  auth_required: { ar: "سجّل دخولك أولاً لإنشاء حكايتك", en: "Please sign in to create your story" },
+  auth_send_code: { ar: "إرسال رمز التحقق", en: "Send code", ku: "ناردنی کۆد" },
+  auth_code: { ar: "رمز التحقق (6 أرقام)", en: "Verification code (6 digits)", ku: "کۆدی پشتڕاستکردنەوە (٦ ژمارە)" },
+  auth_verify: { ar: "تحقق ودخول", en: "Verify & sign in", ku: "پشتڕاستکردنەوە و چوونە ژوورەوە" },
+  auth_resend: { ar: "إعادة إرسال", en: "Resend", ku: "دووبارە بنێرە" },
+  auth_change_phone: { ar: "تغيير الرقم", en: "Change number", ku: "گۆڕینی ژمارە" },
+  auth_required: { ar: "سجّل دخولك أولاً لإنشاء حكايتك", en: "Please sign in to create your story", ku: "تکایە سەرەتا بچۆرە ژوورەوە بۆ دروستکردنی چیرۆکەکەت" },
 
   form_title: { ar: "ابدأ حكايتك", en: "Start your story" },
   form_subtitle: { ar: "حدد الشخصيات والأجواء، ودع البقية علينا", en: "Set up characters & vibes, we handle the rest" },
@@ -267,14 +271,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ar");
 
   useEffect(() => {
-    const saved = (typeof window !== "undefined" && (localStorage.getItem("basma-lang") as Lang)) || "ar";
+    const raw = typeof window !== "undefined" ? localStorage.getItem("basma-lang") : null;
+    const saved = (raw === "ar" || raw === "en" || raw === "ku") ? raw : "ar";
     setLangState(saved);
   }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+    // Arabic AND Kurdish (Sorani) are RTL scripts
+    document.documentElement.dir = (lang === "ar" || lang === "ku") ? "rtl" : "ltr";
   }, [lang]);
 
   function setLang(l: Lang) {
@@ -283,7 +289,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }
 
   function t(k: keyof typeof D) {
-    return (D[k] && D[k][lang]) || String(k);
+    const entry = D[k];
+    if (!entry) return String(k);
+    // Kurdish falls back to Arabic (same script) when a key wasn't translated yet.
+    if (lang === "ku") return entry.ku ?? entry.ar;
+    return entry[lang] ?? entry.ar;
   }
 
   return <LangContext.Provider value={{ lang, setLang, t }}>{children}</LangContext.Provider>;
