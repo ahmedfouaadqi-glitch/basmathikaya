@@ -22,7 +22,7 @@ const CreateInput = z.object({
   characters: z.array(CharacterInput).min(MIN_CHARACTERS).max(MAX_CHARACTERS),
   moods: z.array(z.string().trim().min(1).max(40)).min(1).max(3),
   custom_instructions: z.string().trim().max(500).optional().default(""),
-  language: z.enum(["ar", "en"]).default("ar"),
+  language: z.enum(["ar", "en", "ku"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
   disclaimer_accepted: z.boolean().default(false),
@@ -336,7 +336,7 @@ async function photoToDataUrl(path: string): Promise<string | null> {
 async function analyzeCharacterPhoto(args: {
   dataUrl: string;
   name: string;
-  language: "ar" | "en";
+  language: "ar" | "en" | "ku";
 }): Promise<string | null> {
   try {
     const { callChat } = await import("./ai-gateway.server");
@@ -398,8 +398,10 @@ export const generateFullStory = createServerFn({ method: "POST" })
     if (!chars || chars.length === 0) throw new Error("لا توجد شخصيات في الطلب");
 
     const legacyCh = (order.characters as { language?: string } | null) ?? null;
-    const language = (legacyCh?.language ?? "ar") as "ar" | "en";
+    const language = (legacyCh?.language ?? "ar") as "ar" | "en" | "ku";
     const isAr = language === "ar";
+    const isKu = language === "ku";
+    const langName = isKu ? "Kurdish Sorani (کوردیی سۆرانی)" : isAr ? "Arabic" : "English";
     const pageCount = order.page_count ?? 5;
     const moods = (order.moods as string[]) ?? [];
     const customInstructions = (order.custom_instructions as string | null) ?? "";
@@ -470,11 +472,32 @@ export const generateFullStory = createServerFn({ method: "POST" })
     let creativeSeed = makeSeed();
 
     const textModel = "google/gemini-3-flash-preview";
-    const sys = isAr
-      ? "أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي."
-      : "You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it.";
+    const sys = isKu
+      ? `تۆ نووسەرێکی داهێنەری چیرۆکی منداڵانیت. تەنها تەنیشتەکی JSON دروستکراو بگەڕێنەوە، بێ هیچ ڕوونکردنەوەیەکی زیادە. هەموو دەقی چیرۆکەکە دەبێت بە زمانی ${langName} بێت.`
+      : isAr
+      ? `أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي. اكتب كل نصوص القصة باللغة العربية.`
+      : `You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it. Write all story text in ${langName}.`;
 
-    const buildPrompt = (seed: string) => isAr
+    const buildPrompt = (seed: string) => isKu
+      ? `چیرۆکێکی ${pageCount} لاپەڕەیی بۆ ئەم کارەکتەرانە بنووسە بە زمانی کوردیی سۆرانی:
+${charsText}
+
+کەشوهەوای چیرۆکەکە: ${moods.join("، ")}.
+${customInstructions ? `تێبینی زیادە لە خاوەنی چیرۆکەکەوە: ${customInstructions}` : ""}
+
+تۆوی داهێنانی: ${seed} — بەکاری بهێنە بۆ گۆڕانکاری لە پلاتەکە و کارەکتەرە یاریدەدەرەکان.
+${avoidList ? `⚠️ بە تەواوی ئەم دەستپێکە و پلاتانەی خوارەوە کە پێشتر بۆ هەمان کارەکتەرەکان دروستکراون دووربە:\n${avoidList}\nپلاتێکی نوێی جیاواز داهێنە.` : ""}
+
+زمانێکی سادە و گەرم بەکار بهێنە کە گونجاو بێت بۆ منداڵان. هەر لاپەڕەیەک ٤ بۆ ٦ ڕستە بێت (نزیکەی ٦٠-٩٠ وشە). هەموو کارەکتەرەکان بە شێوەیەکی سروشتی لە ڕووداوەکاندا بەکاربهێنە.
+
+JSON ی بەم شێوەیە بگەڕێنەوە (کلیلە تەکنیکییەکان بە ئینگلیزی بمێنن، دەقی چیرۆکەکە بە کوردی):
+{
+  "title": "ناونیشان بە کوردی",
+  "character_visual": "وەسفێکی بینراوی جێگیر بۆ هەموو کارەکتەرەکان بە ئینگلیزی (بۆ نموونەی وێنە)",
+  "cover_prompt": "وەسفی سەحنەی بەرگ بە ئینگلیزی",
+  "pages": [ { "text": "دەقی لاپەڕە بە کوردی", "image_prompt": "وەسفی سەحنە بە ئینگلیزی" }, ... ${pageCount} دانە ]
+}`
+      : isAr
       ? `اكتب قصة من ${pageCount} صفحات لمجموعة الشخصيات التالية:
 ${charsText}
 
@@ -601,10 +624,14 @@ Return JSON exactly like:
       const heroAge = (chars.find((c) => c.is_primary)?.age as number | null) ?? 7;
       const heroName = chars.find((c) => c.is_primary)?.name ?? "";
       const storyText = pagesPlan.map((p) => p.text).filter(Boolean).join("\n").slice(0, 3000);
-      const qSys = isAr
+      const qSys = isKu
+        ? "تۆ مامۆستای منداڵانیت. تەنها یەک پرسیار دەردەخەیت، بێ هیچ ڕوونکردنەوەیەک. پرسیارەکە دەبێت بە کوردی بێت."
+        : isAr
         ? "أنت مربي أطفال. تُخرج سؤالاً واحداً فقط دون أي شرح."
         : "You are a children's mentor. Output ONE question only, no extra text.";
-      const qPrompt = isAr
+      const qPrompt = isKu
+        ? `لەم چیرۆکەوە، یەک پرسیاری ورد بۆ منداڵێکی ${heroAge} ساڵە${heroName ? ` بەناوی ${heroName}` : ""} بنووسە کە هانی بدات بیر لە بەهاکانی پاڵەوان بکاتەوە. یەک ڕستە، کەمتر لە ٢٠ وشە، بێ پێشەکی.\n\nدەقی چیرۆکەکە:\n${storyText}`
+        : isAr
         ? `من هذه القصة، اكتب سؤالاً تأمّلياً واحداً لطفل عمره ${heroAge}${heroName ? ` اسمه ${heroName}` : ""} يشجّعه على التفكير بأخلاق البطل. جملة واحدة، أقل من 20 كلمة، بدون مقدمات.\n\nنص القصة:\n${storyText}`
         : `From this story, write ONE reflective question for a ${heroAge}-year-old child${heroName ? ` named ${heroName}` : ""} that invites them to think about the hero's values. One sentence, under 20 words, no preamble.\n\nStory:\n${storyText}`;
       const qChat = await callChat({
@@ -1042,7 +1069,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     try {
       const { data: order } = await supabaseAdmin
         .from("orders")
-        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, characters(language)")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, pdf_orientation, characters(language)")
         .eq("id", data.orderId)
         .single();
       if (!order) throw new Error("Order missing");
@@ -1099,6 +1126,13 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         ? "Use the reference photo ONLY to preserve facial features, hair, skin tone and body build of the illustrated character. "
         : "";
 
+      // Aspect-ratio hint so the illustrator generates a frame that matches
+      // the PDF orientation (prevents heads/feet being cropped in landscape PDFs).
+      const orientation = ((order as { pdf_orientation?: string | null }).pdf_orientation ?? "portrait") as "portrait" | "landscape";
+      const aspectTag = orientation === "landscape"
+        ? "Frame the illustration in a WIDE 4:3 landscape composition, characters centered, plenty of horizontal scene around them. "
+        : "Frame the illustration in a 3:4 portrait composition, characters centered, room above and below. ";
+
       // Strong negative constraints — prevent Gemini from ever pasting the reference photo
       // (or any inset/frame/thumbnail of it) into the final illustration.
       const negatives =
@@ -1120,8 +1154,8 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${negatives} Book cover composition, leave headroom for title.`
-          : `${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${negatives}`;
+          ? `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${negatives} Book cover composition, leave headroom for title.`
+          : `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${negatives}`;
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
@@ -1143,7 +1177,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       await runWithConcurrency(todo, 3, async (p) => {
         const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
         const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
-        const prompt = `${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
+        const prompt = `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
         const path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,

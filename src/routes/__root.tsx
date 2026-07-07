@@ -12,7 +12,7 @@ import { Menu, X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { LanguageProvider, useT } from "../lib/i18n";
+import { LanguageProvider, useT, type Lang } from "../lib/i18n";
 import { Toaster } from "../components/ui/sonner";
 import { brandLogoUrl } from "../lib/brand";
 import { SiteFooter } from "../components/SiteFooter";
@@ -204,24 +204,12 @@ function Header() {
         {/* Desktop nav (≥lg to give tablets room) */}
         <nav className="hidden items-center gap-1 text-sm lg:flex">
           {links}
-          <button
-            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-            className="rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-secondary"
-            aria-label="Toggle language"
-          >
-            {lang === "ar" ? "EN" : "ع"}
-          </button>
+          <LangSwitch lang={lang} setLang={setLang} />
         </nav>
 
         {/* Mobile + tablet actions */}
         <div className="flex shrink-0 items-center gap-1 lg:hidden">
-          <button
-            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-            className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-secondary"
-            aria-label="Toggle language"
-          >
-            {lang === "ar" ? "EN" : "ع"}
-          </button>
+          <LangSwitch lang={lang} setLang={setLang} compact />
           <button
             onClick={() => setOpen((v) => !v)}
             className="rounded-md border p-2 hover:bg-secondary"
@@ -242,6 +230,38 @@ function Header() {
         </div>
       )}
     </header>
+  );
+}
+
+const LANG_OPTIONS: { code: Lang; short: string; label: string }[] = [
+  { code: "ar", short: "ع", label: "العربية" },
+  { code: "en", short: "EN", label: "English" },
+  { code: "ku", short: "ک", label: "کوردی" },
+];
+
+function LangSwitch({ lang, setLang, compact = false }: { lang: Lang; setLang: (l: Lang) => void; compact?: boolean }) {
+  return (
+    <div
+      role="group"
+      aria-label="Language"
+      className={`inline-flex items-center overflow-hidden rounded-md border ${compact ? "text-[11px]" : "text-xs"}`}
+    >
+      {LANG_OPTIONS.map((o) => {
+        const active = lang === o.code;
+        return (
+          <button
+            key={o.code}
+            type="button"
+            onClick={() => setLang(o.code)}
+            className={`${compact ? "px-1.5 py-1" : "px-2 py-1.5"} font-medium transition ${active ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`}
+            aria-pressed={active}
+            title={o.label}
+          >
+            {compact ? o.short : o.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

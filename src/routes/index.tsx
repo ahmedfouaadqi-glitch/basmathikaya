@@ -19,8 +19,9 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-function pick<T extends string>(ar: T, en: T, lang: "ar" | "en"): T {
-  return lang === "ar" ? ar : en;
+function pick<T extends string>(ar: T, en: T, lang: "ar" | "en" | "ku"): T {
+  // Kurdish falls back to Arabic (same script) until Kurdish site copy exists.
+  return lang === "en" ? en : ar;
 }
 
 function Home() {
