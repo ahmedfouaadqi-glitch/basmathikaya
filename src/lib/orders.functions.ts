@@ -22,7 +22,7 @@ const CreateInput = z.object({
   characters: z.array(CharacterInput).min(MIN_CHARACTERS).max(MAX_CHARACTERS),
   moods: z.array(z.string().trim().min(1).max(40)).min(1).max(3),
   custom_instructions: z.string().trim().max(500).optional().default(""),
-  language: z.enum(["ar", "en"]).default("ar"),
+  language: z.enum(["ar", "en", "ku"]).default("ar"),
   page_count: z.coerce.number().int().min(MIN_PAGES).max(MAX_PAGES).default(5),
   draft_id: z.string().trim().min(1).max(64).optional(),
   disclaimer_accepted: z.boolean().default(false),
@@ -336,7 +336,7 @@ async function photoToDataUrl(path: string): Promise<string | null> {
 async function analyzeCharacterPhoto(args: {
   dataUrl: string;
   name: string;
-  language: "ar" | "en";
+  language: "ar" | "en" | "ku";
 }): Promise<string | null> {
   try {
     const { callChat } = await import("./ai-gateway.server");
@@ -398,7 +398,7 @@ export const generateFullStory = createServerFn({ method: "POST" })
     if (!chars || chars.length === 0) throw new Error("لا توجد شخصيات في الطلب");
 
     const legacyCh = (order.characters as { language?: string } | null) ?? null;
-    const language = (legacyCh?.language ?? "ar") as "ar" | "en";
+    const language = (legacyCh?.language ?? "ar") as "ar" | "en" | "ku";
     const isAr = language === "ar";
     const pageCount = order.page_count ?? 5;
     const moods = (order.moods as string[]) ?? [];

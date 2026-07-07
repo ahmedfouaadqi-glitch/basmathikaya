@@ -166,7 +166,7 @@ function Benefit({ icon, label }: { icon: ReactNode; label: string }) {
   );
 }
 
-function IOSInstructions({ t, lang }: { t: (k: any) => string; lang: "ar" | "en" }) {
+function IOSInstructions({ t, lang }: { t: (k: any) => string; lang: "ar" | "en" | "ku" }) {
   return (
     <div className="mt-7 rounded-2xl bg-white/80 backdrop-blur p-4 text-start">
       <p className="text-sm font-bold text-[#0B5B60] text-center mb-3">
