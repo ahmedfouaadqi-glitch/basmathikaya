@@ -1069,7 +1069,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     try {
       const { data: order } = await supabaseAdmin
         .from("orders")
-        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, characters(language)")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, pdf_orientation, characters(language)")
         .eq("id", data.orderId)
         .single();
       if (!order) throw new Error("Order missing");
