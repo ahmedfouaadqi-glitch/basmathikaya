@@ -472,11 +472,32 @@ export const generateFullStory = createServerFn({ method: "POST" })
     let creativeSeed = makeSeed();
 
     const textModel = "google/gemini-3-flash-preview";
-    const sys = isAr
-      ? "أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي."
-      : "You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it.";
+    const sys = isKu
+      ? `تۆ نووسەرێکی داهێنەری چیرۆکی منداڵانیت. تەنها تەنیشتەکی JSON دروستکراو بگەڕێنەوە، بێ هیچ ڕوونکردنەوەیەکی زیادە. هەموو دەقی چیرۆکەکە دەبێت بە زمانی ${langName} بێت.`
+      : isAr
+      ? `أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي. اكتب كل نصوص القصة باللغة العربية.`
+      : `You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it. Write all story text in ${langName}.`;
 
-    const buildPrompt = (seed: string) => isAr
+    const buildPrompt = (seed: string) => isKu
+      ? `چیرۆکێکی ${pageCount} لاپەڕەیی بۆ ئەم کارەکتەرانە بنووسە بە زمانی کوردیی سۆرانی:
+${charsText}
+
+کەشوهەوای چیرۆکەکە: ${moods.join("، ")}.
+${customInstructions ? `تێبینی زیادە لە خاوەنی چیرۆکەکەوە: ${customInstructions}` : ""}
+
+تۆوی داهێنانی: ${seed} — بەکاری بهێنە بۆ گۆڕانکاری لە پلاتەکە و کارەکتەرە یاریدەدەرەکان.
+${avoidList ? `⚠️ بە تەواوی ئەم دەستپێکە و پلاتانەی خوارەوە کە پێشتر بۆ هەمان کارەکتەرەکان دروستکراون دووربە:\n${avoidList}\nپلاتێکی نوێی جیاواز داهێنە.` : ""}
+
+زمانێکی سادە و گەرم بەکار بهێنە کە گونجاو بێت بۆ منداڵان. هەر لاپەڕەیەک ٤ بۆ ٦ ڕستە بێت (نزیکەی ٦٠-٩٠ وشە). هەموو کارەکتەرەکان بە شێوەیەکی سروشتی لە ڕووداوەکاندا بەکاربهێنە.
+
+JSON ی بەم شێوەیە بگەڕێنەوە (کلیلە تەکنیکییەکان بە ئینگلیزی بمێنن، دەقی چیرۆکەکە بە کوردی):
+{
+  "title": "ناونیشان بە کوردی",
+  "character_visual": "وەسفێکی بینراوی جێگیر بۆ هەموو کارەکتەرەکان بە ئینگلیزی (بۆ نموونەی وێنە)",
+  "cover_prompt": "وەسفی سەحنەی بەرگ بە ئینگلیزی",
+  "pages": [ { "text": "دەقی لاپەڕە بە کوردی", "image_prompt": "وەسفی سەحنە بە ئینگلیزی" }, ... ${pageCount} دانە ]
+}`
+      : isAr
       ? `اكتب قصة من ${pageCount} صفحات لمجموعة الشخصيات التالية:
 ${charsText}
 
