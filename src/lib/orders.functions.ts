@@ -1126,6 +1126,13 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         ? "Use the reference photo ONLY to preserve facial features, hair, skin tone and body build of the illustrated character. "
         : "";
 
+      // Aspect-ratio hint so the illustrator generates a frame that matches
+      // the PDF orientation (prevents heads/feet being cropped in landscape PDFs).
+      const orientation = ((order as { pdf_orientation?: string | null }).pdf_orientation ?? "portrait") as "portrait" | "landscape";
+      const aspectTag = orientation === "landscape"
+        ? "Frame the illustration in a WIDE 4:3 landscape composition, characters centered, plenty of horizontal scene around them. "
+        : "Frame the illustration in a 3:4 portrait composition, characters centered, room above and below. ";
+
       // Strong negative constraints — prevent Gemini from ever pasting the reference photo
       // (or any inset/frame/thumbnail of it) into the final illustration.
       const negatives =
