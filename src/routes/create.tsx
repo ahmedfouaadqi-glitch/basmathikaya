@@ -3,12 +3,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, Plus, UserCircle, Camera, X, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Trash2, Plus, UserCircle, Camera, X, CheckCircle2, XCircle, Eye } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { createOrderDraft, getPublicPricing, validateCoupon } from "../lib/orders.functions";
 import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
+import { buildSampleStory } from "../lib/sample-story";
 
 
 export const Route = createFileRoute("/create")({
@@ -65,7 +66,7 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 function CreatePage() {
-  const { t, lang } = useT();
+  const { t, lang, setLang } = useT();
   const navigate = useNavigate();
   const { me } = Route.useRouteContext();
   const create = useServerFn(createOrderDraft);
@@ -73,6 +74,7 @@ function CreatePage() {
   const pricingFn = useServerFn(getPublicPricing);
   const validateCouponFn = useServerFn(validateCoupon);
   const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
+  const [samplePreviewOpen, setSamplePreviewOpen] = useState(false);
 
   const draftIdRef = useRef<string>(newDraftId());
 
