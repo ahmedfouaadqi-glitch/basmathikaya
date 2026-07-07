@@ -5,7 +5,7 @@ import { brandLogoUrl } from "./brand";
 
 export type StoryPdfAssets = {
   title: string;
-  language: "ar" | "en";
+  language: "ar" | "en" | "ku";
   customerName: string;
   moods: string[];
   coverUrl: string | null;
