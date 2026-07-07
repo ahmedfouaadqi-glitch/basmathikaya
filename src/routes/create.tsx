@@ -608,6 +608,106 @@ function CreatePage() {
           </div>
         </div>
       )}
+
+      {samplePreviewOpen && (
+        <SamplePreviewModal
+          onClose={() => setSamplePreviewOpen(false)}
+          lang={lang}
+          heroName={characters[0].name}
+          mood={moods[0] ?? ""}
+          pageCount={pages}
+          orientation={pdfOrientation}
+        />
+      )}
+    </div>
+  );
+}
+
+function SamplePreviewModal({
+  onClose, lang, heroName, mood, pageCount, orientation,
+}: {
+  onClose: () => void;
+  lang: "ar" | "en" | "ku";
+  heroName: string;
+  mood: string;
+  pageCount: number;
+  orientation: "portrait" | "landscape";
+}) {
+  const isRtl = lang !== "en";
+  const story = buildSampleStory({ lang, heroName, mood, pageCount });
+  const pageStyle: React.CSSProperties = orientation === "landscape"
+    ? { aspectRatio: "4 / 3" }
+    : { aspectRatio: "3 / 4" };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:p-6"
+      dir={isRtl ? "rtl" : "ltr"}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl rounded-2xl border bg-card p-4 sm:p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-extrabold text-primary">{story.title}</h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+              {story.intro}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-8 shrink-0 place-items-center rounded-full border hover:bg-secondary"
+            aria-label="close"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {/* Cover */}
+        <div
+          className="mb-4 flex items-center justify-center rounded-xl border-4 border-primary text-6xl"
+          style={{ ...pageStyle, background: story.cover.gradient }}
+        >
+          <span>{story.cover.emoji}</span>
+        </div>
+
+        {/* Pages */}
+        <div className="space-y-4">
+          {story.pages.map((p) => (
+            <div key={p.number} className="rounded-xl border bg-background p-3">
+              <div
+                className="mb-3 flex items-center justify-center rounded-lg border-2 border-primary/60 text-5xl"
+                style={{ ...pageStyle, background: p.gradient }}
+              >
+                <span>{p.emoji}</span>
+              </div>
+              <div className="text-xs font-bold text-primary mb-1">
+                {lang === "en" ? `Page ${p.number}` : lang === "ku" ? `لاپەڕە ${p.number}` : `صفحة ${p.number}`}
+              </div>
+              <p className="text-sm leading-loose text-foreground">{p.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Reflective question */}
+        <div className="mt-4 rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 p-4">
+          <div className="text-xs font-bold text-primary mb-1">
+            {lang === "en" ? "A question for you" : lang === "ku" ? "پرسیارێک بۆ تۆ" : "سؤال لك يا بطل"}
+          </div>
+          <p className="text-sm font-medium">{story.reflectiveQuestion}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground"
+        >
+          {lang === "en" ? "Close preview" : lang === "ku" ? "داخستنی پێشبینین" : "إغلاق المعاينة"}
+        </button>
+      </div>
     </div>
   );
 }
