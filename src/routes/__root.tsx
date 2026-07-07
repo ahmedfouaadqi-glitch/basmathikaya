@@ -12,7 +12,7 @@ import { Menu, X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { LanguageProvider, useT } from "../lib/i18n";
+import { LanguageProvider, useT, type Lang } from "../lib/i18n";
 import { Toaster } from "../components/ui/sonner";
 import { brandLogoUrl } from "../lib/brand";
 import { SiteFooter } from "../components/SiteFooter";
