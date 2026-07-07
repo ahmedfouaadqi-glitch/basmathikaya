@@ -554,6 +554,16 @@ function CreatePage() {
           </span>
         </label>
 
+        {/* Free sample preview — no AI calls, no tokens. Pure client-side template. */}
+        <button
+          type="button"
+          onClick={() => setSamplePreviewOpen(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/5 py-3 text-sm font-bold text-primary hover:bg-primary/10"
+        >
+          <Eye className="size-4" />
+          معاينة نموذج مجاني (بدون أي تكلفة)
+        </button>
+
         <button
           type="submit"
           disabled={submitting || !acceptedDisclaimer || (tier === "video" && !videoEnabled)}
