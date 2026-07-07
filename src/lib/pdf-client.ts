@@ -114,7 +114,8 @@ async function ensureTajawal(): Promise<void> {
 
 function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; coverData: string | null }) {
   const isAr = a.language === "ar";
-  const dir = isAr ? "rtl" : "ltr";
+  const isRtl = a.language !== "en";
+  const dir = isRtl ? "rtl" : "ltr";
   const title = escapeHtml(a.title || (isAr ? "حكايتي" : "My Story"));
   const sub = a.customerName
     ? (isAr ? `حكاية مخصّصة لـ ${a.customerName}` : `A story crafted for ${a.customerName}`)
@@ -165,8 +166,9 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
 
 function buildPageHtml(p: { number: number; text: string; imageUrl: string | null }, total: number, a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; imgData: string | null; disclaimer: string }) {
   const isAr = a.language === "ar";
-  const dir = isAr ? "rtl" : "ltr";
-  const align = isAr ? "right" : "left";
+  const isRtl = a.language !== "en";
+  const dir = isRtl ? "rtl" : "ltr";
+  const align = isRtl ? "right" : "left";
   const brand = isAr ? "بصمة حكاية" : "Basma Hekaya";
   const pageLabel = isAr ? `صفحة ${p.number} من ${total}` : `Page ${p.number} of ${total}`;
   const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
@@ -197,7 +199,7 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
       ">
         ${img}
       </div>
-      <div style="height:2px;background:linear-gradient(to ${isAr ? "left" : "right"}, ${opts.gold}, transparent);margin:18px 0 14px;"></div>
+      <div style="height:2px;background:linear-gradient(to ${isRtl ? "left" : "right"}, ${opts.gold}, transparent);margin:18px 0 14px;"></div>
       <div style="
         font-size:22px;line-height:2.05;font-weight:500;
         text-align:${isAr ? "justify" : "justify"};
@@ -229,7 +231,8 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
 
 function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; disclaimer: string }) {
   const isAr = a.language === "ar";
-  const dir = isAr ? "rtl" : "ltr";
+  const isRtl = a.language !== "en";
+  const dir = isRtl ? "rtl" : "ltr";
   const thanks = isAr ? "شكراً لاختياركم بصمة حكاية" : "Thank you for choosing Basma Hekaya";
   const note = isAr ? "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة." : "Follow us on TikTok and tell us your next story idea.";
   const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
@@ -307,7 +310,7 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
           border-radius:14px;
           padding:14px 18px;
           background:${opts.accent}08;
-          text-align:${isAr ? "right" : "left"};
+          text-align:${isRtl ? "right" : "left"};
         ">
           <div style="font-size:11px;font-weight:900;color:${opts.accent};letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">${escapeHtml(questionTitle)}</div>
           <div style="font-size:15px;line-height:1.9;color:#1a2128;font-weight:500;">${escapeHtml(question)}</div>
@@ -319,7 +322,7 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
           border-radius:12px;
           padding:12px 16px;
           background:#FFFFFF80;
-          text-align:${isAr ? "right" : "left"};
+          text-align:${isRtl ? "right" : "left"};
         ">
           <div style="font-size:10px;font-weight:900;color:${opts.accent};margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">${escapeHtml(disclaimerTitle)}</div>
           <div style="font-size:11px;line-height:1.75;color:#3a3f47;">${escapeHtml(opts.disclaimer)}</div>
