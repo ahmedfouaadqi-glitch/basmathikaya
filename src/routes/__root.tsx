@@ -204,24 +204,12 @@ function Header() {
         {/* Desktop nav (≥lg to give tablets room) */}
         <nav className="hidden items-center gap-1 text-sm lg:flex">
           {links}
-          <button
-            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-            className="rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-secondary"
-            aria-label="Toggle language"
-          >
-            {lang === "ar" ? "EN" : "ع"}
-          </button>
+          <LangSwitch lang={lang} setLang={setLang} />
         </nav>
 
         {/* Mobile + tablet actions */}
         <div className="flex shrink-0 items-center gap-1 lg:hidden">
-          <button
-            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-            className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-secondary"
-            aria-label="Toggle language"
-          >
-            {lang === "ar" ? "EN" : "ع"}
-          </button>
+          <LangSwitch lang={lang} setLang={setLang} compact />
           <button
             onClick={() => setOpen((v) => !v)}
             className="rounded-md border p-2 hover:bg-secondary"
