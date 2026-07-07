@@ -624,10 +624,14 @@ Return JSON exactly like:
       const heroAge = (chars.find((c) => c.is_primary)?.age as number | null) ?? 7;
       const heroName = chars.find((c) => c.is_primary)?.name ?? "";
       const storyText = pagesPlan.map((p) => p.text).filter(Boolean).join("\n").slice(0, 3000);
-      const qSys = isAr
+      const qSys = isKu
+        ? "تۆ مامۆستای منداڵانیت. تەنها یەک پرسیار دەردەخەیت، بێ هیچ ڕوونکردنەوەیەک. پرسیارەکە دەبێت بە کوردی بێت."
+        : isAr
         ? "أنت مربي أطفال. تُخرج سؤالاً واحداً فقط دون أي شرح."
         : "You are a children's mentor. Output ONE question only, no extra text.";
-      const qPrompt = isAr
+      const qPrompt = isKu
+        ? `لەم چیرۆکەوە، یەک پرسیاری ورد بۆ منداڵێکی ${heroAge} ساڵە${heroName ? ` بەناوی ${heroName}` : ""} بنووسە کە هانی بدات بیر لە بەهاکانی پاڵەوان بکاتەوە. یەک ڕستە، کەمتر لە ٢٠ وشە، بێ پێشەکی.\n\nدەقی چیرۆکەکە:\n${storyText}`
+        : isAr
         ? `من هذه القصة، اكتب سؤالاً تأمّلياً واحداً لطفل عمره ${heroAge}${heroName ? ` اسمه ${heroName}` : ""} يشجّعه على التفكير بأخلاق البطل. جملة واحدة، أقل من 20 كلمة، بدون مقدمات.\n\nنص القصة:\n${storyText}`
         : `From this story, write ONE reflective question for a ${heroAge}-year-old child${heroName ? ` named ${heroName}` : ""} that invites them to think about the hero's values. One sentence, under 20 words, no preamble.\n\nStory:\n${storyText}`;
       const qChat = await callChat({
