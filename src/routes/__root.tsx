@@ -233,6 +233,38 @@ function Header() {
   );
 }
 
+const LANG_OPTIONS: { code: Lang; short: string; label: string }[] = [
+  { code: "ar", short: "ع", label: "العربية" },
+  { code: "en", short: "EN", label: "English" },
+  { code: "ku", short: "ک", label: "کوردی" },
+];
+
+function LangSwitch({ lang, setLang, compact = false }: { lang: Lang; setLang: (l: Lang) => void; compact?: boolean }) {
+  return (
+    <div
+      role="group"
+      aria-label="Language"
+      className={`inline-flex items-center overflow-hidden rounded-md border ${compact ? "text-[11px]" : "text-xs"}`}
+    >
+      {LANG_OPTIONS.map((o) => {
+        const active = lang === o.code;
+        return (
+          <button
+            key={o.code}
+            type="button"
+            onClick={() => setLang(o.code)}
+            className={`${compact ? "px-1.5 py-1" : "px-2 py-1.5"} font-medium transition ${active ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`}
+            aria-pressed={active}
+            title={o.label}
+          >
+            {compact ? o.short : o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
