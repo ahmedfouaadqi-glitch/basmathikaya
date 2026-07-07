@@ -400,6 +400,8 @@ export const generateFullStory = createServerFn({ method: "POST" })
     const legacyCh = (order.characters as { language?: string } | null) ?? null;
     const language = (legacyCh?.language ?? "ar") as "ar" | "en" | "ku";
     const isAr = language === "ar";
+    const isKu = language === "ku";
+    const langName = isKu ? "Kurdish Sorani (کوردیی سۆرانی)" : isAr ? "Arabic" : "English";
     const pageCount = order.page_count ?? 5;
     const moods = (order.moods as string[]) ?? [];
     const customInstructions = (order.custom_instructions as string | null) ?? "";
