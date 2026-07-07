@@ -1154,8 +1154,8 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${negatives} Book cover composition, leave headroom for title.`
-          : `${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${negatives}`;
+          ? `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${negatives} Book cover composition, leave headroom for title.`
+          : `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${negatives}`;
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
@@ -1177,7 +1177,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       await runWithConcurrency(todo, 3, async (p) => {
         const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
         const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
-        const prompt = `${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
+        const prompt = `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
         const path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
