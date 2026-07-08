@@ -63,6 +63,15 @@ Return JSON EXACTLY:
 }`;
 
   try {
+    // Cache lookup (feature-flagged).
+    const cacheOn = await isFeatureEnabled("cache_story_qa");
+    const cacheKey = cacheOn
+      ? hashKey("story_qa", args.language, args.pageCount, args.plan.title, ...args.plan.pages.map((p) => p.text))
+      : null;
+    if (cacheKey) {
+      const hit = await getCached<StoryQaReport>(cacheKey);
+      if (hit) return { ...hit, duration_ms: 0, cost_usd: 0 };
+    }
     // Try orchestrator when feature flag is enabled; falls back to legacy path on error.
     const useOrch = await isFeatureEnabled("use_orchestrator");
     let content: string;
