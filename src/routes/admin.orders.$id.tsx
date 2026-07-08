@@ -212,9 +212,31 @@ function OrderDetail() {
                 <Loader2 className="size-4 animate-spin" /> {t("images_generating")}
               </div>
             )}
-            {order.images_status === "failed" && order.images_error && (
-              <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
-                {order.images_error}
+            {order.images_status === "failed" && (
+              <div className="mt-3 space-y-2">
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                  {(() => {
+                    const err = order.images_error ?? "";
+                    if (/credit_limit|402|403/i.test(err)) {
+                      return (
+                        <div>
+                          <div className="font-semibold mb-1">نفدت حصة مزوّد الذكاء الاصطناعي</div>
+                          <p>أضِف رصيداً لمساحة العمل ثم اضغط "إعادة توليد كامل الصور".</p>
+                          <p className="mt-1 opacity-70 break-words">{err}</p>
+                        </div>
+                      );
+                    }
+                    return <p className="break-words">{err || "فشل توليد الصور"}</p>;
+                  })()}
+                </div>
+                <button
+                  onClick={retryImages}
+                  disabled={retryingImages}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2 text-xs font-bold text-primary hover:bg-primary/20 disabled:opacity-60"
+                >
+                  {retryingImages ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+                  إعادة توليد كامل الصور
+                </button>
               </div>
             )}
             {imagesReady && (
