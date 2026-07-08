@@ -69,6 +69,11 @@ function AuthPage() {
     try {
       await verFn({ data: { phone: phone.trim(), code: code.trim(), full_name: name.trim() } });
       toast.success("تم تسجيل الدخول");
+      // Redeem referral (best effort)
+      if (referralCode.trim()) {
+        try { await redeemFn({ data: { code: referralCode.trim().toUpperCase() } }); } catch { /* ignore */ }
+        if (typeof window !== "undefined") localStorage.removeItem("bh_ref");
+      }
       await router.invalidate();
       // When the login was triggered from the preview page, stay on /auth
       // and let the user return manually instead of auto-redirecting.
