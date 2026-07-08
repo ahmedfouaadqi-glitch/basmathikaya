@@ -192,6 +192,8 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         custom_instructions: data.custom_instructions || null,
         image_quality_tier: data.image_quality_tier,
         pdf_orientation: data.pdf_orientation,
+        art_style_category: data.art_style_category ?? null,
+        art_style_slug: data.art_style_slug ?? null,
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
         coupon_code: code,
         whatsapp_sent_at: new Date().toISOString(),
