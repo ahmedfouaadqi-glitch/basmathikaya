@@ -389,6 +389,7 @@ export type Database = {
         Row: {
           age: number | null
           character_profile: Json | null
+          character_sheet_url: string | null
           created_at: string
           description: string | null
           id: string
@@ -403,6 +404,7 @@ export type Database = {
         Insert: {
           age?: number | null
           character_profile?: Json | null
+          character_sheet_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -417,6 +419,7 @@ export type Database = {
         Update: {
           age?: number | null
           character_profile?: Json | null
+          character_sheet_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -661,6 +664,8 @@ export type Database = {
           palette: Json | null
           priority: number
           reflective_question: string | null
+          season_end: string | null
+          season_start: string | null
           seasonal_end: string | null
           seasonal_start: string | null
           story_type: string | null
@@ -684,6 +689,8 @@ export type Database = {
           palette?: Json | null
           priority?: number
           reflective_question?: string | null
+          season_end?: string | null
+          season_start?: string | null
           seasonal_end?: string | null
           seasonal_start?: string | null
           story_type?: string | null
@@ -707,6 +714,8 @@ export type Database = {
           palette?: Json | null
           priority?: number
           reflective_question?: string | null
+          season_end?: string | null
+          season_start?: string | null
           seasonal_end?: string | null
           seasonal_start?: string | null
           story_type?: string | null
@@ -727,6 +736,8 @@ export type Database = {
           iqd_per_usd: number
           max_characters: number
           mood_extra_iqd: number
+          pdf_image_quality: number | null
+          pdf_max_width: number | null
           per_character_iqd_pdf: number
           per_character_iqd_printed: number
           per_character_iqd_video: number
@@ -760,6 +771,8 @@ export type Database = {
           iqd_per_usd?: number
           max_characters?: number
           mood_extra_iqd?: number
+          pdf_image_quality?: number | null
+          pdf_max_width?: number | null
           per_character_iqd_pdf?: number
           per_character_iqd_printed?: number
           per_character_iqd_video?: number
@@ -793,6 +806,8 @@ export type Database = {
           iqd_per_usd?: number
           max_characters?: number
           mood_extra_iqd?: number
+          pdf_image_quality?: number | null
+          pdf_max_width?: number | null
           per_character_iqd_pdf?: number
           per_character_iqd_printed?: number
           per_character_iqd_video?: number
