@@ -63,27 +63,54 @@ Return JSON EXACTLY:
 }`;
 
   try {
-    const r = await callChat({
-      model,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: [
-          { type: "text", text: user },
-          { type: "image_url", image_url: { url: dataUrl } },
-        ] },
-      ],
-      response_format: { type: "json_object" },
-    });
-    const cost = estimateTextCostUsd(model, r.meta.usage);
+    const messages = [
+      { role: "system" as const, content: sys },
+      { role: "user" as const, content: [
+        { type: "text", text: user },
+        { type: "image_url", image_url: { url: dataUrl } },
+      ] as unknown as string },
+    ];
+    const useOrch = await isFeatureEnabled("use_orchestrator");
+    let content: string;
+    let meta: { duration_ms: number; usage: { input_tokens?: number; output_tokens?: number } };
+    let modelUsed = model;
+    if (useOrch) {
+      try {
+        const res = await runTextTask({ task: "image_qa" }, () => ({
+          messages: messages as unknown as Parameters<typeof callChat>[0]["messages"],
+          response_format: { type: "json_object" },
+        }));
+        content = res.result.content;
+        meta = res.result.meta;
+        modelUsed = res.model_used;
+      } catch {
+        const r = await callChat({
+          model,
+          messages: messages as unknown as Parameters<typeof callChat>[0]["messages"],
+          response_format: { type: "json_object" },
+        });
+        content = r.content;
+        meta = r.meta;
+      }
+    } else {
+      const r = await callChat({
+        model,
+        messages: messages as unknown as Parameters<typeof callChat>[0]["messages"],
+        response_format: { type: "json_object" },
+      });
+      content = r.content;
+      meta = r.meta;
+    }
+    const cost = estimateTextCostUsd(modelUsed, meta.usage);
     let parsed: { ok?: boolean; score?: number; issues?: unknown } = {};
-    try { parsed = JSON.parse(r.content); } catch { /* ignore */ }
+    try { parsed = JSON.parse(content); } catch { /* ignore */ }
     const issues = Array.isArray(parsed.issues) ? parsed.issues.map(String).slice(0, 8) : [];
     return {
       ok: Boolean(parsed.ok),
       score: Number.isFinite(parsed.score) ? Number(parsed.score) : 0,
       issues,
-      duration_ms: r.meta.duration_ms,
-      usage: r.meta.usage,
+      duration_ms: meta.duration_ms,
+      usage: meta.usage,
       cost_usd: cost,
     };
   } catch {
