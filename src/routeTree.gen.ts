@@ -23,11 +23,20 @@ import { Route as AdminVideosRouteImport } from './routes/admin.videos'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminThemesRouteImport } from './routes/admin.themes'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
+import { Route as AdminShareEventsRouteImport } from './routes/admin.share-events'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminRedownloadsRouteImport } from './routes/admin.redownloads'
+import { Route as AdminPhoneBansRouteImport } from './routes/admin.phone-bans'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
+import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
+import { Route as AdminEmergencyRouteImport } from './routes/admin.emergency'
 import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
+import { Route as AdminCachesRouteImport } from './routes/admin.caches'
+import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
+import { Route as AdminAiModelsRouteImport } from './routes/admin.ai-models'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin.orders.$id'
@@ -105,14 +114,44 @@ const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminShareEventsRoute = AdminShareEventsRouteImport.update({
+  id: '/share-events',
+  path: '/share-events',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRedownloadsRoute = AdminRedownloadsRouteImport.update({
+  id: '/redownloads',
+  path: '/redownloads',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPhoneBansRoute = AdminPhoneBansRouteImport.update({
+  id: '/phone-bans',
+  path: '/phone-bans',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminJobsRoute = AdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFlagsRoute = AdminFlagsRouteImport.update({
+  id: '/flags',
+  path: '/flags',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEmergencyRoute = AdminEmergencyRouteImport.update({
+  id: '/emergency',
+  path: '/emergency',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCouponsRoute = AdminCouponsRouteImport.update({
@@ -125,9 +164,24 @@ const AdminContentRoute = AdminContentRouteImport.update({
   path: '/content',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCachesRoute = AdminCachesRouteImport.update({
+  id: '/caches',
+  path: '/caches',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiModelsRoute = AdminAiModelsRouteImport.update({
+  id: '/ai-models',
+  path: '/ai-models',
   getParentRoute: () => AdminRoute,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -175,11 +229,20 @@ export interface FileRoutesByFullPath {
   '/my-orders': typeof MyOrdersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/coupons': typeof AdminCouponsRoute
+  '/admin/emergency': typeof AdminEmergencyRoute
+  '/admin/flags': typeof AdminFlagsRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/phone-bans': typeof AdminPhoneBansRoute
+  '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -201,11 +264,20 @@ export interface FileRoutesByTo {
   '/my-orders': typeof MyOrdersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/coupons': typeof AdminCouponsRoute
+  '/admin/emergency': typeof AdminEmergencyRoute
+  '/admin/flags': typeof AdminFlagsRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/phone-bans': typeof AdminPhoneBansRoute
+  '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -229,11 +301,20 @@ export interface FileRoutesById {
   '/my-orders': typeof MyOrdersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/coupons': typeof AdminCouponsRoute
+  '/admin/emergency': typeof AdminEmergencyRoute
+  '/admin/flags': typeof AdminFlagsRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/phone-bans': typeof AdminPhoneBansRoute
+  '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
@@ -258,11 +339,20 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/ai-models'
     | '/admin/analytics'
+    | '/admin/audit'
+    | '/admin/caches'
     | '/admin/content'
     | '/admin/coupons'
+    | '/admin/emergency'
+    | '/admin/flags'
+    | '/admin/jobs'
     | '/admin/login'
+    | '/admin/phone-bans'
+    | '/admin/redownloads'
     | '/admin/settings'
+    | '/admin/share-events'
     | '/admin/templates'
     | '/admin/themes'
     | '/admin/users'
@@ -284,11 +374,20 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/ai-models'
     | '/admin/analytics'
+    | '/admin/audit'
+    | '/admin/caches'
     | '/admin/content'
     | '/admin/coupons'
+    | '/admin/emergency'
+    | '/admin/flags'
+    | '/admin/jobs'
     | '/admin/login'
+    | '/admin/phone-bans'
+    | '/admin/redownloads'
     | '/admin/settings'
+    | '/admin/share-events'
     | '/admin/templates'
     | '/admin/themes'
     | '/admin/users'
@@ -311,11 +410,20 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/ai-models'
     | '/admin/analytics'
+    | '/admin/audit'
+    | '/admin/caches'
     | '/admin/content'
     | '/admin/coupons'
+    | '/admin/emergency'
+    | '/admin/flags'
+    | '/admin/jobs'
     | '/admin/login'
+    | '/admin/phone-bans'
+    | '/admin/redownloads'
     | '/admin/settings'
+    | '/admin/share-events'
     | '/admin/templates'
     | '/admin/themes'
     | '/admin/users'
@@ -446,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTemplatesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/share-events': {
+      id: '/admin/share-events'
+      path: '/share-events'
+      fullPath: '/admin/share-events'
+      preLoaderRoute: typeof AdminShareEventsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/settings'
@@ -453,11 +568,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/redownloads': {
+      id: '/admin/redownloads'
+      path: '/redownloads'
+      fullPath: '/admin/redownloads'
+      preLoaderRoute: typeof AdminRedownloadsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/phone-bans': {
+      id: '/admin/phone-bans'
+      path: '/phone-bans'
+      fullPath: '/admin/phone-bans'
+      preLoaderRoute: typeof AdminPhoneBansRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/jobs': {
+      id: '/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AdminJobsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/flags': {
+      id: '/admin/flags'
+      path: '/flags'
+      fullPath: '/admin/flags'
+      preLoaderRoute: typeof AdminFlagsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/emergency': {
+      id: '/admin/emergency'
+      path: '/emergency'
+      fullPath: '/admin/emergency'
+      preLoaderRoute: typeof AdminEmergencyRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/coupons': {
@@ -474,11 +624,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminContentRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/caches': {
+      id: '/admin/caches'
+      path: '/caches'
+      fullPath: '/admin/caches'
+      preLoaderRoute: typeof AdminCachesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/analytics': {
       id: '/admin/analytics'
       path: '/analytics'
       fullPath: '/admin/analytics'
       preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ai-models': {
+      id: '/admin/ai-models'
+      path: '/ai-models'
+      fullPath: '/admin/ai-models'
+      preLoaderRoute: typeof AdminAiModelsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/.well-known/oauth-protected-resource': {
@@ -527,11 +698,20 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAiModelsRoute: typeof AdminAiModelsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminCachesRoute: typeof AdminCachesRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCouponsRoute: typeof AdminCouponsRoute
+  AdminEmergencyRoute: typeof AdminEmergencyRoute
+  AdminFlagsRoute: typeof AdminFlagsRoute
+  AdminJobsRoute: typeof AdminJobsRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminPhoneBansRoute: typeof AdminPhoneBansRoute
+  AdminRedownloadsRoute: typeof AdminRedownloadsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminShareEventsRoute: typeof AdminShareEventsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminThemesRoute: typeof AdminThemesRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -541,11 +721,20 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAiModelsRoute: AdminAiModelsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminCachesRoute: AdminCachesRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCouponsRoute: AdminCouponsRoute,
+  AdminEmergencyRoute: AdminEmergencyRoute,
+  AdminFlagsRoute: AdminFlagsRoute,
+  AdminJobsRoute: AdminJobsRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminPhoneBansRoute: AdminPhoneBansRoute,
+  AdminRedownloadsRoute: AdminRedownloadsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminShareEventsRoute: AdminShareEventsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminThemesRoute: AdminThemesRoute,
   AdminUsersRoute: AdminUsersRoute,
