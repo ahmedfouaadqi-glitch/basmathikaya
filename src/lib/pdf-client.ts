@@ -226,7 +226,8 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
         text-shadow:0 2px 12px rgba(0,0,0,.35);
         color:#FFFBF5;
       ">${title}</h1>
-      <p style="margin:0 0 14px;font-size:16px;color:#F5E9CF;opacity:.92;">${escapeHtml(sub)}</p>
+      <p style="margin:0 0 8px;font-size:16px;color:#F5E9CF;opacity:.92;">${escapeHtml(sub)}</p>
+      ${authorName ? `<p style="margin:0 0 14px;font-size:11px;font-weight:300;letter-spacing:2px;color:#EADFC6;opacity:.85;font-style:italic;">${escapeHtml(s.authorLabel)} · ${escapeHtml(authorName)}</p>` : ""}
       <div style="text-align:center;">${chips}</div>
     </div>
     <div style="
