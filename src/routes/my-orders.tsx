@@ -78,25 +78,6 @@ function MyOrdersPage() {
     finally { setBusy(null); }
   }
 
-  async function doReorder() {
-    if (!reorderOpen) return;
-    setReordering(true);
-    try {
-      const r = await reorderFn({ data: {
-        orderId: reorderOpen.id,
-        quality: reorderQuality,
-        coupon_code: reorderCoupon.trim() || undefined,
-      } });
-      const rr = r as unknown as { whatsapp_url?: string };
-      if (rr.whatsapp_url) window.open(rr.whatsapp_url, "_blank");
-      toast.success("تم إنشاء طلب جديد. أكمل الدفع عبر واتساب.");
-      setReorderOpen(null);
-      setReorderCoupon("");
-      qc.invalidateQueries({ queryKey: ["my-orders"] });
-    } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
-    finally { setReordering(false); }
-  }
-
   async function doShare(orderId: string) {
     setBusy(orderId);
     try {
@@ -112,15 +93,44 @@ function MyOrdersPage() {
     finally { setBusy(null); }
   }
 
-  async function togglePublic(orderId: string, current: boolean) {
+  function openPublishDialog(o: Row) {
+    setPublishTitle(o.public_title ?? o.title ?? "");
+    setPublishShowAuthor(!!o.show_author);
+    setPublishAuthorName(o.public_author_name ?? me?.name ?? "");
+    setPublishOpen(o);
+  }
+
+  async function togglePublicOff(orderId: string) {
     setBusy(orderId);
     try {
-      await publicFn({ data: { orderId, isPublic: !current } });
-      toast.success(!current ? "تم نشر القصة في المعرض" : "تم إخفاء القصة");
+      await publicFn({ data: { orderId, isPublic: false } });
+      toast.success("تم إخفاء القصة");
       qc.invalidateQueries({ queryKey: ["my-orders"] });
     } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
     finally { setBusy(null); }
   }
+
+  async function doPublish() {
+    if (!publishOpen) return;
+    setPublishing(true);
+    try {
+      await publicFn({
+        data: {
+          orderId: publishOpen.id,
+          isPublic: true,
+          publicTitle: publishTitle.trim() || undefined,
+          showAuthor: publishShowAuthor,
+          publicAuthorName: publishShowAuthor ? (publishAuthorName.trim() || undefined) : null,
+        },
+      });
+      toast.success("تم نشر القصة في المعرض");
+      setPublishOpen(null);
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+    finally { setPublishing(false); }
+  }
+
+
 
 
 
