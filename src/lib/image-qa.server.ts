@@ -42,6 +42,15 @@ export async function runImageQA(args: {
   if (!dataUrl) {
     return { ok: true, score: 0, issues: ["download_failed"], duration_ms: 0, usage: {}, cost_usd: 0 };
   }
+  // Cache lookup (feature-flagged): image path + DNA + language are stable.
+  const cacheOn = await isFeatureEnabled("cache_image_qa");
+  const cacheKey = cacheOn
+    ? hashKey("image_qa", args.imagePath, args.characterDna, args.expectedScene, args.language)
+    : null;
+  if (cacheKey) {
+    const hit = await getCached<ImageQaReport>(cacheKey);
+    if (hit) return { ...hit, duration_ms: 0, cost_usd: 0 };
+  }
   const sys = `You are a strict children's storybook art director. Return JSON ONLY.`;
   const user = `Evaluate this illustration against the brief.
 
