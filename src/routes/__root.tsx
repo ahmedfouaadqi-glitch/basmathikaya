@@ -12,7 +12,8 @@ import { Menu, X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { LanguageProvider, useT, type Lang } from "../lib/i18n";
+import { LanguageProvider, useT } from "../lib/i18n";
+
 import { Toaster } from "../components/ui/sonner";
 import { brandLogoUrl } from "../lib/brand";
 import { SiteFooter } from "../components/SiteFooter";
@@ -59,10 +60,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#169CA3" },
+      { name: "theme-color", content: "#169CA3", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#0B5B60", media: "(prefers-color-scheme: dark)" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+
       { name: "apple-mobile-web-app-title", content: "بصمة حكاية" },
       { name: "application-name", content: "بصمة حكاية" },
       { title: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
@@ -163,7 +166,7 @@ function ThemeBanner() {
 }
 
 function Header() {
-  const { lang, setLang, t } = useT();
+  const { t } = useT();
   const meFn = useServerFn(getCurrentUser);
   const meQ = useQuery({ queryKey: ["me"], queryFn: () => meFn(), staleTime: 30_000 });
   const me = meQ.data;
@@ -191,12 +194,12 @@ function Header() {
       className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <div className="mx-auto grid min-h-[60px] max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 lg:flex lg:justify-between">
+      <div className="mx-auto grid min-h-[60px] max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 lg:flex lg:justify-between">
         <Link to="/" className="flex min-w-0 items-center gap-2 font-bold">
           <img
             src={brandLogoUrl}
             alt=""
-            className="h-12 w-12 shrink-0 object-contain drop-shadow-md animate-logo-float sm:h-14 sm:w-14 md:h-16 md:w-16"
+            className="h-10 w-10 shrink-0 object-contain drop-shadow-md animate-logo-float sm:h-14 sm:w-14 md:h-16 md:w-16"
           />
           <span className="truncate text-sm text-foreground sm:text-base md:text-lg lg:text-xl">{t("brand")}</span>
         </Link>
@@ -204,12 +207,10 @@ function Header() {
         {/* Desktop nav (≥lg to give tablets room) */}
         <nav className="hidden items-center gap-1 text-sm lg:flex">
           {links}
-          <LangSwitch lang={lang} setLang={setLang} />
         </nav>
 
         {/* Mobile + tablet actions */}
         <div className="flex shrink-0 items-center gap-1 lg:hidden">
-          <LangSwitch lang={lang} setLang={setLang} compact />
           <button
             onClick={() => setOpen((v) => !v)}
             className="rounded-md border p-2 hover:bg-secondary"
@@ -232,6 +233,7 @@ function Header() {
     </header>
   );
 }
+
 
 const LANG_OPTIONS: { code: Lang; short: string; label: string }[] = [
   { code: "ar", short: "ع", label: "العربية" },
