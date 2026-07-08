@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck, X, Trash2, RotateCcw } from "lucide-react";
-import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload } from "../lib/orders.functions";
+import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload, adminRetryImageGeneration } from "../lib/orders.functions";
 import { getActiveTheme } from "../lib/themes.functions";
 import { getHomeContent } from "../lib/site-content.functions";
 import { buildAndDownloadStoryPdf, type StoryPdfAssets } from "../lib/pdf-client";
