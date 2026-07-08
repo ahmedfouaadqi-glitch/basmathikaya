@@ -73,10 +73,12 @@ function CreatePage() {
   const { t, lang, setLang } = useT();
   const navigate = useNavigate();
   const { me } = Route.useRouteContext();
+  const search = Route.useSearch();
   const create = useServerFn(createOrderDraft);
   const uploadPhoto = useServerFn(uploadCharacterPhoto);
   const pricingFn = useServerFn(getPublicPricing);
   const validateCouponFn = useServerFn(validateCoupon);
+  const prefillFn = useServerFn(getOrderPrefill);
   const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
   const [samplePreviewOpen, setSamplePreviewOpen] = useState(false);
 
