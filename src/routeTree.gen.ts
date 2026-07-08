@@ -29,6 +29,7 @@ import { Route as PreviewOrderIdRouteImport } from './routes/preview.$orderId'
 import { Route as AdminVideosRouteImport } from './routes/admin.videos'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminThemesRouteImport } from './routes/admin.themes'
+import { Route as AdminTestimonialsRouteImport } from './routes/admin.testimonials'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminShareEventsRouteImport } from './routes/admin.share-events'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -151,6 +152,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 const AdminThemesRoute = AdminThemesRouteImport.update({
   id: '/themes',
   path: '/themes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTestimonialsRoute = AdminTestimonialsRouteImport.update({
+  id: '/testimonials',
+  path: '/testimonials',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
@@ -307,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
+    | '/admin/testimonials'
     | '/admin/themes'
     | '/admin/users'
     | '/admin/videos'
@@ -488,6 +498,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
+    | '/admin/testimonials'
     | '/admin/themes'
     | '/admin/users'
     | '/admin/videos'
@@ -533,6 +544,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
+    | '/admin/testimonials'
     | '/admin/themes'
     | '/admin/users'
     | '/admin/videos'
@@ -709,6 +721,13 @@ declare module '@tanstack/react-router' {
       path: '/themes'
       fullPath: '/admin/themes'
       preLoaderRoute: typeof AdminThemesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/testimonials': {
+      id: '/admin/testimonials'
+      path: '/testimonials'
+      fullPath: '/admin/testimonials'
+      preLoaderRoute: typeof AdminTestimonialsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/templates': {
@@ -893,6 +912,7 @@ interface AdminRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShareEventsRoute: typeof AdminShareEventsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
+  AdminTestimonialsRoute: typeof AdminTestimonialsRoute
   AdminThemesRoute: typeof AdminThemesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVideosRoute: typeof AdminVideosRoute
@@ -918,6 +938,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminShareEventsRoute: AdminShareEventsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
+  AdminTestimonialsRoute: AdminTestimonialsRoute,
   AdminThemesRoute: AdminThemesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVideosRoute: AdminVideosRoute,
