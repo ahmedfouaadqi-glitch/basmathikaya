@@ -1003,6 +1003,7 @@ export type Database = {
           pdf_generation_status: string | null
           pdf_orientation: string
           pdf_path: string | null
+          public_author_name: string | null
           public_title: string | null
           redownload_amount_iqd: number | null
           redownload_paid_at: string | null
@@ -1012,6 +1013,7 @@ export type Database = {
           rejected_at: string | null
           rejection_reason: string | null
           share_token: string | null
+          show_author: boolean
           status: Database["public"]["Enums"]["order_status"]
           story_qa_report: Json | null
           tier: Database["public"]["Enums"]["order_tier"] | null
@@ -1052,6 +1054,7 @@ export type Database = {
           pdf_generation_status?: string | null
           pdf_orientation?: string
           pdf_path?: string | null
+          public_author_name?: string | null
           public_title?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
@@ -1061,6 +1064,7 @@ export type Database = {
           rejected_at?: string | null
           rejection_reason?: string | null
           share_token?: string | null
+          show_author?: boolean
           status?: Database["public"]["Enums"]["order_status"]
           story_qa_report?: Json | null
           tier?: Database["public"]["Enums"]["order_tier"] | null
@@ -1101,6 +1105,7 @@ export type Database = {
           pdf_generation_status?: string | null
           pdf_orientation?: string
           pdf_path?: string | null
+          public_author_name?: string | null
           public_title?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
@@ -1110,6 +1115,7 @@ export type Database = {
           rejected_at?: string | null
           rejection_reason?: string | null
           share_token?: string | null
+          show_author?: boolean
           status?: Database["public"]["Enums"]["order_status"]
           story_qa_report?: Json | null
           tier?: Database["public"]["Enums"]["order_tier"] | null
