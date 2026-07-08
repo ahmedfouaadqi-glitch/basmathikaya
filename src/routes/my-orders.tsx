@@ -261,10 +261,10 @@ function MyOrdersPage() {
                   )}
                   {canReorder && (
                     <button
-                      onClick={() => { setReorderOpen({ id: o.id, number: o.order_number }); setReorderQuality("standard"); }}
+                      onClick={() => navigate({ to: "/create", search: { from: o.id } })}
                       className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs hover:bg-secondary"
                     >
-                      <RotateCcw className="size-3.5" /> إعادة الطلب
+                      <RotateCcw className="size-3.5" /> إعادة إنشاء بخيارات جديدة
                     </button>
                   )}
                   {o.status === "delivered" && (
@@ -278,7 +278,7 @@ function MyOrdersPage() {
                   )}
                   {o.status === "delivered" && (
                     <button
-                      onClick={() => togglePublic(o.id, !!o.is_public)}
+                      onClick={() => o.is_public ? togglePublicOff(o.id) : openPublishDialog(o)}
                       disabled={busy === o.id}
                       className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs disabled:opacity-60 ${o.is_public ? "border-primary/40 bg-primary/10 text-primary" : "hover:bg-secondary"}`}
                     >
@@ -292,49 +292,60 @@ function MyOrdersPage() {
         </div>
       )}
 
-      {/* Reorder dialog */}
-      {reorderOpen && (
+      {/* Publish-to-gallery dialog */}
+      {publishOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => !reordering && setReorderOpen(null)}>
+          onClick={() => !publishing && setPublishOpen(null)}>
           <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
-            <h2 className="mb-1 text-lg font-extrabold">إعادة الطلب #{reorderOpen.number}</h2>
+            <h2 className="mb-1 text-lg font-extrabold">نشر القصة في المعرض</h2>
             <p className="mb-4 text-xs text-muted-foreground">
-              سيتم إنشاء طلب جديد بنفس الشخصيات والأجواء والصفحات. اختر الجودة وأدخل كوبون إن رغبت.
+              قصتك ستظهر في المعرض العام حتى يستمتع بها آخرون. تستطيع إخفاءها في أي وقت.
             </p>
             <div className="mb-3">
-              <label className="mb-1.5 block text-xs font-semibold">الجودة</label>
-              <div className="grid grid-cols-2 gap-2">
-                {(["standard", "premium"] as const).map((qv) => (
-                  <button
-                    key={qv}
-                    type="button"
-                    onClick={() => setReorderQuality(qv)}
-                    className={`rounded-lg border p-2 text-xs ${reorderQuality === qv ? "border-primary bg-primary/10 font-bold" : ""}`}
-                  >{qv === "standard" ? "قياسي" : "احترافي"}</button>
-                ))}
-              </div>
-            </div>
-            <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-semibold">كوبون (اختياري)</label>
+              <label className="mb-1.5 block text-xs font-semibold">عنوان عام (اختياري)</label>
               <input
-                value={reorderCoupon}
-                onChange={(e) => setReorderCoupon(e.target.value.toUpperCase())}
-                maxLength={40}
+                value={publishTitle}
+                onChange={(e) => setPublishTitle(e.target.value)}
+                maxLength={120}
+                placeholder="مثال: مغامرة يوسف في الغابة"
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
               />
             </div>
+            <div className="mb-3">
+              <label className="inline-flex items-center gap-2 text-xs font-semibold">
+                <input
+                  type="checkbox"
+                  checked={publishShowAuthor}
+                  onChange={(e) => setPublishShowAuthor(e.target.checked)}
+                  className="size-4"
+                />
+                أظهر اسمي كمؤلف للقصة
+              </label>
+            </div>
+            {publishShowAuthor && (
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs font-semibold">اسم المؤلف</label>
+                <input
+                  value={publishAuthorName}
+                  onChange={(e) => setPublishAuthorName(e.target.value)}
+                  maxLength={80}
+                  placeholder="اسمك كما تريده أن يظهر"
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <button
-                disabled={reordering}
-                onClick={() => setReorderOpen(null)}
+                disabled={publishing}
+                onClick={() => setPublishOpen(null)}
                 className="rounded-xl border px-4 py-2 text-sm hover:bg-secondary disabled:opacity-50"
               >إلغاء</button>
               <button
-                disabled={reordering}
-                onClick={doReorder}
+                disabled={publishing}
+                onClick={doPublish}
                 className="rounded-xl bg-gradient-to-br from-primary to-accent px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-60"
-              >{reordering ? "..." : "أنشئ الطلب"}</button>
+              >{publishing ? "..." : "نشر"}</button>
             </div>
           </div>
         </div>
@@ -342,3 +353,4 @@ function MyOrdersPage() {
     </div>
   );
 }
+
