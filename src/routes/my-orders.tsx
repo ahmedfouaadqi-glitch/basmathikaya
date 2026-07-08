@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useT } from "../lib/i18n";
 import { getCurrentUser, userLogout } from "../lib/auth.functions";
-import { myOrders, requestRedownload, reorderExisting } from "../lib/orders.functions";
+import { myOrders, requestRedownload } from "../lib/orders.functions";
 import { ensureShareToken } from "../lib/share.functions";
 import { setOrderPublic } from "../lib/gallery.functions";
 import { listMyNotifications, markAllNotificationsRead } from "../lib/notifications.functions";
