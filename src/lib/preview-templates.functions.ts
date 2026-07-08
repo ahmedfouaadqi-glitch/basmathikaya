@@ -74,7 +74,7 @@ export const listPublicPreviewTemplates = createServerFn({ method: "POST" })
       .order("updated_at", { ascending: false })
       .limit(24);
 
-    let list = (rows ?? []) as PreviewTemplate[];
+    let list = (rows ?? []) as unknown as PreviewTemplate[];
     // Rank: matching moods first, then matching story_type.
     if (data.moods.length || data.storyType) {
       const wantMoods = new Set(data.moods);
@@ -108,7 +108,7 @@ export const adminListPreviewTemplates = createServerFn({ method: "GET" })
       .select("*")
       .order("priority", { ascending: false })
       .order("updated_at", { ascending: false });
-    const rows = (data ?? []) as PreviewTemplate[];
+    const rows = (data ?? []) as unknown as PreviewTemplate[];
     return Promise.all(rows.map(withUrls));
   });
 

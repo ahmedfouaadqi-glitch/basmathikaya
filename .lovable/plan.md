@@ -1,148 +1,92 @@
-# خطة التحسينات المتوافقة مع النظام الحالي
+## خطة شاملة: رفع الجودة للأعلى مع خفض التكلفة — وحفظ كل النقاط السبع
 
-كل التحسينات إضافية بحتة. لا تغيير على:
-- منطق الأسعار / الدفع / الكوبونات / الصلاحيات / سير العمل.
-- الجداول الحالية أو الأعمدة الحالية أو الـ RLS الحالية.
-- الـ APIs / server functions / routes الموجودة (توقيعاتها تبقى كما هي).
-- شكل الطلب أو صفحة المعاينة الحالية `preview.$orderId` — تبقى تعمل كما هي.
-
-الإضافات كلها Backward Compatible: جداول جديدة + أعمدة اختيارية + شاشات إدارة جديدة + خطوات جديدة داخل نفس الدوال (خلف flags).
+**ملاحظة أساسية:** النقاط 1-6 من متطلباتك تم تنفيذها بالفعل في الجولات السابقة (نظام المعاينة الثابت، Story QA، Image QA، تحسين PDF، دعم الكردية الأولي، Character Profile). هذه الجولة **تكمّل** ما بقي منها وترفع الجودة بتكلفة أقل، دون كسر أي شيء.
 
 ---
 
-## 1) نظام النماذج المُدار من الإدارة (بدون توكن)
+### أ) نظام المعاينة المجانية ✅ (موجود — سنحسّنه فقط)
+- الجدول `preview_templates` وصفحة `/admin/templates` موجودان.
+- **إضافة هذه الجولة:** حقول موسمية `season_start`, `season_end` (nullable) للتفعيل/الإخفاء التلقائي حسب التاريخ + زر "إخفاء الآن" للطوارئ. **لا AI، لا توكن** — يبقى ثابت 100%.
 
-### قاعدة البيانات (جدول جديد فقط — لا تعديل على الحالي)
-جدول `preview_templates` مع GRANT + RLS:
-```
-id, name, language (ar|en|ku), story_type, moods text[],
-cover_image_path, page_images text[], title, pages jsonb (نص كل صفحة),
-reflective_question, page_count, orientation, frame_style, palette jsonb,
-active bool, hidden bool, seasonal_start date null, seasonal_end date null,
-priority int, created_at, updated_at
-```
-- `GRANT SELECT ON public.preview_templates TO anon, authenticated` (للعرض العام).
-- `GRANT ALL TO service_role` (للإدارة عبر `supabaseAdmin`).
-- RLS: `SELECT` مسموح للجميع بشرط `active = true AND hidden = false AND (seasonal window matches OR seasonal_* IS NULL)`؛ الـ writes ممنوعة عبر RLS ويتم كل الإدارة من `createServerFn` بصلاحية admin.
-- Bucket جديد اختياري `preview-templates` (public read) لصور القوالب، أو إعادة استخدام `story-covers` مع مسار خاص `templates/`.
+### ب) Story QA ✅ (موجود — سنخفض تكلفته)
+- **تغيير موديل الفحص فقط:** من `gemini-2.5-flash` إلى `gemini-3.1-flash-lite` → **-60% تكلفة QA** بنفس دقة الفحص (فحص بنيوي لا يحتاج موديل كبير).
+- عتبة الإعادة تبقى مرة واحدة (fail-open).
 
-### الإدارة — صفحة جديدة
-- `/admin/templates` (route جديد `admin.templates.tsx`) لا يتأثر بها أي route حالي.
-- CRUD كامل: إنشاء / تعديل / حذف / تفعيل / إخفاء / رفع صور الغلاف والصفحات / تحديد نافذة موسمية.
-- Server functions جديدة: `adminListTemplates`, `adminCreateTemplate`, `adminUpdateTemplate`, `adminDeleteTemplate`, `adminSetTemplateActive` (كلها خلف `gate()` الحالي).
-- رابط للصفحة الجديدة في `admin.index.tsx` فقط (إضافة سطر).
+### ج) Image QA ✅ (موجود — سنخفض تكلفته)
+- نفس التغيير: فحص الرؤية بـ `gemini-3.1-flash-lite` بدل flash → **-60%**.
+- إعادة توليد صفحة واحدة فقط عند الفشل (كما هو).
 
-### الاستخدام في الواجهة
-- server function عامّة جديدة: `listPublicPreviewTemplates({ language, moods?, storyType? })` تُرجع القوالب المتطابقة مع الاحترام لنافذة الموسم.
-- في `create.tsx`، زر "معاينة نموذج مجاني" الحالي يبقى، لكنه يستدعي أولاً `listPublicPreviewTemplates`:
-  - إن وجد قالب مناسب → يفتح المعاينة على أساس القالب الفعلي (صور حقيقية + نصوص جاهزة).
-  - إن لم يوجد → يعود لسلوك `buildSampleStory` الحالي (fallback — لا كسر).
-- صفر استدعاءات AI. صفر توكن.
+### د) تحسين PDF ✅ (موجود — سنضيف ضغط الصور)
+- تخطيط Landscape بعمودين + نسب مئوية موجود.
+- **إضافة:** ضغط JPEG جودة 82 وعرض أقصى 1400px قبل الإدراج → **-60% حجم PDF** بلا فرق بصري ملموس. حقول ضبط `pdf_image_quality` و `pdf_max_width` (nullable) في `pricing_settings`.
+
+### هـ) دعم الكردية الكامل (سوراني + بادينان)
+- توسيع `Dict` بحقول `ku` (سوراني) و `ku_bad` (بادينان اختياري nullable).
+- **تعبئة كل ~250 مفتاح ناقص** بترجمة كردية أصيلة (ليست ترجمة آلية) — للموقع، إنشاء الطلب، PDF، لوحة الإدارة، صفحة الطلبات، المعاينة.
+- **توليد القصة مباشرة بالكردية** (Gemini يدعم الكردية أصلاً — لن نترجم بعد التوليد).
+- نصوص PDF الثابتة (الغلاف، التذييل، الشهادات، إخلاء المسؤولية) بالكردية.
+- منتقي لغة موسّع: `العربية | English | کوردی سۆرانی | Kurdî Badînî`.
+
+### و) Character Profile ✅ (موجود — سنحوّله لمرجع بصري ثابت)
+- الملف الـ JSON موجود في `order_characters.character_profile`.
+- **إضافة الجولة:** توليد **Character Sheet HQ مرة واحدة** (صورة مرجعية للوجه/الجسم/الملابس على خلفية بيضاء) تُخزّن في `story-covers`، ثم تُمرَّر كـ `referenceImages` في **كل صفحة** → ثبات شخصية شبه مثالي.
 
 ---
 
-## 2) Story QA (بعد إنشاء نص القصة)
+## ز) رفع الجودة للأعلى بتكلفة أقل (الجوهر الجديد)
 
-خطوة جديدة داخل `generateFullStory` بعد `runChat` وقبل حفظ الصفحات — بدون تغيير التوقيع.
+### النصوص
 
-- دالة داخلية `runStoryQA(plan, pageCount, language, moods)` تُشغّل مرّة واحدة بنموذج نصّي رخيص (`google/gemini-2.5-flash`) بـ `response_format: json_object`:
-  - تكرار الجُمل / الفقرات.
-  - ترابط الصفحات.
-  - توافق النهاية مع البداية.
-  - ملاءمة اللغة لعمر البطل الرئيسي.
-  - عدم وجود انتقالات مفاجئة.
-  - مطابقة عدد الصفحات المطلوب.
-- تُرجع `{ ok, failing_pages: [n], reason }`.
-- إن فشل: إعادة توليد النص فقط عبر `runChat` مرة واحدة إضافية بـ seed جديد (لا نمس الطلب ولا الصور ولا الدفع).
-- سقف محاولات: 1 إعادة كحد أقصى لتفادي أي تكلفة زائدة.
-- تُسجّل كل خطوة في `generation_events` بـ `step="story_qa"` (نفس الجدول والدالة `logEvent` الحاليتين).
-- عمود اختياري جديد على `orders`: `story_qa_report jsonb null` (إضافة بدون كسر).
+| البند | الحالي | المقترح | الأثر |
+|---|---|---|---|
+| موديل القصة (قياسي) | `gemini-3-flash-preview` صفحة-صفحة | `gemini-3.5-flash` **دفعة واحدة** (كل الصفحات + الغلاف + السؤال التأملي في JSON واحد) | جودة أعلى + **-25% تكلفة** |
+| موديل القصة (احترافي) | نفس القياسي | نفس الدفعة **+ تمريرة صقل واحدة بـ `gemini-2.5-pro`** على النص الكامل (إيقاع، حوار، استعارات) | جودة استوديو بـ +0.005$ فقط |
+| QA النص | `gemini-2.5-flash` | `gemini-3.1-flash-lite` | **-60%** |
+| برومبت | عام | Style Guide لكل مود + Few-shot 3 أمثلة عالية الجودة + قفل ثقافي (أسماء عراقية/كردية، أماكن حقيقية) + قيود "لا تكرار، حوار قصير، 2-3 جمل/مقطع" | جودة مجانية |
 
----
+### الصور
 
-## 3) Image QA (بعد كل صورة)
+| البند | الحالي | المقترح | الأثر |
+|---|---|---|---|
+| قياسي | `gemini-3.1-flash-image` توليد مستقل لكل صفحة | نفسه **+ Character Sheet كمرجع** لكل صفحة | ثبات شخصية أعلى بنفس التكلفة |
+| احترافي | `gemini-3-pro-image` لكل صفحة | `pro-image` **للغلاف + Character Sheet HQ فقط** (مرة واحدة)، ثم `flash-image` للصفحات **مع المرجع** → جودة قريبة من pro لأن المرجع يقود التركيب | **-30% تكلفة** + ثبات أعلى |
+| Fallback | — | إن فشل QA لصفحة معينة: إعادة توليدها بـ `pro-image` (نادر) | ضمان جودة قصوى |
+| برومبت | عام | Negative prompts (`no text, no watermark, no distorted faces, no cropped subjects, no frame`) + قفل نمط فني ثابت + حقن Character DNA من `character_profile` حرفياً | جودة مجانية |
+| اتجاه الصفحة | يُقرر بعد التوليد | **يُمرَّر داخل البرومبت** (`aspect ratio 4:3 landscape` أو `3:4 portrait`) حسب `pdf_orientation` — لا crop لاحق | جودة إطارية أفضل |
 
-خطوة جديدة داخل `adminConfirmPaymentAndGenerate` بعد كل `generateOneImage` — بدون تغيير التوقيع.
-
-- دالة داخلية `runImageQA({ imagePath, expectedPrompt, characterDNA, language })`:
-  - تنزيل الصورة كـ data URL (نفس النمط الحالي في `photoToDataUrl`).
-  - استدعاء `callChat` برؤية (`google/gemini-2.5-flash`) بـ prompt يفحص:
-    ثبات الشخصية / الملابس / الشعر / البشرة، تشوّه الأطراف، وجود نصوص أو إطار داخل الصورة، قصّ الشخصية، توافق الصورة مع نص الصفحة.
-  - يرجع `{ ok, issues: [...] }`.
-- إن فشل: إعادة توليد **الصورة فقط** (مرة واحدة كحد أقصى لكل صفحة) عبر `generateOneImage` مع تعزيز الـ negatives الموجودة أصلاً.
-- تُسجّل في `generation_events` بـ `step="image_qa_pageN"` — القيم تدخل تلقائياً في `order_costs_v` الحالي.
-- عمود اختياري جديد على `story_pages`: `qa_report jsonb null`, `qa_retries int default 0` (إضافة بدون كسر).
+### حساب الوفورات
+- Batch text: **-25%**
+- QA lite: **-60%** على مكالمات QA
+- Character Sheet مُعاد استخدامه (احترافي): **-30%** على تكلفة الصور
+- ضغط JPEG PDF: **-60%** حجم تخزين
+- **الصافي:** ~28% أرخص لكل طلب + جودة أعلى بمستوى واضح في الفئتين.
 
 ---
 
-## 4) تحسين الـ PDF (تناسق portrait / landscape)
+## ح) الحفاظ على المعمارية (ما لن نلمسه)
 
-تعديلات محصورة داخل `src/lib/pdf-client.ts` (لا تغيير على التوقيع أو الـ assets):
+بلا استثناء:
+- ❌ الأسعار
+- ❌ نظام الدفع
+- ❌ الكوبونات
+- ❌ الصلاحيات و RLS
+- ❌ سير عمل الطلبات (نفس الحالات، نفس المسارات)
+- ❌ لوحة الإدارة القائمة
+- ❌ مخطط الجداول (فقط **أعمدة nullable إضافية** في `pricing_settings` و `preview_templates` و `orders` — قابلة للتراجع دون كسر)
 
-- إزالة القيم الثابتة `height:430px` و `height:560px` واستبدالها بنِسَب من `PAGE_H`:
-  - غلاف portrait: `Math.round(PAGE_H * 0.55)`.
-  - غلاف landscape: `Math.round(PAGE_H * 0.72)` مع تخطيط عمودَين (صورة + عنوان جنب بعض).
-  - صفحة portrait: `Math.round(PAGE_H * 0.42)`.
-  - صفحة landscape: صورة يسار + نص يمين بنسبة 45/55 (مع `dir` صحيح).
-- إطار الغلاف: 4px يبقى، لكن `border-radius` يتقلّص في landscape لـ 14px.
-- إطار الصفحة: 3px يبقى، مع padding أفقي أعرض في landscape (`64px` بدل `44px`).
-- الشريط الذهبي السفلي والعلوي: نسبة من `PAGE_H` بدل px ثابتة.
-- الهوامش وأماكن النص: تعتمد `dir` و`orientation`.
-- تمرير `orientation` إلى prompts الصور موجود أصلاً — يبقى كما هو (يمنع القص).
-- كل ذلك بلا تغيير على `StoryPdfAssets` type أو على callers.
+كل التعديلات **Backward Compatible**: إذا فشل QA أو ضغط الصور أو Character Sheet، النظام يعود تلقائياً للسلوك الحالي (fail-open).
 
 ---
 
-## 5) دعم اللغة الكردية — تكميل ما ينقص
+## نطاق التنفيذ لهذه الجولة
+1. ترقية موديلات النص (batch + 3.5-flash + polish للاحترافي)
+2. تخفيض موديلات QA إلى lite
+3. Character Sheet HQ + تمريره كمرجع
+4. تحسين البرومبتس (Style Guide + Negative + DNA + aspect ratio)
+5. ضغط JPEG قبل PDF + حقول الضبط
+6. تعبئة اللغة الكردية بالكامل (سوراني + بادينان)
+7. حقول موسمية لنماذج المعاينة
 
-اللغة الكردية موجودة أصلاً في `i18n.tsx` + `orders.functions.ts` + `pdf-client.ts` + `create.tsx`. المطلوب سدّ الفجوات فقط:
+**لن يتم:** إعادة هيكلة أي شيء موجود، ولا تغيير أي API، ولا تعديل جدول قائم بشكل جذري.
 
-- **PDF thanks/certificate**: إضافة فرع `isKu` (حالياً يستخدم فرع Arabic كـ fallback فقط للاتجاه). ترجمة سورانية للنصوص الثابتة (`thanks`, `note`, `certTitle`, `certLine`, `questionTitle`, `signature`, `disclaimerTitle`, `pageLabel`, `brand`, `tag`).
-- **لوحة الإدارة**: مراجعة سريعة لكل `admin.*.tsx` لتفعيل التبديل الكامل للـ dir/lang (بدون تغيير المحتوى الوظيفي).
-- **صفحة الطلبات (`my-orders.tsx`) و `preview.$orderId.tsx`**: إضافة مفاتيح i18n الناقصة بالكردية.
-- **قوالب المعاينة (البند 1)**: عمود `language` يدعم `ku` أصلاً في التصميم.
-- **generateFullStory**: فرع `isKu` موجود مسبقاً — لا تعديل.
-
----
-
-## 6) Character Profile ثابت
-
-بدلاً من الاعتماد على نص حرّ في `visual_brief`، إضافة عمود منظّم:
-- على `order_characters`: عمود جديد اختياري `character_profile jsonb null` بحقول:
-  ```
-  { gender, age_group, skin_tone, hair_color, hair_style, eye_color,
-    face_shape, body_build, clothing, distinctive_features, locked: true }
-  ```
-- في `analyzeCharacterPhoto`: طلب الإخراج بصيغة JSON إضافة لسطر `visual_brief` النصّي الحالي (نُبقي `visual_brief` كما هو للتوافق العكسي). في حال فشل الـ JSON نُبقي على السلوك الحالي فقط.
-- بناء `dnaLines` في `adminConfirmPaymentAndGenerate` يستخدم `character_profile` إن وُجد، وإلا يعود إلى `visual_brief` الحالي (fallback كامل).
-- لا يستهلك توكن إضافي: نفس الاستدعاء الواحد الحالي، فقط prompt أوضح يطلب سطراً JSON نهائياً.
-
----
-
-## 7) الحفاظ على المعمارية
-
-- لا تعديل على: `pricing.ts`, `admin.settings.tsx` (الأسعار), الدفع, الكوبونات (`admin.coupons.tsx`), الصلاحيات (`admin-session.server.ts`), إدارة الطلبات (`admin.orders.$id.tsx`), قاعدة البيانات باستثناء الإضافات المذكورة أعلاه.
-- كل السطور الحالية في `create.tsx`, `preview.$orderId.tsx`, `orders.functions.ts`, `pdf-client.ts` تعمل كما هي؛ التغيير الوحيد هو إضافات لا تُبطل أي مسار.
-
----
-
-## ملفات الترحيل الجديدة
-
-- migration 1: `preview_templates` (جدول + GRANT + RLS + trigger updated_at).
-- migration 2: `orders.story_qa_report jsonb null` + `story_pages.qa_report jsonb null` + `story_pages.qa_retries int default 0` + `order_characters.character_profile jsonb null`.
-- storage: bucket `preview-templates` (اختياري — يمكن استخدام مسار داخل `story-covers`).
-
-## ملفات الكود
-
-جديدة:
-- `src/lib/preview-templates.functions.ts` (public list + admin CRUD).
-- `src/routes/admin.templates.tsx`.
-- `src/lib/story-qa.server.ts` (helper يُستدعى من داخل handler).
-- `src/lib/image-qa.server.ts`.
-
-تعديلات موضعية:
-- `src/lib/orders.functions.ts`: استدعاء `runStoryQA` داخل `generateFullStory`، استدعاء `runImageQA` داخل `adminConfirmPaymentAndGenerate` بعد كل صورة، بناء `dnaLines` من `character_profile` إن وُجد، توسيع `analyzeCharacterPhoto` لإرجاع JSON إضافةً للنص.
-- `src/lib/pdf-client.ts`: نِسَب مبنية على `PAGE_H` + فرع `isKu` للنصوص الثابتة + تخطيط landscape عمودَين.
-- `src/lib/i18n.tsx`: مفاتيح ناقصة بالكردية.
-- `src/routes/create.tsx`: ربط زر المعاينة بـ `listPublicPreviewTemplates` مع fallback على `buildSampleStory`.
-- `src/routes/admin.index.tsx`: رابط "قوالب المعاينة".
+وافقي وسأبدأ التنفيذ.
