@@ -262,6 +262,15 @@ function MyOrdersPage() {
                       <Share2 className="size-3.5" /> شارك
                     </button>
                   )}
+                  {o.status === "delivered" && (
+                    <button
+                      onClick={() => togglePublic(o.id, !!o.is_public)}
+                      disabled={busy === o.id}
+                      className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs disabled:opacity-60 ${o.is_public ? "border-primary/40 bg-primary/10 text-primary" : "hover:bg-secondary"}`}
+                    >
+                      {o.is_public ? <><Globe className="size-3.5" /> في المعرض</> : <><Lock className="size-3.5" /> اجعلها عامة</>}
+                    </button>
+                  )}
                 </div>
               </div>
             );
