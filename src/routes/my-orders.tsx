@@ -128,6 +128,12 @@ function MyOrdersPage() {
           <p className="mt-1 text-xs text-muted-foreground">{me?.name} · <span dir="ltr">{me?.phone}</span></p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            to="/referrals"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+          >
+            <Gift className="size-4" /> الإحالات
+          </Link>
           <a
             href="/family"
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
