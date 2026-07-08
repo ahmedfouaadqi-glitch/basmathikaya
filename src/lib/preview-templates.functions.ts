@@ -108,7 +108,7 @@ export const adminListPreviewTemplates = createServerFn({ method: "GET" })
       .select("*")
       .order("priority", { ascending: false })
       .order("updated_at", { ascending: false });
-    const rows = (data ?? []) as PreviewTemplate[];
+    const rows = (data ?? []) as unknown as PreviewTemplate[];
     return Promise.all(rows.map(withUrls));
   });
 
