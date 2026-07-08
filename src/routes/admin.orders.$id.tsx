@@ -97,6 +97,8 @@ function OrderDetail() {
         title: p.title || (lang === "ar" ? "حكايتي" : "My Story"),
         language: lang,
         customerName: p.customer_name || user?.full_name || "",
+        heroName: (p as { hero_name?: string | null }).hero_name ?? (q.data.characters?.find((c) => c.is_primary)?.name ?? null),
+        authorName: (p as { author_name?: string | null }).author_name ?? user?.full_name ?? null,
         moods: p.moods ?? [],
         coverUrl: p.cover_url,
         pages: p.pages.map((pg) => ({ number: pg.page_number, text: pg.text, imageUrl: pg.image_url })),
