@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Phone, KeyRound } from "lucide-react";
 import { useT } from "../lib/i18n";
-import { requestOtp, verifyOtp } from "../lib/auth.functions";
+import { requestOtp, verifyOtp, getCurrentUser } from "../lib/auth.functions";
 import { redeemReferralCode } from "../lib/referrals.functions";
 
 export const Route = createFileRoute("/auth")({
@@ -23,6 +23,7 @@ function AuthPage() {
   const { redirect, ref } = Route.useSearch();
   const reqFn = useServerFn(requestOtp);
   const verFn = useServerFn(verifyOtp);
+  const meFn = useServerFn(getCurrentUser);
   const redeemFn = useServerFn(redeemReferralCode);
 
   const [step, setStep] = useState<"request" | "verify">("request");
@@ -68,15 +69,20 @@ function AuthPage() {
     setLoading(true);
     try {
       await verFn({ data: { phone: phone.trim(), code: code.trim(), full_name: name.trim() } });
+      // Confirm the session cookie was actually stored (some preview iframes
+      // block cross-site cookies even with SameSite=None; Partitioned).
+      const me = await meFn();
+      if (!me) {
+        toast.error("تعذّر حفظ الجلسة داخل هذا الإطار");
+        setSignedIn(true);
+        return;
+      }
       toast.success("تم تسجيل الدخول");
-      // Redeem referral (best effort)
       if (referralCode.trim()) {
         try { await redeemFn({ data: { code: referralCode.trim().toUpperCase() } }); } catch { /* ignore */ }
         if (typeof window !== "undefined") localStorage.removeItem("bh_ref");
       }
       await router.invalidate();
-      // When the login was triggered from the preview page, stay on /auth
-      // and let the user return manually instead of auto-redirecting.
       if (redirect && redirect.startsWith("/preview")) {
         setSignedIn(true);
       } else {
@@ -89,6 +95,18 @@ function AuthPage() {
     }
   }
 
+  function openInTopTab() {
+    const target = redirect || "/create";
+    if (typeof window === "undefined") return;
+    try {
+      if (window.top && window.top !== window.self) {
+        window.top.location.href = target;
+        return;
+      }
+    } catch { /* cross-origin top; fallback below */ }
+    window.open(target, "_blank", "noopener");
+  }
+
   return (
     <div className="mx-auto max-w-md px-4 py-12">
       <div className="rounded-2xl border bg-card p-8 shadow-sm">
@@ -96,8 +114,17 @@ function AuthPage() {
         <p className="mt-2 text-center text-sm text-muted-foreground">{t("auth_subtitle")}</p>
 
         {signedIn ? (
-          <div className="mt-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-center text-sm text-emerald-700 dark:text-emerald-400">
-            تم تسجيل الدخول بنجاح. يمكنك الآن العودة إلى صفحة معاينة طلبك.
+          <div className="mt-6 space-y-3">
+            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-center text-sm text-emerald-700 dark:text-emerald-400">
+              تم تسجيل الدخول. إذا لم يتم الانتقال تلقائياً، افتح الرابط في تبويب جديد.
+            </div>
+            <button
+              type="button"
+              onClick={openInTopTab}
+              className="w-full rounded-xl bg-gradient-to-br from-primary to-accent py-3 font-bold text-primary-foreground shadow-warm"
+            >
+              فتح {redirect || "/create"} في تبويب جديد
+            </button>
           </div>
         ) : step === "request" ? (
           <form onSubmit={onRequest} className="mt-6 space-y-4">
