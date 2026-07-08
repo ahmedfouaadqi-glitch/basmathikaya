@@ -23,6 +23,7 @@ function AuthPage() {
   const { redirect, ref } = Route.useSearch();
   const reqFn = useServerFn(requestOtp);
   const verFn = useServerFn(verifyOtp);
+  const meFn = useServerFn(getCurrentUser);
   const redeemFn = useServerFn(redeemReferralCode);
 
   const [step, setStep] = useState<"request" | "verify">("request");
