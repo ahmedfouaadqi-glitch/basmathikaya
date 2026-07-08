@@ -69,15 +69,20 @@ function AuthPage() {
     setLoading(true);
     try {
       await verFn({ data: { phone: phone.trim(), code: code.trim(), full_name: name.trim() } });
+      // Confirm the session cookie was actually stored (some preview iframes
+      // block cross-site cookies even with SameSite=None; Partitioned).
+      const me = await meFn();
+      if (!me) {
+        toast.error("تعذّر حفظ الجلسة داخل هذا الإطار");
+        setSignedIn(true);
+        return;
+      }
       toast.success("تم تسجيل الدخول");
-      // Redeem referral (best effort)
       if (referralCode.trim()) {
         try { await redeemFn({ data: { code: referralCode.trim().toUpperCase() } }); } catch { /* ignore */ }
         if (typeof window !== "undefined") localStorage.removeItem("bh_ref");
       }
       await router.invalidate();
-      // When the login was triggered from the preview page, stay on /auth
-      // and let the user return manually instead of auto-redirecting.
       if (redirect && redirect.startsWith("/preview")) {
         setSignedIn(true);
       } else {
@@ -88,6 +93,18 @@ function AuthPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function openInTopTab() {
+    const target = redirect || "/create";
+    if (typeof window === "undefined") return;
+    try {
+      if (window.top && window.top !== window.self) {
+        window.top.location.href = target;
+        return;
+      }
+    } catch { /* cross-origin top; fallback below */ }
+    window.open(target, "_blank", "noopener");
   }
 
   return (
