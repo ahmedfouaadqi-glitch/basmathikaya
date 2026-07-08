@@ -1852,3 +1852,88 @@ export const adminConfirmRedownload = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// ============= Admin: retry image generation after failure =============
+
+/**
+ * Resets a failed order's image state and re-runs the full image generation pipeline.
+ * Safe to call multiple times; existing cover/page images are reused.
+ */
+export const adminRetryImageGeneration = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("orders")
+      .update({ images_error: null, images_status: "generating" })
+      .eq("id", data.orderId);
+    // Delegate to the same pipeline used on initial payment confirmation.
+    // It is idempotent: existing story text and images are reused.
+    return await (adminConfirmPaymentAndGenerate as unknown as (a: { data: { orderId: string } }) => Promise<{ ok: true }>)(
+      { data: { orderId: data.orderId } },
+    );
+  });
+
+// ============= User: prefill data for "recreate with new options" =============
+
+export type OrderPrefill = {
+  characters: Array<{
+    name: string;
+    age: number | null;
+    role: "protagonist" | "friend" | "family" | "pet" | "other";
+    description: string;
+    photo_path: string | null;
+  }>;
+  moods: string[];
+  custom_instructions: string;
+  language: "ar" | "en" | "ku";
+  page_count: number;
+  pdf_orientation: "portrait" | "landscape";
+  image_quality_tier: "standard" | "premium";
+  tier: "pdf" | "printed" | "video";
+};
+
+export const getOrderPrefill = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }): Promise<OrderPrefill> => {
+    const { requireUserSession } = await import("./user-session.server");
+    const s = await requireUserSession();
+    const userId = s.data.userId!;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id, user_id, page_count, moods, custom_instructions, tier, image_quality_tier, pdf_orientation, characters(language)")
+      .eq("id", data.orderId)
+      .maybeSingle();
+    if (!order || order.user_id !== userId) throw new Error("غير مصرح");
+
+    const { data: chars } = await supabaseAdmin
+      .from("order_characters")
+      .select("name, age, role, description, photo_path, position")
+      .eq("order_id", data.orderId)
+      .order("position");
+
+    const iq = ((order.image_quality_tier as string | null) ?? "standard").toLowerCase();
+    const quality: "standard" | "premium" = iq === "premium" ? "premium" : "standard";
+    const lang = (((order.characters as { language?: string } | null)?.language ?? "ar") as "ar" | "en" | "ku");
+
+    return {
+      characters: (chars ?? []).map((c) => ({
+        name: (c.name as string | null) ?? "",
+        age: (c.age as number | null) ?? null,
+        role: (((c.role as string) ?? "protagonist") as OrderPrefill["characters"][number]["role"]),
+        description: (c.description as string | null) ?? "",
+        photo_path: (c.photo_path as string | null) ?? null,
+      })),
+      moods: ((order.moods as string[] | null) ?? ["adventure"]),
+      custom_instructions: (order.custom_instructions as string | null) ?? "",
+      language: lang,
+      page_count: (order.page_count as number | null) ?? 5,
+      pdf_orientation: (((order.pdf_orientation as string | null) ?? "portrait") as "portrait" | "landscape"),
+      image_quality_tier: quality,
+      tier: (((order.tier as string | null) ?? "pdf") as "pdf" | "printed" | "video"),
+    };
+  });
+
+
