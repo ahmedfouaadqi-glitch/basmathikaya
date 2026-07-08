@@ -391,7 +391,8 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
         ">
           <div style="font-size:11px;font-weight:900;color:${opts.gold};letter-spacing:2px;margin-bottom:6px;text-transform:uppercase;">${escapeHtml(certTitle)}</div>
           <div style="font-size:13px;color:#3a3f47;margin-bottom:4px;">${escapeHtml(certLine)}</div>
-          <div style="font-size:26px;font-weight:900;color:${opts.accent};margin:2px 0 8px;">« ${escapeHtml(heroName)} »</div>
+          <div style="font-size:26px;font-weight:900;color:${opts.accent};margin:2px 0 4px;">« ${escapeHtml(heroName)} »</div>
+          ${authorName ? `<div style="font-size:11px;font-weight:300;letter-spacing:1.5px;color:#8a8f97;margin-bottom:6px;font-style:italic;">${escapeHtml(s.authorLabel)} · ${escapeHtml(authorName)}</div>` : ""}
           <div style="font-size:11px;color:#6b7079;">${escapeHtml(dateStr)}${orderNum ? ` · <span style="font-family:monospace">${orderNum}</span>` : ""}</div>
           <div style="margin-top:8px;font-size:11px;color:${opts.accent};font-weight:700;">${logoSmall}${escapeHtml(signature)}</div>
         </div>
