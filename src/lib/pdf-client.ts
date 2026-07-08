@@ -7,6 +7,8 @@ export type StoryPdfAssets = {
   title: string;
   language: "ar" | "en" | "ku";
   customerName: string;
+  heroName?: string | null;
+  authorName?: string | null;
   moods: string[];
   coverUrl: string | null;
   pages: Array<{ number: number; text: string; imageUrl: string | null }>;
@@ -129,6 +131,7 @@ type PdfStrings = {
   questionTitle: string;
   signature: string;
   heroFallback: string;
+  authorLabel: string;
 };
 const STRINGS: Record<PdfLang, PdfStrings> = {
   ar: {
@@ -146,6 +149,7 @@ const STRINGS: Record<PdfLang, PdfStrings> = {
     questionTitle: "سؤال لك يا بطل",
     signature: "توقيع: بصمة حكاية",
     heroFallback: "بطلنا",
+    authorLabel: "المؤلف",
   },
   en: {
     defaultTitle: "My Story",
@@ -162,6 +166,7 @@ const STRINGS: Record<PdfLang, PdfStrings> = {
     questionTitle: "A question for you, hero",
     signature: "Signed: Basma Hekaya",
     heroFallback: "our hero",
+    authorLabel: "Author",
   },
   ku: {
     defaultTitle: "چیرۆکەکەم",
@@ -178,6 +183,7 @@ const STRINGS: Record<PdfLang, PdfStrings> = {
     questionTitle: "پرسیارێک بۆ تۆ ئەی پاڵەوان",
     signature: "واژۆ: بەسمە حیکایە",
     heroFallback: "پاڵەوانمان",
+    authorLabel: "نووسەر",
   },
 };
 
@@ -187,7 +193,9 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
   const dir = isRtl ? "rtl" : "ltr";
   const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
   const title = escapeHtml(a.title || s.defaultTitle);
-  const sub = a.customerName ? s.subWith(a.customerName) : s.subNoName;
+  const displayName = (a.heroName && a.heroName.trim()) || a.customerName;
+  const sub = displayName ? s.subWith(displayName) : s.subNoName;
+  const authorName = (a.authorName ?? "").trim();
   const chips = (a.moods || []).map((m) => `<span style="background:${opts.gold}22;color:${opts.gold};padding:6px 14px;border-radius:999px;font-weight:700;font-size:13px;margin:0 4px;display:inline-block;">${escapeHtml(m)}</span>`).join("");
   const cover = opts.coverData
     ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
@@ -218,7 +226,8 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
         text-shadow:0 2px 12px rgba(0,0,0,.35);
         color:#FFFBF5;
       ">${title}</h1>
-      <p style="margin:0 0 14px;font-size:16px;color:#F5E9CF;opacity:.92;">${escapeHtml(sub)}</p>
+      <p style="margin:0 0 8px;font-size:16px;color:#F5E9CF;opacity:.92;">${escapeHtml(sub)}</p>
+      ${authorName ? `<p style="margin:0 0 14px;font-size:11px;font-weight:300;letter-spacing:2px;color:#EADFC6;opacity:.85;font-style:italic;">${escapeHtml(s.authorLabel)} · ${escapeHtml(authorName)}</p>` : ""}
       <div style="text-align:center;">${chips}</div>
     </div>
     <div style="
@@ -323,7 +332,8 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
   const certLine = s.certLine;
   const questionTitle = s.questionTitle;
   const signature = s.signature;
-  const heroName = a.customerName || s.heroFallback;
+  const heroName = (a.heroName && a.heroName.trim()) || a.customerName || s.heroFallback;
+  const authorName = (a.authorName ?? "").trim();
   const orderNum = a.orderNumber ? `#${a.orderNumber}` : "";
   const locale = a.language === "ar" ? "ar-IQ" : a.language === "ku" ? "ckb-IQ" : "en-US";
   const dateStr = new Date().toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
@@ -381,7 +391,8 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
         ">
           <div style="font-size:11px;font-weight:900;color:${opts.gold};letter-spacing:2px;margin-bottom:6px;text-transform:uppercase;">${escapeHtml(certTitle)}</div>
           <div style="font-size:13px;color:#3a3f47;margin-bottom:4px;">${escapeHtml(certLine)}</div>
-          <div style="font-size:26px;font-weight:900;color:${opts.accent};margin:2px 0 8px;">« ${escapeHtml(heroName)} »</div>
+          <div style="font-size:26px;font-weight:900;color:${opts.accent};margin:2px 0 4px;">« ${escapeHtml(heroName)} »</div>
+          ${authorName ? `<div style="font-size:11px;font-weight:300;letter-spacing:1.5px;color:#8a8f97;margin-bottom:6px;font-style:italic;">${escapeHtml(s.authorLabel)} · ${escapeHtml(authorName)}</div>` : ""}
           <div style="font-size:11px;color:#6b7079;">${escapeHtml(dateStr)}${orderNum ? ` · <span style="font-family:monospace">${orderNum}</span>` : ""}</div>
           <div style="margin-top:8px;font-size:11px;color:${opts.accent};font-weight:700;">${logoSmall}${escapeHtml(signature)}</div>
         </div>

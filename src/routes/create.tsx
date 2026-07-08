@@ -410,29 +410,6 @@ function CreatePage() {
           )}
         </div>
 
-        {/* Moods */}
-        <div>
-          <label className="mb-2 block text-sm font-bold">{t("field_mood")}</label>
-          <div className="grid grid-cols-3 gap-2">
-            {MOODS.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                onClick={() => toggleMood(m.value)}
-                className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition ${
-                  moods.includes(m.value)
-                    ? "border-primary bg-primary/10 font-semibold"
-                    : "hover:bg-secondary"
-                }`}
-              >
-                <span className="text-2xl">{m.emoji}</span>
-                <span>{t(m.key as never)}</span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">{t("field_mood_limit")}</p>
-        </div>
-
         {/* Art style — realistic vs cartoon (+ cartoon substyle) */}
         {artStyles.length > 0 && (
           <div>
@@ -486,6 +463,29 @@ function CreatePage() {
             )}
           </div>
         )}
+
+        {/* Moods */}
+        <div>
+          <label className="mb-2 block text-sm font-bold">{t("field_mood")}</label>
+          <div className="grid grid-cols-3 gap-2">
+            {MOODS.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => toggleMood(m.value)}
+                className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition ${
+                  moods.includes(m.value)
+                    ? "border-primary bg-primary/10 font-semibold"
+                    : "hover:bg-secondary"
+                }`}
+              >
+                <span className="text-2xl">{m.emoji}</span>
+                <span>{t(m.key as never)}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{t("field_mood_limit")}</p>
+        </div>
 
         {/* Custom instructions */}
         <div>

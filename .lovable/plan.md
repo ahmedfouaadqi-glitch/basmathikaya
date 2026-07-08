@@ -1,95 +1,58 @@
-## الهدف
-تحسينان كبيران دون كسر الطلبات الحالية:
-1. إعادة تصميم PDF ليبدو كتاب أطفال احترافي.
-2. إضافة اختيار "أسلوب الرسم" (واقعي/كرتوني + نمط فرعي) يُطبَّق ثابتاً على كل صور القصة، مع إدارة الأنماط من لوحة الإدارة.
+## المطلوب
+
+تعديلان بصريان صغيران على تدفق إنشاء القصة وعلى ملف PDF، دون كسر أي منطق حالي.
 
 ---
 
-## أولاً: إعادة تصميم PDF
+### 1) نقل اختيار أسلوب الرسم إلى بداية النموذج (تحت العمر)
 
-الملف: `src/lib/pdf-client.ts` (537 سطراً — يستخدم pdf-lib في المتصفح).
+**الوضع الحالي:** بلوك "أسلوب الرسم" في `src/routes/create.tsx` يظهر بعد المزاج (Moods) والتعليمات المخصّصة.
 
-### تغييرات التخطيط
-- **صورة أكبر**: الصورة تشغل ~75% من ارتفاع الصفحة (بدل الحالي).
-- **إزالة الإطار السميك** واستبداله بظل ناعم (soft drop shadow) وحواف دائرية خفيفة (rounded corners عبر رسم مقاطع).
-- **صندوق النص**: مستطيل بخلفية `#FFF8EE` بشفافية 92% وحواف دائرية أسفل الصورة، بدون خط حاد.
-- **هوامش موحّدة**: 36pt (عمودي) / 48pt (أفقي)، متساوية على كل الجهات.
-- **رقم الصفحة**: أسفل الوسط، خط رفيع صغير `#8A7A5C`، مع زخرفة رمزية بسيطة (نقطة/شرطتان).
-- **Spread mode للأفقي**: صفحتان متتاليتان تُصمَّمان كلوحة واحدة (نفس الخلفية الممتدة، رقم الصفحة أسفل خارجي).
-- **الغلاف**: تصميم منفصل — العنوان بخط كبير مزخرف فوق الصورة الكاملة مع gradient overlay سفلي للقراءة.
-- **دعم RTL/العربية**: يبقى كما هو (نفس آلية `arabicFont`).
+**المطلوب:** نقل نفس البلوك ليظهر مباشرة بعد بطاقات الشخصيات (التي تحوي اسم/عمر/صورة الشخصية) وقبل المزاج، بحيث يراه المستخدم مبكراً بشكل "مربعات" — وهو أصلاً بشكل مربعات (grid buttons)، فقط سيتم رفع موقعه في الصفحة.
 
-### دعم الاتجاهين
-- Portrait: صورة أعلى، نص أسفل.
-- Landscape: صورة يمين (RTL: يسار)، نص في العمود المقابل، مع "spread" يمتد عبر الصفحتين.
-
-### عدم الكسر
-- توقيع `buildAndDownloadStoryPdf` يبقى كما هو.
-- لا تغيير على مصادر الصور/النصوص، فقط منطق الرسم.
+- لا تغيير على منطق `createOrder` أو الـ state.
+- نفس المربعات: صف علوي (واقعي / كرتوني)، وعند اختيار "كرتوني" تظهر مصفوفة الأنماط الفرعية.
+- التحقق الحالي (`اختر أسلوب الرسم`) يبقى كما هو.
 
 ---
 
-## ثانياً: نظام اختيار الأسلوب الفني
+### 2) تصحيح "مخصّصة لـ ..." + إضافة سطر المؤلف
 
-### 1) قاعدة البيانات (migration جديدة)
+**الوضع الحالي في `src/lib/pdf-client.ts`:**
+- الغلاف: `subWith(a.customerName)` → "حكاية مخصّصة لـ {customerName}"
+- شهادة البطل في الصفحة الأخيرة: `heroName = a.customerName || fallback`
 
-جدول جديد `art_styles`:
+المشكلة: `customerName` هو اسم صاحب الحساب وليس اسم البطل الذي أدخله المستخدم، فتظهر الحكاية "مخصّصة لصاحب الحساب" بدل البطل.
+
+**التعديل:**
+
+أ) إضافة حقل جديد اختياري إلى `StoryPdfAssets`:
 ```
-id uuid pk, slug text unique, category text ('realistic'|'cartoon'),
-name_ar text, name_en text, prompt_fragment text,
-is_default boolean, is_enabled boolean, sort_order int,
-created_at, updated_at
+heroName?: string | null;   // اسم البطل الأساسي من الشخصيات
+authorName?: string | null; // اسم صاحب الحساب (full_name)
 ```
-GRANT SELECT للـ anon/authenticated، ALL للـ service_role.
-RLS: SELECT عام للمفعّل فقط؛ كتابة للـ admin عبر `has_role`.
 
-تعبئة seed بالأنماط المطلوبة:
-- realistic → Realistic
-- cartoon → Cartoon Classic, Anime, Manga, Pixar Style, Disney Style, Chibi, Watercolor, Storybook Illustration (افتراضي)
+ب) في `buildCoverHtml` و `buildThanksHtml`:
+- استخدم `heroName ?? customerName ?? fallback` بدلاً من `customerName` عند بناء "مخصّصة لـ" واسم شهادة البطل.
+- تحت اسم البطل مباشرة في الغلاف وفي بطاقة الشهادة، أضف سطراً واحداً بخط رفيع وأنيق:
+  - عربي: `المؤلف: {authorName}` (font-weight: 300، حجم صغير ~11px، لون رمادي هادئ، letter-spacing خفيف)
+  - إنجليزي/كردي: نص مقابل (`Author: …` / `نووسەر: …`)
+- إذا لم يتوفر `authorName` لا يُطبع السطر (Backward compatible).
 
-إضافة على `orders`:
-- `art_style_category text` (nullable)
-- `art_style_slug text` (nullable)
+ج) تمرير الحقلين من مواقع الاستدعاء:
+- `src/routes/preview.$orderId.tsx` → `heroName: progress.hero_name` (أو `progress.characters?.[0]?.name` — يُحدَّد بعد قراءة شكل `progress`)، `authorName: progress.customer_name`.
+- `src/routes/admin.orders.$id.tsx` → `heroName: characters.find(c=>c.is_primary)?.name`, `authorName: user?.full_name`.
+- في `admin.orders.$id.tsx` الحالي يمرَّر `customerName: p.customer_name || user?.full_name` — نُبقيه كما هو للتوافق مع النسخ القديمة، ونضيف الحقلين الجديدين فقط.
 
-`art_style_lock` الحالي يبقى ويُعاد استخدامه كـ prompt المُجمَّد للطلب.
-
-### 2) واجهة الإنشاء `src/routes/create.tsx`
-بعد رفع الصورة وقبل الخطوة التالية:
-- سؤال 1: بطاقتان (واقعي / كرتوني).
-- إن كرتوني: سؤال 2 — شبكة بطاقات صغيرة بمعاينة اسم النمط (يمكن لاحقاً إضافة ثمبنيل).
-- الاختيار يُخزَّن في state ويُرسَل مع `createOrder`.
-
-### 3) الخادم `src/lib/orders.functions.ts`
-- `createOrder` يقبل `artStyleCategory` و `artStyleSlug` (اختياريان — Backward compatible).
-- `runImageGenerationForOrder`: عند أول توليد، يقرأ النمط من `art_styles` عبر `slug`، ويبني `art_style_lock` = `prompt_fragment` (بدلاً من الافتراضي المُشفَّر الحالي في السطر 1172).
-- إن كان الطلب قديماً بلا `art_style_slug`: يُعامَل كـ `cartoon/storybook` (نفس السلوك الحالي) — لا كسر.
-- الأسلوب يُطبَّق نفسه على: character sheet، DNA، cover، جميع الصفحات، إعادة التوليد، ومشاركة الشخصية في المكتبات (لأن الكل يمر عبر نفس `art_style_lock`).
-
-### 4) لوحة الإدارة — مسار جديد `src/routes/admin.art-styles.tsx`
-- جدول بأنماط `art_styles`.
-- تفعيل/تعطيل، ترتيب (سحب أو أزرار سهم)، تعديل الاسم، تعديل `prompt_fragment`، تعيين افتراضي (واحد لكل category)، إضافة/حذف.
-- server functions: `listArtStyles`, `upsertArtStyle`, `deleteArtStyle`, `setDefaultArtStyle` — كلها محمية بـ `requireSupabaseAuth` + فحص دور admin عبر `has_role`.
-- إضافة رابط في `src/routes/admin.tsx` sidebar.
-
-### 5) توافق خلفي
-- طلبات بلا `art_style_slug` → تعمل تماماً كما هي.
-- إعادة توليد صور طلب قديم → تستخدم `art_style_lock` الموجود.
-- إن حُذف نمط من الإدارة، الطلبات المرتبطة لا تتأثر لأن الـ prompt محفوظ في `art_style_lock`.
+د) الطلبات القديمة (بدون heroName ممرّر) تعمل كما هي: تسقط تلقائياً على `customerName` ثم على `heroFallback`.
 
 ---
 
-## الملفات المتأثرة
-- **جديد**: migration، `src/routes/admin.art-styles.tsx`، `src/lib/art-styles.functions.ts`.
-- **معدَّل**: `src/lib/pdf-client.ts` (إعادة كتابة تخطيط الصفحة)، `src/routes/create.tsx` (خطوة اختيار الأسلوب)، `src/lib/orders.functions.ts` (تمرير + قراءة النمط)، `src/routes/admin.tsx` (رابط)، `src/integrations/supabase/types.ts` (يُجدَّد آلياً بعد migration).
+### الملفات المتأثرة
 
----
+- `src/routes/create.tsx` — نقل بلوك أسلوب الرسم إلى ما بعد الشخصيات وقبل المزاج.
+- `src/lib/pdf-client.ts` — إضافة `heroName` و `authorName` إلى `StoryPdfAssets`، تحديث `buildCoverHtml` و `buildThanksHtml`، إضافة سلاسل "المؤلف" في `STRINGS` للغات الثلاث.
+- `src/routes/preview.$orderId.tsx` — تمرير `heroName` و `authorName`.
+- `src/routes/admin.orders.$id.tsx` — تمرير `heroName` و `authorName`.
 
-## خطوات التنفيذ
-1. migration (يحتاج موافقتك).
-2. server functions للأنماط + admin UI.
-3. تحديث `create.tsx` بخطوة الاختيار.
-4. تحديث `runImageGenerationForOrder` لقراءة prompt النمط.
-5. إعادة تصميم PDF layout (portrait + landscape + spread + cover).
-6. اختبار طلب قديم (بلا نمط) وطلب جديد (بنمط مختار).
-
-هل أبدأ التنفيذ؟
+بدون أي تغيير على قاعدة البيانات أو سياسات RLS أو منطق التوليد.
