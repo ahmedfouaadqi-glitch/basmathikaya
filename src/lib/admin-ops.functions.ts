@@ -359,3 +359,140 @@ export const shareEventStats = createServerFn({ method: "GET" }).handler(async (
     })),
   };
 });
+
+/* ============= Referrals (Admin) ============= */
+
+export const listReferralsAdmin = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdminSession();
+  const s = await db();
+  const { data: refs } = await s
+    .from("referrals")
+    .select("id, referrer_user_id, referred_user_id, code, status, reward_amount_iqd, created_at, completed_at")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const ids = new Set<string>();
+  for (const r of refs ?? []) {
+    if (r.referrer_user_id) ids.add(r.referrer_user_id);
+    if (r.referred_user_id) ids.add(r.referred_user_id);
+  }
+  const { data: users } = ids.size
+    ? await s.from("users").select("id, full_name, phone").in("id", [...ids])
+    : { data: [] as Array<{ id: string; full_name: string | null; phone: string | null }> };
+  const uMap = new Map((users ?? []).map((u) => [u.id, u]));
+  return (refs ?? []).map((r) => ({
+    ...r,
+    referrer: uMap.get(r.referrer_user_id) ?? null,
+    referred: r.referred_user_id ? uMap.get(r.referred_user_id) ?? null : null,
+  }));
+});
+
+export const referralStatsAdmin = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdminSession();
+  const s = await db();
+  const { data: refs } = await s.from("referrals").select("status, reward_amount_iqd, referrer_user_id");
+  const list = refs ?? [];
+  const totalReward = list.reduce((a, r) => a + (r.reward_amount_iqd ?? 0), 0);
+  const byReferrer = new Map<string, number>();
+  for (const r of list) byReferrer.set(r.referrer_user_id, (byReferrer.get(r.referrer_user_id) ?? 0) + 1);
+  const topIds = [...byReferrer.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const { data: users } = topIds.length
+    ? await s.from("users").select("id, full_name, phone").in("id", topIds.map((x) => x[0]))
+    : { data: [] as Array<{ id: string; full_name: string | null; phone: string | null }> };
+  const uMap = new Map((users ?? []).map((u) => [u.id, u]));
+  return {
+    total: list.length,
+    completed: list.filter((r) => r.status === "rewarded" || r.status === "completed").length,
+    totalRewardIqd: totalReward,
+    topReferrers: topIds.map(([id, count]) => ({
+      id, count,
+      full_name: uMap.get(id)?.full_name ?? null,
+      phone: uMap.get(id)?.phone ?? null,
+    })),
+  };
+});
+
+/* ============= Gallery (Admin) ============= */
+
+export const listGalleryAdmin = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdminSession();
+  const s = await db();
+  const { data } = await s
+    .from("orders")
+    .select("id, order_number, title, public_title, is_public, gallery_featured, share_token, created_at, user_id")
+    .eq("status", "delivered")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  return data ?? [];
+});
+
+export const setGalleryFlags = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({
+      orderId: z.string().uuid(),
+      isPublic: z.boolean().optional(),
+      featured: z.boolean().optional(),
+      publicTitle: z.string().max(120).nullable().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const s = await db();
+    const patch: Record<string, unknown> = {};
+    if (data.isPublic !== undefined) patch.is_public = data.isPublic;
+    if (data.featured !== undefined) patch.gallery_featured = data.featured;
+    if (data.publicTitle !== undefined) patch.public_title = data.publicTitle;
+    const { error } = await s.from("orders").update(patch).eq("id", data.orderId);
+    if (error) throw new Error(error.message);
+    await audit("gallery_flags", "order", data.orderId, null, patch);
+    return { ok: true as const };
+  });
+
+/* ============= Testimonials (Admin) ============= */
+
+export const listTestimonialsAdmin = createServerFn({ method: "GET" }).handler(async () => {
+  await requireAdminSession();
+  const s = await db();
+  const { data } = await s.from("testimonials").select("*").order("sort_order").order("created_at", { ascending: false });
+  return data ?? [];
+});
+
+export const upsertTestimonial = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid().optional(),
+      author_name: z.string().min(1).max(120),
+      author_city: z.string().max(80).nullable().optional(),
+      content: z.string().min(1).max(2000),
+      rating: z.number().int().min(1).max(5).default(5),
+      avatar_url: z.string().url().nullable().optional(),
+      published: z.boolean().default(false),
+      featured: z.boolean().default(false),
+      sort_order: z.number().int().default(0),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const s = await db();
+    if (data.id) {
+      const { error } = await s.from("testimonials").update(data).eq("id", data.id);
+      if (error) throw new Error(error.message);
+      await audit("testimonial_update", "testimonial", data.id, null, data);
+      return { ok: true as const, id: data.id };
+    } else {
+      const { data: row, error } = await s.from("testimonials").insert(data).select("id").single();
+      if (error) throw new Error(error.message);
+      await audit("testimonial_create", "testimonial", row.id, null, data);
+      return { ok: true as const, id: row.id };
+    }
+  });
+
+export const deleteTestimonial = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const s = await db();
+    const { error } = await s.from("testimonials").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await audit("testimonial_delete", "testimonial", data.id, null, null);
+    return { ok: true as const };
+  });
