@@ -90,6 +90,20 @@ function MyOrdersPage() {
     finally { setReordering(false); }
   }
 
+  async function doShare(orderId: string) {
+    setBusy(orderId);
+    try {
+      const r = await shareFn({ data: { orderId } });
+      const url = `${window.location.origin}${r.url}`;
+      if (navigator.share) {
+        await navigator.share({ url, title: "قصة من بصمة حكاية" }).catch(() => {});
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+      toast.success("تم نسخ رابط المشاركة");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+    finally { setBusy(null); }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="mb-6 flex items-center justify-between">
