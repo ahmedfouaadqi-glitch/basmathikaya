@@ -15,7 +15,7 @@ registerJob("cleanup_old_drafts", async () => {
     .from("orders")
     .delete()
     .lt("created_at", cutoff)
-    .in("status", ["draft", "pending"])
+    .in("status", ["pending"])
     .select("id");
   if (error) throw error;
   return { deleted: (data as any[] | null)?.length ?? 0 };
