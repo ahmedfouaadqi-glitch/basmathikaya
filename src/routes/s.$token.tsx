@@ -90,7 +90,7 @@ function SharePage() {
         </div>
 
         <div className="mt-6 space-y-4">
-          {story.pages.map((p) => (
+          {story.pages.map((p: { number: number; text: string; image_url: string | null }) => (
             <article key={p.number} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
               {p.image_url ? (
                 <img
