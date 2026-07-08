@@ -610,7 +610,7 @@ Return JSON exactly like:
         plan: { title: plan.title, pages: plan.pages },
         pageCount, language, moods, heroAge,
       });
-      await logEvent(data.orderId, "story_qa", "google/gemini-2.5-flash", "chat",
+      await logEvent(data.orderId, "story_qa", "google/gemini-3.1-flash-lite", "chat",
         { log_id: null, run_id: null, usage: qa.usage, duration_ms: qa.duration_ms },
         qa.cost_usd, 0, pricing, qa.ok ? "success" : "error", qa.ok ? null : qa.reasons.join(" | "));
       if (!qa.ok) {
@@ -622,7 +622,7 @@ Return JSON exactly like:
             plan: { title: plan.title, pages: plan.pages },
             pageCount, language, moods, heroAge,
           });
-          await logEvent(data.orderId, "story_qa_retry", "google/gemini-2.5-flash", "chat",
+          await logEvent(data.orderId, "story_qa_retry", "google/gemini-3.1-flash-lite", "chat",
             { log_id: null, run_id: null, usage: qa.usage, duration_ms: qa.duration_ms },
             qa.cost_usd, 0, pricing, qa.ok ? "success" : "error", qa.ok ? null : qa.reasons.join(" | "));
         }
@@ -1280,7 +1280,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
           model: pageModel,
-          referenceImages: pageModel.startsWith("google/") ? referenceImages : undefined,
+          referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
         });
         if (path) {
           // Image QA — one retry max, fail-open on QA errors.
@@ -1291,7 +1291,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
               characterDna,
               language: langForQa,
             });
-            await logEvent(data.orderId, `image_qa_page_${p.page_number}`, "google/gemini-2.5-flash", "chat",
+            await logEvent(data.orderId, `image_qa_page_${p.page_number}`, "google/gemini-3.1-flash-lite", "chat",
               { log_id: null, run_id: null, usage: qa.usage, duration_ms: qa.duration_ms },
               qa.cost_usd, 0, pricing, qa.ok ? "success" : "error", qa.ok ? null : qa.issues.join(" | "));
             let retries = 0;
@@ -1305,7 +1305,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
                 storagePath: `pages/${data.orderId}/${p.page_number}.png`,
                 pricing,
                 model: pageModel,
-                referenceImages: pageModel.startsWith("google/") ? referenceImages : undefined,
+                referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
               });
               if (retryPath) {
                 path = retryPath;
@@ -1316,7 +1316,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
                   characterDna,
                   language: langForQa,
                 });
-                await logEvent(data.orderId, `image_qa_page_${p.page_number}_retry`, "google/gemini-2.5-flash", "chat",
+                await logEvent(data.orderId, `image_qa_page_${p.page_number}_retry`, "google/gemini-3.1-flash-lite", "chat",
                   { log_id: null, run_id: null, usage: finalQa.usage, duration_ms: finalQa.duration_ms },
                   finalQa.cost_usd, 0, pricing, finalQa.ok ? "success" : "error", finalQa.ok ? null : finalQa.issues.join(" | "));
               }
