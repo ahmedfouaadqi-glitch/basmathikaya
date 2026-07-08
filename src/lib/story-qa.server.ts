@@ -2,6 +2,8 @@
 // duplication, weak coherence, mismatched page count, age-inappropriate
 // language, or abrupt transitions. Cheap single call.
 import { callChat, estimateTextCostUsd } from "./ai-gateway.server";
+import { isFeatureEnabled } from "./feature-flags.server";
+import { runTextTask } from "./ai/orchestrator.server";
 
 export type StoryQaReport = {
   ok: boolean;
@@ -60,19 +62,52 @@ Return JSON EXACTLY:
 }`;
 
   try {
-    const r = await callChat({
-      model,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: user },
-      ],
-      response_format: { type: "json_object" },
-    });
-    const cost = estimateTextCostUsd(model, r.meta.usage);
+    // Try orchestrator when feature flag is enabled; falls back to legacy path on error.
+    const useOrch = await isFeatureEnabled("use_orchestrator");
+    let content: string;
+    let meta: { duration_ms: number; usage: { input_tokens?: number; output_tokens?: number } };
+    let modelUsed = model;
+    if (useOrch) {
+      try {
+        const res = await runTextTask({ task: "story_qa" }, () => ({
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user },
+          ],
+          response_format: { type: "json_object" },
+        }));
+        content = res.result.content;
+        meta = res.result.meta;
+        modelUsed = res.model_used;
+      } catch {
+        const r = await callChat({
+          model,
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user },
+          ],
+          response_format: { type: "json_object" },
+        });
+        content = r.content;
+        meta = r.meta;
+      }
+    } else {
+      const r = await callChat({
+        model,
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: user },
+        ],
+        response_format: { type: "json_object" },
+      });
+      content = r.content;
+      meta = r.meta;
+    }
+    const cost = estimateTextCostUsd(modelUsed, meta.usage);
     let parsed: {
       ok?: boolean; score?: number; reasons?: unknown; failing_pages?: unknown; language_fit?: boolean;
     } = {};
-    try { parsed = JSON.parse(r.content); } catch { /* ignore */ }
+    try { parsed = JSON.parse(content); } catch { /* ignore */ }
     const reasons = Array.isArray(parsed.reasons) ? parsed.reasons.map(String).slice(0, 8) : [];
     const failing = Array.isArray(parsed.failing_pages)
       ? parsed.failing_pages.map((n) => Number(n)).filter((n) => Number.isFinite(n))
@@ -83,8 +118,8 @@ Return JSON EXACTLY:
       failing_pages: failing,
       score: Number.isFinite(parsed.score) ? Number(parsed.score) : 0,
       language_fit: Boolean(parsed.language_fit ?? parsed.ok),
-      duration_ms: r.meta.duration_ms,
-      usage: r.meta.usage,
+      duration_ms: meta.duration_ms,
+      usage: meta.usage,
       cost_usd: cost,
     };
   } catch {
