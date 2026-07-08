@@ -32,6 +32,7 @@ import { Route as AdminThemesRouteImport } from './routes/admin.themes'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminShareEventsRouteImport } from './routes/admin.share-events'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminReferralsRouteImport } from './routes/admin.referrals'
 import { Route as AdminRedownloadsRouteImport } from './routes/admin.redownloads'
 import { Route as AdminPhoneBansRouteImport } from './routes/admin.phone-bans'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -166,6 +167,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReferralsRoute = AdminReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRedownloadsRoute = AdminRedownloadsRouteImport.update({
   id: '/redownloads',
   path: '/redownloads',
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
+  '/admin/referrals': typeof AdminReferralsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
+  '/admin/referrals': typeof AdminReferralsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -376,6 +384,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
+  '/admin/referrals': typeof AdminReferralsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -421,6 +430,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/phone-bans'
     | '/admin/redownloads'
+    | '/admin/referrals'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -463,6 +473,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/phone-bans'
     | '/admin/redownloads'
+    | '/admin/referrals'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -506,6 +517,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/phone-bans'
     | '/admin/redownloads'
+    | '/admin/referrals'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -708,6 +720,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/referrals': {
+      id: '/admin/referrals'
+      path: '/referrals'
+      fullPath: '/admin/referrals'
+      preLoaderRoute: typeof AdminReferralsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/redownloads': {
       id: '/admin/redownloads'
       path: '/redownloads'
@@ -850,6 +869,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPhoneBansRoute: typeof AdminPhoneBansRoute
   AdminRedownloadsRoute: typeof AdminRedownloadsRoute
+  AdminReferralsRoute: typeof AdminReferralsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShareEventsRoute: typeof AdminShareEventsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
@@ -873,6 +893,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminPhoneBansRoute: AdminPhoneBansRoute,
   AdminRedownloadsRoute: AdminRedownloadsRoute,
+  AdminReferralsRoute: AdminReferralsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminShareEventsRoute: AdminShareEventsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
