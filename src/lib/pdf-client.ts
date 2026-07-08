@@ -332,7 +332,8 @@ function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string
   const certLine = s.certLine;
   const questionTitle = s.questionTitle;
   const signature = s.signature;
-  const heroName = a.customerName || s.heroFallback;
+  const heroName = (a.heroName && a.heroName.trim()) || a.customerName || s.heroFallback;
+  const authorName = (a.authorName ?? "").trim();
   const orderNum = a.orderNumber ? `#${a.orderNumber}` : "";
   const locale = a.language === "ar" ? "ar-IQ" : a.language === "ku" ? "ckb-IQ" : "en-US";
   const dateStr = new Date().toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
