@@ -37,6 +37,7 @@ import { Route as AdminRedownloadsRouteImport } from './routes/admin.redownloads
 import { Route as AdminPhoneBansRouteImport } from './routes/admin.phone-bans'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
+import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
 import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
 import { Route as AdminEmergencyRouteImport } from './routes/admin.emergency'
 import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
@@ -192,6 +193,11 @@ const AdminJobsRoute = AdminJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminGalleryRoute = AdminGalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFlagsRoute = AdminFlagsRouteImport.update({
   id: '/flags',
   path: '/flags',
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/admin/coupons': typeof AdminCouponsRoute
   '/admin/emergency': typeof AdminEmergencyRoute
   '/admin/flags': typeof AdminFlagsRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
@@ -335,6 +342,7 @@ export interface FileRoutesByTo {
   '/admin/coupons': typeof AdminCouponsRoute
   '/admin/emergency': typeof AdminEmergencyRoute
   '/admin/flags': typeof AdminFlagsRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
@@ -380,6 +388,7 @@ export interface FileRoutesById {
   '/admin/coupons': typeof AdminCouponsRoute
   '/admin/emergency': typeof AdminEmergencyRoute
   '/admin/flags': typeof AdminFlagsRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
@@ -426,6 +435,7 @@ export interface FileRouteTypes {
     | '/admin/coupons'
     | '/admin/emergency'
     | '/admin/flags'
+    | '/admin/gallery'
     | '/admin/jobs'
     | '/admin/login'
     | '/admin/phone-bans'
@@ -469,6 +479,7 @@ export interface FileRouteTypes {
     | '/admin/coupons'
     | '/admin/emergency'
     | '/admin/flags'
+    | '/admin/gallery'
     | '/admin/jobs'
     | '/admin/login'
     | '/admin/phone-bans'
@@ -513,6 +524,7 @@ export interface FileRouteTypes {
     | '/admin/coupons'
     | '/admin/emergency'
     | '/admin/flags'
+    | '/admin/gallery'
     | '/admin/jobs'
     | '/admin/login'
     | '/admin/phone-bans'
@@ -755,6 +767,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminJobsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/gallery': {
+      id: '/admin/gallery'
+      path: '/gallery'
+      fullPath: '/admin/gallery'
+      preLoaderRoute: typeof AdminGalleryRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/flags': {
       id: '/admin/flags'
       path: '/flags'
@@ -865,6 +884,7 @@ interface AdminRouteChildren {
   AdminCouponsRoute: typeof AdminCouponsRoute
   AdminEmergencyRoute: typeof AdminEmergencyRoute
   AdminFlagsRoute: typeof AdminFlagsRoute
+  AdminGalleryRoute: typeof AdminGalleryRoute
   AdminJobsRoute: typeof AdminJobsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPhoneBansRoute: typeof AdminPhoneBansRoute
@@ -889,6 +909,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCouponsRoute: AdminCouponsRoute,
   AdminEmergencyRoute: AdminEmergencyRoute,
   AdminFlagsRoute: AdminFlagsRoute,
+  AdminGalleryRoute: AdminGalleryRoute,
   AdminJobsRoute: AdminJobsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminPhoneBansRoute: AdminPhoneBansRoute,
