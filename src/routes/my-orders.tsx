@@ -50,6 +50,7 @@ function MyOrdersPage() {
   const notifFn = useServerFn(listMyNotifications);
   const markAllFn = useServerFn(markAllNotificationsRead);
   const shareFn = useServerFn(ensureShareToken);
+  const publicFn = useServerFn(setOrderPublic);
 
   const q = useQuery({ queryKey: ["my-orders"], queryFn: () => fn(), refetchInterval: 15_000 });
   const notifQ = useQuery({ queryKey: ["my-notifications"], queryFn: () => notifFn(), refetchInterval: 20_000 });
