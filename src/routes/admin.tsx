@@ -42,6 +42,9 @@ function AdminLayout() {
             <Palette className="size-4" />
             {t("admin_themes")}
           </Link>
+          <Link to="/admin/art-styles" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Brush className="size-4" /> أنماط الرسم
+          </Link>
           <Link to="/admin/templates" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <LayoutTemplate className="size-4" />
             قوالب المعاينة
