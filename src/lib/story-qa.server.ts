@@ -26,7 +26,7 @@ export async function runStoryQA(args: {
   moods: string[];
   heroAge: number | null;
 }): Promise<StoryQaReport> {
-  const model = "google/gemini-2.5-flash";
+  const model = "google/gemini-3.1-flash-lite";
   const langName = args.language === "ar" ? "Arabic" : args.language === "ku" ? "Kurdish Sorani" : "English";
   const pagesJoined = args.plan.pages
     .map((p, i) => `[Page ${i + 1}] ${p.text}`)
