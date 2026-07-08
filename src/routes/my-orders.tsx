@@ -103,6 +103,9 @@ function MyOrdersPage() {
       toast.success("تم نسخ رابط المشاركة");
     } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
     finally { setBusy(null); }
+  }
+
+
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
