@@ -30,9 +30,16 @@ function pick<T extends string>(ar: T, en: T, lang: "ar" | "en" | "ku"): T {
 
 function Home() {
   const { t, lang } = useT();
+  const { ref } = Route.useSearch();
   const homeFn = useServerFn(getHomeContent);
   const q = useQuery({ queryKey: ["site-home"], queryFn: () => homeFn(), staleTime: 60_000 });
   const c = q.data ?? DEFAULT_HOME_CONTENT;
+
+  useEffect(() => {
+    if (ref && typeof window !== "undefined") {
+      localStorage.setItem("bh_ref", ref.toUpperCase());
+    }
+  }, [ref]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24">
