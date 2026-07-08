@@ -49,7 +49,6 @@ function MyOrdersPage() {
   const fn = useServerFn(myOrders);
   const logoutFn = useServerFn(userLogout);
   const reqFn = useServerFn(requestRedownload);
-  const reorderFn = useServerFn(reorderExisting);
   const notifFn = useServerFn(listMyNotifications);
   const markAllFn = useServerFn(markAllNotificationsRead);
   const shareFn = useServerFn(ensureShareToken);
@@ -59,10 +58,12 @@ function MyOrdersPage() {
   const notifQ = useQuery({ queryKey: ["my-notifications"], queryFn: () => notifFn(), refetchInterval: 20_000 });
 
   const [busy, setBusy] = useState<string | null>(null);
-  const [reorderOpen, setReorderOpen] = useState<null | { id: string; number: number }>(null);
-  const [reorderQuality, setReorderQuality] = useState<"standard" | "premium">("standard");
-  const [reorderCoupon, setReorderCoupon] = useState("");
-  const [reordering, setReordering] = useState(false);
+  // Publish-to-gallery dialog
+  const [publishOpen, setPublishOpen] = useState<null | Row>(null);
+  const [publishTitle, setPublishTitle] = useState("");
+  const [publishShowAuthor, setPublishShowAuthor] = useState(false);
+  const [publishAuthorName, setPublishAuthorName] = useState("");
+  const [publishing, setPublishing] = useState(false);
 
   const unread = (notifQ.data ?? []).filter((n) => !n.read_at).length;
 
