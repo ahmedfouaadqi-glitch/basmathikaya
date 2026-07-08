@@ -193,7 +193,9 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
   const dir = isRtl ? "rtl" : "ltr";
   const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
   const title = escapeHtml(a.title || s.defaultTitle);
-  const sub = a.customerName ? s.subWith(a.customerName) : s.subNoName;
+  const displayName = (a.heroName && a.heroName.trim()) || a.customerName;
+  const sub = displayName ? s.subWith(displayName) : s.subNoName;
+  const authorName = (a.authorName ?? "").trim();
   const chips = (a.moods || []).map((m) => `<span style="background:${opts.gold}22;color:${opts.gold};padding:6px 14px;border-radius:999px;font-weight:700;font-size:13px;margin:0 4px;display:inline-block;">${escapeHtml(m)}</span>`).join("");
   const cover = opts.coverData
     ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
