@@ -20,9 +20,10 @@ function AuthPage() {
   const { t } = useT();
   const navigate = useNavigate();
   const router = useRouter();
-  const { redirect } = Route.useSearch();
+  const { redirect, ref } = Route.useSearch();
   const reqFn = useServerFn(requestOtp);
   const verFn = useServerFn(verifyOtp);
+  const redeemFn = useServerFn(redeemReferralCode);
 
   const [step, setStep] = useState<"request" | "verify">("request");
   const [name, setName] = useState("");
@@ -31,6 +32,15 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  const [referralCode, setReferralCode] = useState<string>(ref ?? "");
+
+  useEffect(() => {
+    // Also read from ?ref= or from localStorage stashed by index page
+    if (!referralCode && typeof window !== "undefined") {
+      const stored = localStorage.getItem("bh_ref");
+      if (stored) setReferralCode(stored);
+    }
+  }, [referralCode]);
 
   async function onRequest(e: React.FormEvent) {
     e.preventDefault();
