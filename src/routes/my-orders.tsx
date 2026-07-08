@@ -34,6 +34,7 @@ type Row = {
   tier: string | null; amount_iqd: number; page_count: number; title: string | null;
   rejection_reason?: string | null;
   redownload_status?: string | null; redownload_amount_iqd?: number | null;
+  is_public?: boolean | null;
 };
 
 function MyOrdersPage() {
