@@ -108,6 +108,16 @@ function MyOrdersPage() {
     finally { setBusy(null); }
   }
 
+  async function togglePublic(orderId: string, current: boolean) {
+    setBusy(orderId);
+    try {
+      await publicFn({ data: { orderId, isPublic: !current } });
+      toast.success(!current ? "تم نشر القصة في المعرض" : "تم إخفاء القصة");
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+    finally { setBusy(null); }
+  }
+
 
 
   return (
