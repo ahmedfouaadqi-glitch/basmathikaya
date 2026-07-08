@@ -33,7 +33,7 @@ export async function runImageQA(args: {
   characterDna: string;
   language: "ar" | "en" | "ku";
 }): Promise<ImageQaReport> {
-  const model = "google/gemini-2.5-flash";
+  const model = "google/gemini-3.1-flash-lite";
   const bucket = args.bucket ?? "story-covers";
   const dataUrl = await pathToDataUrl(args.imagePath, bucket);
   if (!dataUrl) {
