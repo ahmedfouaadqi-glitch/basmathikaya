@@ -115,7 +115,6 @@ export async function getEmergencyState(): Promise<EmergencyState> {
   try {
     const { data } = await supabaseAdmin
       .from("emergency_controls")
-      // @ts-expect-error - table added in stage 0 migration, types regen pending
       .select("ai_all_paused, ai_image_paused, ai_text_paused, qa_paused, reason")
       .eq("id", true)
       .maybeSingle();
@@ -147,7 +146,6 @@ async function loadCandidates(task: TaskType): Promise<ModelConfigRow[]> {
     const { data, error } = await supabaseAdmin
       .from("ai_models_config")
       .select("*")
-      // @ts-expect-error - table added in stage 0 migration
       .eq("task_type", task)
       .eq("enabled", true)
       .order("priority", { ascending: true });
@@ -164,7 +162,6 @@ async function loadHealth(task: TaskType): Promise<Map<string, { circuit_state: 
     const { data } = await supabaseAdmin
       .from("ai_model_health")
       .select("model_id, circuit_state, consecutive_failures, next_probe_at")
-      // @ts-expect-error - table added in stage 0 migration
       .eq("task_type", task);
     for (const row of ((data as any) ?? [])) {
       map.set(row.model_id, {
@@ -204,7 +201,6 @@ async function logEvent(row: {
 }) {
   try {
     await supabaseAdmin.from("ai_model_events").insert({
-      // @ts-expect-error - table added in stage 0 migration
       task_type: row.task_type,
       model_id: row.model_id,
       attempt: row.attempt,
@@ -227,7 +223,6 @@ async function logEvent(row: {
 async function updateHealthOnSuccess(task: TaskType, model_id: string, latency_ms: number) {
   try {
     await supabaseAdmin.from("ai_model_health").upsert({
-      // @ts-expect-error - table added in stage 0 migration
       task_type: task,
       model_id,
       is_healthy: true,
@@ -248,14 +243,12 @@ async function updateHealthOnFailure(task: TaskType, model_id: string, error_mes
     const { data } = await supabaseAdmin
       .from("ai_model_health")
       .select("consecutive_failures")
-      // @ts-expect-error - table added in stage 0 migration
       .eq("task_type", task)
       .eq("model_id", model_id)
       .maybeSingle();
     const current = ((data as any)?.consecutive_failures ?? 0) + 1;
     const openCircuit = current >= CIRCUIT_FAIL_THRESHOLD;
     await supabaseAdmin.from("ai_model_health").upsert({
-      // @ts-expect-error - table added in stage 0 migration
       task_type: task,
       model_id,
       is_healthy: !openCircuit,
