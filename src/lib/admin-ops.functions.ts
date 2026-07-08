@@ -418,7 +418,7 @@ export const listGalleryAdmin = createServerFn({ method: "GET" }).handler(async 
   const s = await db();
   const { data } = await s
     .from("orders")
-    .select("id, order_number, title, public_title, is_public, gallery_featured, share_token, created_at, user_id")
+    .select("id, order_number, title, public_title, is_public, gallery_featured, share_token, created_at, user_id, show_author, public_author_name")
     .eq("status", "delivered")
     .order("created_at", { ascending: false })
     .limit(200);

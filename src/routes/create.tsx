@@ -5,12 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Trash2, Plus, UserCircle, Camera, X, CheckCircle2, XCircle, Eye } from "lucide-react";
 import { useT } from "../lib/i18n";
-import { createOrderDraft, getPublicPricing, validateCoupon } from "../lib/orders.functions";
+import { createOrderDraft, getPublicPricing, validateCoupon, getOrderPrefill } from "../lib/orders.functions";
 import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
 import { buildSampleStory } from "../lib/sample-story";
 import { listPublicPreviewTemplates, type PreviewTemplate } from "../lib/preview-templates.functions";
+import { z } from "zod";
 
 
 export const Route = createFileRoute("/create")({
@@ -20,6 +21,8 @@ export const Route = createFileRoute("/create")({
       { name: "description", content: "أنشئ قصة فريدة بشخصياتك وأجوائك المفضلة." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) =>
+    z.object({ from: z.string().uuid().optional() }).parse(search),
   beforeLoad: async ({ location }) => {
     const me = await getCurrentUser();
     if (!me) {
@@ -70,10 +73,12 @@ function CreatePage() {
   const { t, lang, setLang } = useT();
   const navigate = useNavigate();
   const { me } = Route.useRouteContext();
+  const search = Route.useSearch();
   const create = useServerFn(createOrderDraft);
   const uploadPhoto = useServerFn(uploadCharacterPhoto);
   const pricingFn = useServerFn(getPublicPricing);
   const validateCouponFn = useServerFn(validateCoupon);
+  const prefillFn = useServerFn(getOrderPrefill);
   const pricingQ = useQuery({ queryKey: ["pricing-public"], queryFn: () => pricingFn(), staleTime: 60_000 });
   const [samplePreviewOpen, setSamplePreviewOpen] = useState(false);
 
@@ -133,6 +138,44 @@ function CreatePage() {
     }, 500);
     return () => { cancelled = true; window.clearTimeout(id); };
   }, [couponCode, pages, qualityTier, tier, validateCouponFn]);
+
+  // Prefill the form from an existing order (?from=<orderId>) — "recreate with new options".
+  const fromOrderId = search.from;
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (!fromOrderId || prefilledRef.current) return;
+    prefilledRef.current = true;
+    (async () => {
+      try {
+        const p = await prefillFn({ data: { orderId: fromOrderId } });
+        if (p.characters.length > 0) {
+          setCharacters(
+            p.characters.map((c) => ({
+              name: c.name,
+              age: c.age != null ? String(c.age) : "",
+              role: c.role,
+              description: c.description,
+              photoPath: c.photo_path,
+              photoPreview: null,
+              uploading: false,
+            })),
+          );
+        }
+        setMoods(p.moods.length ? p.moods : ["adventure"]);
+        setInstructions(p.custom_instructions);
+        setPages(p.page_count);
+        setQualityTier(p.image_quality_tier);
+        setTier(p.tier);
+        setPdfOrientation(p.pdf_orientation);
+        setLang(p.language);
+        toast.success("تم تعبئة النموذج من قصتك السابقة — عدّل ما تشاء ثم أرسل الطلب");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "تعذّرت التعبئة");
+      }
+    })();
+  }, [fromOrderId, prefillFn, setLang]);
+
+
 
 
   function updateChar(i: number, patch: Partial<CharacterDraft>) {

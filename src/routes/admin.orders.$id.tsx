@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck, X, Trash2, RotateCcw } from "lucide-react";
-import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload } from "../lib/orders.functions";
+import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload, adminRetryImageGeneration } from "../lib/orders.functions";
 import { getActiveTheme } from "../lib/themes.functions";
 import { getHomeContent } from "../lib/site-content.functions";
 import { buildAndDownloadStoryPdf, type StoryPdfAssets } from "../lib/pdf-client";
@@ -30,7 +30,9 @@ function OrderDetail() {
   const rejectFn = useServerFn(adminRejectOrder);
   const deleteFn = useServerFn(adminDeleteOrder);
   const redownloadFn = useServerFn(adminConfirmRedownload);
+  const retryImagesFn = useServerFn(adminRetryImageGeneration);
   const [regening, setRegening] = useState<number | null>(null);
+  const [retryingImages, setRetryingImages] = useState(false);
   const [buildingPdf, setBuildingPdf] = useState(false);
   const [confirmingPay, setConfirmingPay] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -103,6 +105,8 @@ function OrderDetail() {
         disclaimer: content ? (lang === "ar" ? content.disclaimer_ar : content.disclaimer_en) : null,
         frameStyle: (th?.frame_style as StoryFrameStyle) ?? null,
         palette: th?.palette ?? null,
+        orientation: (p as { pdf_orientation?: "portrait" | "landscape" }).pdf_orientation ?? "portrait",
+        reflectiveQuestion: (p as { reflective_question?: string | null }).reflective_question ?? null,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");
@@ -144,6 +148,19 @@ function OrderDetail() {
       qc.invalidateQueries({ queryKey: ["admin-order", id] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");
+    }
+  }
+
+  async function retryImages() {
+    setRetryingImages(true);
+    try {
+      await retryImagesFn({ data: { orderId: id } });
+      toast.success("بدأت إعادة توليد الصور");
+      qc.invalidateQueries({ queryKey: ["admin-order", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    } finally {
+      setRetryingImages(false);
     }
   }
 
@@ -195,9 +212,31 @@ function OrderDetail() {
                 <Loader2 className="size-4 animate-spin" /> {t("images_generating")}
               </div>
             )}
-            {order.images_status === "failed" && order.images_error && (
-              <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
-                {order.images_error}
+            {order.images_status === "failed" && (
+              <div className="mt-3 space-y-2">
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                  {(() => {
+                    const err = order.images_error ?? "";
+                    if (/credit_limit|402|403/i.test(err)) {
+                      return (
+                        <div>
+                          <div className="font-semibold mb-1">نفدت حصة مزوّد الذكاء الاصطناعي</div>
+                          <p>أضِف رصيداً لمساحة العمل ثم اضغط "إعادة توليد كامل الصور".</p>
+                          <p className="mt-1 opacity-70 break-words">{err}</p>
+                        </div>
+                      );
+                    }
+                    return <p className="break-words">{err || "فشل توليد الصور"}</p>;
+                  })()}
+                </div>
+                <button
+                  onClick={retryImages}
+                  disabled={retryingImages}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 py-2 text-xs font-bold text-primary hover:bg-primary/20 disabled:opacity-60"
+                >
+                  {retryingImages ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+                  إعادة توليد كامل الصور
+                </button>
               </div>
             )}
             {imagesReady && (
