@@ -13,10 +13,29 @@
   "lang": "ar",
   "dir": "rtl",
   "categories": ["books", "education", "kids"],
+  "prefer_related_applications": false,
+  "handle_links": "preferred",
+  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "ابدأ حكاية جديدة",
+      "short_name": "حكاية جديدة",
+      "description": "أنشئ قصة مخصصة الآن",
+      "url": "/create?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "طلباتي",
+      "short_name": "طلباتي",
+      "description": "استعرض قصصك وطلباتك",
+      "url": "/my-orders?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

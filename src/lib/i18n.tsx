@@ -268,36 +268,40 @@ type Ctx = {
 const LangContext = createContext<Ctx | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
+  // NOTE: EN/KU are hidden until every route is fully translated.
+  // We keep the provider, keys, and Lang type intact so re-enabling later
+  // is a one-line change (remove the lock below + re-show <LangSwitch>).
   const [lang, setLangState] = useState<Lang>("ar");
 
   useEffect(() => {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("basma-lang") : null;
-    const saved = (raw === "ar" || raw === "en" || raw === "ku") ? raw : "ar";
-    setLangState(saved);
+    // One-time cleanup of any legacy language pref so nothing gets stuck.
+    try {
+      const raw = localStorage.getItem("basma-lang");
+      if (raw && raw !== "ar") localStorage.removeItem("basma-lang");
+    } catch {}
+    setLangState("ar");
   }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    document.documentElement.lang = lang;
-    // Arabic AND Kurdish (Sorani) are RTL scripts
-    document.documentElement.dir = (lang === "ar" || lang === "ku") ? "rtl" : "ltr";
+    document.documentElement.lang = "ar";
+    document.documentElement.dir = "rtl";
   }, [lang]);
 
-  function setLang(l: Lang) {
-    setLangState(l);
-    if (typeof window !== "undefined") localStorage.setItem("basma-lang", l);
+  // Locked no-op while EN/KU are hidden. Signature kept for compatibility.
+  function setLang(_l: Lang) {
+    /* language switching disabled */
   }
 
   function t(k: keyof typeof D) {
     const entry = D[k];
     if (!entry) return String(k);
-    // Kurdish falls back to Arabic (same script) when a key wasn't translated yet.
-    if (lang === "ku") return entry.ku ?? entry.ar;
-    return entry[lang] ?? entry.ar;
+    return entry.ar;
   }
 
   return <LangContext.Provider value={{ lang, setLang, t }}>{children}</LangContext.Provider>;
 }
+
 
 export function useT() {
   const ctx = useContext(LangContext);

@@ -116,7 +116,11 @@
 
 @layer base {
   * { border-color: var(--color-border); }
-  html { font-family: var(--font-sans); }
+  html {
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   body {
     background:
       radial-gradient(ellipse at top, oklch(0.92 0.055 190 / 0.55), transparent 55%),
@@ -124,10 +128,29 @@
       var(--color-background);
     color: var(--color-foreground);
     min-height: 100vh;
+    /* Respect iOS safe areas in standalone mode */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    overflow-x: hidden;
   }
   [dir="rtl"] body { font-family: "Tajawal", system-ui, sans-serif; }
   [dir="ltr"] body { font-family: "Inter", system-ui, sans-serif; }
+
+  /* Responsive safety net — nothing ever escapes its container */
+  img, video, iframe, canvas, svg { max-width: 100%; height: auto; }
+  iframe { display: block; }
+  /* Prevent long words / URLs from blowing out narrow layouts */
+  p, li, h1, h2, h3, h4, h5, h6, span, a, label { overflow-wrap: anywhere; word-break: normal; }
+  /* Any raw table gets a horizontal scroll on small screens instead of overflowing */
+  table { display: block; max-width: 100%; overflow-x: auto; }
 }
+
+/* Installed-PWA tweaks: no need for the install prompt */
+@media (display-mode: standalone) {
+  .pwa-hide-when-installed { display: none !important; }
+}
+
 
 @utility text-balance { text-wrap: balance; }
 
