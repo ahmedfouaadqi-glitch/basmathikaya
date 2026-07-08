@@ -5,12 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Trash2, Plus, UserCircle, Camera, X, CheckCircle2, XCircle, Eye } from "lucide-react";
 import { useT } from "../lib/i18n";
-import { createOrderDraft, getPublicPricing, validateCoupon } from "../lib/orders.functions";
+import { createOrderDraft, getPublicPricing, validateCoupon, getOrderPrefill } from "../lib/orders.functions";
 import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
 import { buildSampleStory } from "../lib/sample-story";
 import { listPublicPreviewTemplates, type PreviewTemplate } from "../lib/preview-templates.functions";
+import { z } from "zod";
 
 
 export const Route = createFileRoute("/create")({
