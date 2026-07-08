@@ -467,7 +467,9 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
       a.disclaimer ??
       (a.language === "ar"
         ? "إخلاء مسؤولية: «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة بدون أي تدخّل بشري. المستخدم هو المسؤول الوحيد عن كل المُدخلات والنتائج، بعد تسديد المبالغ لا يتم استرجاعها. تحتفظ الإدارة بحق قبول أو رفض الطلب."
-        : "Disclaimer: Basma Hekaya is an AI tool built for this concept with no human involvement. The user is solely responsible for all inputs and outputs; paid amounts are non-refundable. The admin reserves the right to accept or reject any order.");
+        : a.language === "ku"
+          ? "ڕوونکردنەوەی بەرپرسیارێتی: «بەسمە حیکایە» ئامرازێکی زیرەکی دەستکردە بۆ ئەم بیرۆکەیە بەبێ هیچ دەستێوەردانێکی مرۆیی. بەکارهێنەر بە تەنیا بەرپرسە لە هەموو داغڵ و دەرکردنێک، دوای پارەدان پارە ناگەڕێتەوە. بەڕێوەبردن مافی وەرگرتن یان ڕەتکردنەوەی داواکارییەکەی هەیە."
+          : "Disclaimer: Basma Hekaya is an AI tool built for this concept with no human involvement. The user is solely responsible for all inputs and outputs; paid amounts are non-refundable. The admin reserves the right to accept or reject any order.");
     const opts = { accent, gold, logo: logoData, disclaimer };
     const htmlParts: string[] = [
       buildCoverHtml(a, { accent, gold, logo: logoData, coverData }),
