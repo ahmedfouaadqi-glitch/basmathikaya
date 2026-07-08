@@ -234,6 +234,15 @@ function MyOrdersPage() {
                       <RotateCcw className="size-3.5" /> إعادة الطلب
                     </button>
                   )}
+                  {o.status === "delivered" && (
+                    <button
+                      onClick={() => doShare(o.id)}
+                      disabled={busy === o.id}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs hover:bg-secondary disabled:opacity-60"
+                    >
+                      <Share2 className="size-3.5" /> شارك
+                    </button>
+                  )}
                 </div>
               </div>
             );
