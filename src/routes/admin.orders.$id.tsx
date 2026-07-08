@@ -151,6 +151,19 @@ function OrderDetail() {
     }
   }
 
+  async function retryImages() {
+    setRetryingImages(true);
+    try {
+      await retryImagesFn({ data: { orderId: id } });
+      toast.success("بدأت إعادة توليد الصور");
+      qc.invalidateQueries({ queryKey: ["admin-order", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    } finally {
+      setRetryingImages(false);
+    }
+  }
+
   const imagesReady = order.images_status === "ready";
 
   return (
