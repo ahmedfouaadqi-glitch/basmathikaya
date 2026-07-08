@@ -1,14 +1,16 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Phone, KeyRound } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { requestOtp, verifyOtp } from "../lib/auth.functions";
+import { redeemReferralCode } from "../lib/referrals.functions";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
     redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+    ref: typeof s.ref === "string" ? s.ref : undefined,
   }),
   head: () => ({ meta: [{ title: "تسجيل دخول — بصمة حكاية" }] }),
   component: AuthPage,
