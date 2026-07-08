@@ -131,6 +131,7 @@ type PdfStrings = {
   questionTitle: string;
   signature: string;
   heroFallback: string;
+  authorLabel: string;
 };
 const STRINGS: Record<PdfLang, PdfStrings> = {
   ar: {
@@ -148,6 +149,7 @@ const STRINGS: Record<PdfLang, PdfStrings> = {
     questionTitle: "سؤال لك يا بطل",
     signature: "توقيع: بصمة حكاية",
     heroFallback: "بطلنا",
+    authorLabel: "المؤلف",
   },
   en: {
     defaultTitle: "My Story",
@@ -164,6 +166,7 @@ const STRINGS: Record<PdfLang, PdfStrings> = {
     questionTitle: "A question for you, hero",
     signature: "Signed: Basma Hekaya",
     heroFallback: "our hero",
+    authorLabel: "Author",
   },
   ku: {
     defaultTitle: "چیرۆکەکەم",
@@ -180,6 +183,7 @@ const STRINGS: Record<PdfLang, PdfStrings> = {
     questionTitle: "پرسیارێک بۆ تۆ ئەی پاڵەوان",
     signature: "واژۆ: بەسمە حیکایە",
     heroFallback: "پاڵەوانمان",
+    authorLabel: "نووسەر",
   },
 };
 
