@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestimonialsRouteImport } from './routes/testimonials'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
@@ -53,6 +54,11 @@ import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/
 const TestimonialsRoute = TestimonialsRouteImport.update({
   id: '/testimonials',
   path: '/testimonials',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReferralsRoute = ReferralsRouteImport.update({
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/my-orders': typeof MyOrdersRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/my-orders': typeof MyOrdersRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/my-orders': typeof MyOrdersRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -396,6 +405,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/pricing'
     | '/referrals'
+    | '/sitemap.xml'
     | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -437,6 +447,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/pricing'
     | '/referrals'
+    | '/sitemap.xml'
     | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -479,6 +490,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/pricing'
     | '/referrals'
+    | '/sitemap.xml'
     | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -522,6 +534,7 @@ export interface RootRouteChildren {
   MyOrdersRoute: typeof MyOrdersRoute
   PricingRoute: typeof PricingRoute
   ReferralsRoute: typeof ReferralsRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TestimonialsRoute: typeof TestimonialsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -539,6 +552,13 @@ declare module '@tanstack/react-router' {
       path: '/testimonials'
       fullPath: '/testimonials'
       preLoaderRoute: typeof TestimonialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/referrals': {
@@ -878,6 +898,7 @@ const rootRouteChildren: RootRouteChildren = {
   MyOrdersRoute: MyOrdersRoute,
   PricingRoute: PricingRoute,
   ReferralsRoute: ReferralsRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TestimonialsRoute: TestimonialsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
