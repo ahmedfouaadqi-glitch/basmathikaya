@@ -7,7 +7,7 @@ import { myOrders, requestRedownload, reorderExisting } from "../lib/orders.func
 import { ensureShareToken } from "../lib/share.functions";
 import { listMyNotifications, markAllNotificationsRead } from "../lib/notifications.functions";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users } from "lucide-react";
+import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
