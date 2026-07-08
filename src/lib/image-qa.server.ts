@@ -4,6 +4,7 @@
 import { callChat, estimateTextCostUsd } from "./ai-gateway.server";
 import { isFeatureEnabled } from "./feature-flags.server";
 import { runTextTask } from "./ai/orchestrator.server";
+import { getCached, setCached, hashKey } from "./ai/cache.server";
 
 export type ImageQaReport = {
   ok: boolean;
@@ -40,6 +41,15 @@ export async function runImageQA(args: {
   const dataUrl = await pathToDataUrl(args.imagePath, bucket);
   if (!dataUrl) {
     return { ok: true, score: 0, issues: ["download_failed"], duration_ms: 0, usage: {}, cost_usd: 0 };
+  }
+  // Cache lookup (feature-flagged): image path + DNA + language are stable.
+  const cacheOn = await isFeatureEnabled("cache_image_qa");
+  const cacheKey = cacheOn
+    ? hashKey("image_qa", args.imagePath, args.characterDna, args.expectedScene, args.language)
+    : null;
+  if (cacheKey) {
+    const hit = await getCached<ImageQaReport>(cacheKey);
+    if (hit) return { ...hit, duration_ms: 0, cost_usd: 0 };
   }
   const sys = `You are a strict children's storybook art director. Return JSON ONLY.`;
   const user = `Evaluate this illustration against the brief.
@@ -105,7 +115,7 @@ Return JSON EXACTLY:
     let parsed: { ok?: boolean; score?: number; issues?: unknown } = {};
     try { parsed = JSON.parse(content); } catch { /* ignore */ }
     const issues = Array.isArray(parsed.issues) ? parsed.issues.map(String).slice(0, 8) : [];
-    return {
+    const report: ImageQaReport = {
       ok: Boolean(parsed.ok),
       score: Number.isFinite(parsed.score) ? Number(parsed.score) : 0,
       issues,
@@ -113,6 +123,10 @@ Return JSON EXACTLY:
       usage: meta.usage,
       cost_usd: cost,
     };
+    if (cacheKey) {
+      void setCached({ cacheKey, taskType: "image_qa", modelId: modelUsed, response: report, ttlSeconds: 60 * 60 * 24 * 30, costUsd: cost });
+    }
+    return report;
   } catch {
     return { ok: true, score: 0, issues: ["qa_service_error"], duration_ms: 0, usage: {}, cost_usd: 0 };
   }

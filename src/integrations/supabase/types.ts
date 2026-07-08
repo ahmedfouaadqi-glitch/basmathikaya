@@ -380,6 +380,42 @@ export type Database = {
         }
         Relationships: []
       }
+      character_analysis_cache: {
+        Row: {
+          cache_key: string
+          character_dna: Json
+          cost_saved_usd: number
+          created_at: string
+          expires_at: string
+          hits: number
+          image_hash: string
+          last_hit_at: string | null
+          model_id: string
+        }
+        Insert: {
+          cache_key: string
+          character_dna: Json
+          cost_saved_usd?: number
+          created_at?: string
+          expires_at: string
+          hits?: number
+          image_hash: string
+          last_hit_at?: string | null
+          model_id: string
+        }
+        Update: {
+          cache_key?: string
+          character_dna?: Json
+          cost_saved_usd?: number
+          created_at?: string
+          expires_at?: string
+          hits?: number
+          image_hash?: string
+          last_hit_at?: string | null
+          model_id?: string
+        }
+        Relationships: []
+      }
       characters: {
         Row: {
           age: number
@@ -1357,6 +1393,42 @@ export type Database = {
           title?: string | null
           updated_at?: string
           url?: string
+        }
+        Relationships: []
+      }
+      prompt_cache: {
+        Row: {
+          cache_key: string
+          cost_saved_usd: number
+          created_at: string
+          expires_at: string
+          hits: number
+          last_hit_at: string | null
+          model_id: string
+          response: Json
+          task_type: string
+        }
+        Insert: {
+          cache_key: string
+          cost_saved_usd?: number
+          created_at?: string
+          expires_at: string
+          hits?: number
+          last_hit_at?: string | null
+          model_id: string
+          response: Json
+          task_type: string
+        }
+        Update: {
+          cache_key?: string
+          cost_saved_usd?: number
+          created_at?: string
+          expires_at?: string
+          hits?: number
+          last_hit_at?: string | null
+          model_id?: string
+          response?: Json
+          task_type?: string
         }
         Relationships: []
       }

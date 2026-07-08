@@ -4,6 +4,7 @@
 import { callChat, estimateTextCostUsd } from "./ai-gateway.server";
 import { isFeatureEnabled } from "./feature-flags.server";
 import { runTextTask } from "./ai/orchestrator.server";
+import { getCached, setCached, hashKey } from "./ai/cache.server";
 
 export type StoryQaReport = {
   ok: boolean;
@@ -62,6 +63,15 @@ Return JSON EXACTLY:
 }`;
 
   try {
+    // Cache lookup (feature-flagged).
+    const cacheOn = await isFeatureEnabled("cache_story_qa");
+    const cacheKey = cacheOn
+      ? hashKey("story_qa", args.language, args.pageCount, args.plan.title, ...args.plan.pages.map((p) => p.text))
+      : null;
+    if (cacheKey) {
+      const hit = await getCached<StoryQaReport>(cacheKey);
+      if (hit) return { ...hit, duration_ms: 0, cost_usd: 0 };
+    }
     // Try orchestrator when feature flag is enabled; falls back to legacy path on error.
     const useOrch = await isFeatureEnabled("use_orchestrator");
     let content: string;
@@ -112,7 +122,7 @@ Return JSON EXACTLY:
     const failing = Array.isArray(parsed.failing_pages)
       ? parsed.failing_pages.map((n) => Number(n)).filter((n) => Number.isFinite(n))
       : [];
-    return {
+    const report: StoryQaReport = {
       ok: Boolean(parsed.ok),
       reasons,
       failing_pages: failing,
@@ -122,6 +132,10 @@ Return JSON EXACTLY:
       usage: meta.usage,
       cost_usd: cost,
     };
+    if (cacheKey) {
+      void setCached({ cacheKey, taskType: "story_qa", modelId: modelUsed, response: report, ttlSeconds: 60 * 60 * 24 * 7, costUsd: cost });
+    }
+    return report;
   } catch {
     // Fail-open: never block story creation if QA itself errors.
     return {
