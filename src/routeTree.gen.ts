@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReferralsRouteImport } from './routes/referrals'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
@@ -50,6 +51,11 @@ import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/
 const ReferralsRoute = ReferralsRouteImport.update({
   id: '/referrals',
   path: '/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MyOrdersRoute = MyOrdersRouteImport.update({
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -325,6 +333,7 @@ export interface FileRoutesById {
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -366,6 +375,7 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/pricing'
     | '/referrals'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -404,6 +414,7 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/pricing'
     | '/referrals'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -443,6 +454,7 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/pricing'
     | '/referrals'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -483,6 +495,7 @@ export interface RootRouteChildren {
   HowItWorksRoute: typeof HowItWorksRoute
   McpRoute: typeof McpRoute
   MyOrdersRoute: typeof MyOrdersRoute
+  PricingRoute: typeof PricingRoute
   ReferralsRoute: typeof ReferralsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -500,6 +513,13 @@ declare module '@tanstack/react-router' {
       path: '/referrals'
       fullPath: '/referrals'
       preLoaderRoute: typeof ReferralsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-orders': {
@@ -815,6 +835,7 @@ const rootRouteChildren: RootRouteChildren = {
   HowItWorksRoute: HowItWorksRoute,
   McpRoute: McpRoute,
   MyOrdersRoute: MyOrdersRoute,
+  PricingRoute: PricingRoute,
   ReferralsRoute: ReferralsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
