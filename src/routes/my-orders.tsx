@@ -4,9 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useT } from "../lib/i18n";
 import { getCurrentUser, userLogout } from "../lib/auth.functions";
 import { myOrders, requestRedownload, reorderExisting } from "../lib/orders.functions";
+import { ensureShareToken } from "../lib/share.functions";
 import { listMyNotifications, markAllNotificationsRead } from "../lib/notifications.functions";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users } from "lucide-react";
+import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -46,6 +47,7 @@ function MyOrdersPage() {
   const reorderFn = useServerFn(reorderExisting);
   const notifFn = useServerFn(listMyNotifications);
   const markAllFn = useServerFn(markAllNotificationsRead);
+  const shareFn = useServerFn(ensureShareToken);
 
   const q = useQuery({ queryKey: ["my-orders"], queryFn: () => fn(), refetchInterval: 15_000 });
   const notifQ = useQuery({ queryKey: ["my-notifications"], queryFn: () => notifFn(), refetchInterval: 20_000 });
@@ -87,6 +89,23 @@ function MyOrdersPage() {
     } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
     finally { setReordering(false); }
   }
+
+  async function doShare(orderId: string) {
+    setBusy(orderId);
+    try {
+      const r = await shareFn({ data: { orderId } });
+      const url = `${window.location.origin}${r.url}`;
+      if (navigator.share) {
+        await navigator.share({ url, title: "قصة من بصمة حكاية" }).catch(() => {});
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+      toast.success("تم نسخ رابط المشاركة");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+    finally { setBusy(null); }
+  }
+
+
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -213,6 +232,15 @@ function MyOrdersPage() {
                       className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs hover:bg-secondary"
                     >
                       <RotateCcw className="size-3.5" /> إعادة الطلب
+                    </button>
+                  )}
+                  {o.status === "delivered" && (
+                    <button
+                      onClick={() => doShare(o.id)}
+                      disabled={busy === o.id}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs hover:bg-secondary disabled:opacity-60"
+                    >
+                      <Share2 className="size-3.5" /> شارك
                     </button>
                   )}
                 </div>
