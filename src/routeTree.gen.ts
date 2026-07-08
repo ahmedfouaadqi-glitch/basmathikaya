@@ -31,6 +31,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin.orders.$id'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as ApiPublicShareCardsTokenRouteImport } from './routes/api/public/share-cards/$token'
 import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/hooks/jobs-tick'
 
 const MyOrdersRoute = MyOrdersRouteImport.update({
@@ -146,6 +147,12 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicShareCardsTokenRoute =
+  ApiPublicShareCardsTokenRouteImport.update({
+    id: '/api/public/share-cards/$token',
+    path: '/api/public/share-cards/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksJobsTickRoute = ApiPublicHooksJobsTickRouteImport.update({
   id: '/api/public/hooks/jobs-tick',
   path: '/api/public/hooks/jobs-tick',
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
+  '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
+  '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -226,6 +235,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
+  '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
+    | '/api/public/share-cards/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
+    | '/api/public/share-cards/$token'
   id:
     | '__root__'
     | '/'
@@ -302,6 +314,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
+    | '/api/public/share-cards/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -317,6 +330,7 @@ export interface RootRouteChildren {
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksJobsTickRoute: typeof ApiPublicHooksJobsTickRoute
+  ApiPublicShareCardsTokenRoute: typeof ApiPublicShareCardsTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -475,6 +489,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/share-cards/$token': {
+      id: '/api/public/share-cards/$token'
+      path: '/api/public/share-cards/$token'
+      fullPath: '/api/public/share-cards/$token'
+      preLoaderRoute: typeof ApiPublicShareCardsTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/jobs-tick': {
       id: '/api/public/hooks/jobs-tick'
       path: '/api/public/hooks/jobs-tick'
@@ -529,6 +550,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewOrderIdRoute: PreviewOrderIdRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksJobsTickRoute: ApiPublicHooksJobsTickRoute,
+  ApiPublicShareCardsTokenRoute: ApiPublicShareCardsTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
