@@ -1,34 +1,43 @@
-# خطة Stage 4 — Background Jobs
+# Stage 5 — Family Library UI
 
-الأصغر والأكثر استقلالية من المراحل المتبقية. سأنفّذه كاملاً في هذه الجولة.
+Wire up the existing `family_members` table (already has RLS + 4 policies) to a real user-facing UI so parents can save children/family members once and reuse them across orders.
 
-## 1. Runners حقيقية في `src/lib/jobs/runners.server.ts`
-- `send_notification` — يقرأ `payload.user_id` و`payload.title` و`payload.body`، ويكتب صفاً في `notifications`.
-- `generate_pdf` — placeholder آمن: يعلّم `orders.pdf_generation_status='ready'` (التوليد الفعلي يبقى في المسار الحالي كما هو، هذا فقط لكسر تعلّق UI اللاحق).
-- `generate_share_cards` — placeholder ينشئ `share_token` إن لم يكن موجوداً ويكتب صفاً واحداً في `share_cards` (Satori الحقيقي في Stage 6).
+## Scope
 
-كلها **fail-open**: خطأ في runner يرفع فشل الـ job فقط، لا يكسر أي شيء آخر.
+- New authenticated route `/_authenticated/family` — list + CRUD for family members.
+- New reusable `FamilyPicker` component used inside the story creation flow to prefill character info from a saved family member (no schema change, no order logic change).
+- Nav entry in the authenticated shell.
 
-## 2. `useJobStatus(orderId)` hook
-- `src/hooks/use-job-status.ts` — يقرأ آخر job لكل نوع لطلب معيّن، polling كل 3s عبر React Query.
-- استخدام اختياري: لا يُدمج في أي صفحة الآن (بلا كسر UI).
+Non-goals: photo DNA reuse (that's Stage 3's `reuse_character_sheet` flag, separate), sharing family across accounts, roles/permissions.
 
-## 3. Endpoint فحص من admin
-- `src/routes/api/public/hooks/jobs-tick.ts` موجود بالفعل — سأتأكد أنه يستدعي `processJobs()` مرة واحدة.
+## Files
 
-## 4. جدولة pg_cron
-- عبر `supabase--insert` (وليس migration): جدولة كل دقيقة لاستدعاء `/api/public/hooks/jobs-tick` بـ `apikey: <anon>`.
-- URL: `https://project--71f5789e-f8c3-4faf-95ba-9308bc0ea4d7.lovable.app/api/public/hooks/jobs-tick`.
+**New**
+- `src/lib/family.functions.ts` — server fns (all `.middleware([requireSupabaseAuth])`, RLS does the scoping):
+  - `listFamilyMembers()` → `select *`
+  - `createFamilyMember(input)` → `insert`
+  - `updateFamilyMember({ id, patch })` → `update`
+  - `deleteFamilyMember({ id })` → `delete`
+  - Zod validation on all inputs (name, age, gender, relation, notes, photo_path optional).
+- `src/routes/_authenticated/family.tsx` — list page (cards grid), "Add member" button opens dialog, edit/delete per card. Uses `useSuspenseQuery` + `queryOptions` pattern; loader calls `ensureQueryData`.
+- `src/components/family/FamilyMemberForm.tsx` — shared form (create + edit), react-hook-form + zod.
+- `src/components/family/FamilyMemberCard.tsx` — display card with edit/delete actions.
+- `src/components/family/FamilyPicker.tsx` — dropdown/list used in story creation; `onSelect(member)` callback fills character fields.
 
-## المبادئ
-- كل شيء fail-open + backward compatible.
-- لا تغيير في `orders.functions.ts` أو أي API حالية.
-- Runners الحالية للطلبات تبقى كما هي — Jobs مسار موازي فقط.
+**Modified**
+- Authenticated shell nav (wherever the current sidebar/header lives, e.g. `src/components/layout/*` or `_authenticated/route.tsx`) — add "عائلتي" link to `/family`.
+- Story creation character step (existing component in the create flow) — add optional `<FamilyPicker>` above the character form; selecting a member prefills fields. No behavior change if user ignores it.
 
-## مخرج نهائي
-- ملف hook جديد.
-- runners.server.ts موسّع.
-- pg_cron schedule واحد.
-- تقرير مختصر عند الانتهاء.
+## Principles
 
-بعد Stage 4 سأنتقل مباشرة لباقي المراحل في جولات لاحقة (5-8 كلٌ منها كبير: family CRUD، Satori، 9 صفحات admin).
+- Backward compatible: no changes to `orders`, `order_characters`, or any server fn signatures. FamilyPicker is purely additive UI.
+- All server fns authenticated; RLS enforces user_id scoping (already in place).
+- Photo upload deferred — form accepts existing `photo_path` if present, but new-photo upload UI comes with Stage 3 character DNA reuse.
+- Arabic UI copy, RTL-friendly.
+
+## Verification
+
+- `bunx tsgo --noEmit`
+- Manual: create → edit → delete a member; open create-order flow and confirm picker prefill works and ignoring it leaves the flow unchanged.
+
+Confirm to proceed, or say which piece to drop/change.
