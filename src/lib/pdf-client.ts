@@ -112,23 +112,96 @@ async function ensureTajawal(): Promise<void> {
   } catch { /* ignore */ }
 }
 
+// Localized strings for PDF chrome (cover / page / thanks).
+type PdfLang = "ar" | "en" | "ku";
+type PdfStrings = {
+  defaultTitle: string;
+  subWith: (name: string) => string;
+  subNoName: string;
+  brand: string;
+  tag: string;
+  pageLabel: (n: number, total: number) => string;
+  thanks: string;
+  note: string;
+  disclaimerTitle: string;
+  certTitle: string;
+  certLine: string;
+  questionTitle: string;
+  signature: string;
+  heroFallback: string;
+};
+const STRINGS: Record<PdfLang, PdfStrings> = {
+  ar: {
+    defaultTitle: "حكايتي",
+    subWith: (n) => `حكاية مخصّصة لـ ${n}`,
+    subNoName: "حكاية مخصّصة لك",
+    brand: "بصمة حكاية",
+    tag: "بصمة حكاية — جزء من نظام معروف",
+    pageLabel: (n, t) => `صفحة ${n} من ${t}`,
+    thanks: "شكراً لاختياركم بصمة حكاية",
+    note: "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة.",
+    disclaimerTitle: "إخلاء مسؤولية",
+    certTitle: "شهادة البطل",
+    certLine: "هذه الحكاية من نصيب البطل",
+    questionTitle: "سؤال لك يا بطل",
+    signature: "توقيع: بصمة حكاية",
+    heroFallback: "بطلنا",
+  },
+  en: {
+    defaultTitle: "My Story",
+    subWith: (n) => `A story crafted for ${n}`,
+    subNoName: "A story crafted for you",
+    brand: "Basma Hekaya",
+    tag: "Basma Hekaya — part of the Maaroof system",
+    pageLabel: (n, t) => `Page ${n} of ${t}`,
+    thanks: "Thank you for choosing Basma Hekaya",
+    note: "Follow us on TikTok and tell us your next story idea.",
+    disclaimerTitle: "Disclaimer",
+    certTitle: "Hero Certificate",
+    certLine: "This story belongs to",
+    questionTitle: "A question for you, hero",
+    signature: "Signed: Basma Hekaya",
+    heroFallback: "our hero",
+  },
+  ku: {
+    defaultTitle: "چیرۆکەکەم",
+    subWith: (n) => `چیرۆکێکی تایبەت بۆ ${n}`,
+    subNoName: "چیرۆکێکی تایبەت بۆ تۆ",
+    brand: "بەسمە حیکایە",
+    tag: "بەسمە حیکایە — بەشێک لە سیستەمی مەعروف",
+    pageLabel: (n, t) => `لاپەڕە ${n} لە ${t}`,
+    thanks: "سوپاس بۆ هەڵبژاردنی بەسمە حیکایە",
+    note: "لە تیکتۆک شوێنمان بکەون و بیرۆکەی چیرۆکی داهاتوومان بۆ بنێرن.",
+    disclaimerTitle: "ڕوونکردنەوەی بەرپرسیارێتی",
+    certTitle: "بڕوانامەی پاڵەوان",
+    certLine: "ئەم چیرۆکە بۆ ئەم پاڵەوانەیە",
+    questionTitle: "پرسیارێک بۆ تۆ ئەی پاڵەوان",
+    signature: "واژۆ: بەسمە حیکایە",
+    heroFallback: "پاڵەوانمان",
+  },
+};
+
 function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; coverData: string | null }) {
-  const isAr = a.language === "ar";
   const isRtl = a.language !== "en";
+  const isLandscape = a.orientation === "landscape";
   const dir = isRtl ? "rtl" : "ltr";
-  const title = escapeHtml(a.title || (isAr ? "حكايتي" : "My Story"));
-  const sub = a.customerName
-    ? (isAr ? `حكاية مخصّصة لـ ${a.customerName}` : `A story crafted for ${a.customerName}`)
-    : (isAr ? "حكاية مخصّصة لك" : "A story crafted for you");
+  const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
+  const title = escapeHtml(a.title || s.defaultTitle);
+  const sub = a.customerName ? s.subWith(a.customerName) : s.subNoName;
   const chips = (a.moods || []).map((m) => `<span style="background:${opts.gold}22;color:${opts.gold};padding:6px 12px;border-radius:999px;font-weight:700;font-size:13px;margin:0 4px;display:inline-block;">${escapeHtml(m)}</span>`).join("");
-  const brand = isAr ? "بصمة حكاية" : "Basma Hekaya";
-  const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
   const cover = opts.coverData
     ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain;background:#F0E6D2;display:block;" />`
     : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
   const logoImg = opts.logo
     ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:60px;height:60px;object-fit:contain;display:block;margin:0 auto 6px;" />`
     : "";
+
+  // Ratio-based heights so portrait and landscape look equally polished.
+  const coverH = Math.round(PAGE_H * (isLandscape ? 0.72 : 0.55));
+  const padX = isLandscape ? 64 : 44;
+  const bandTop = Math.max(14, Math.round(PAGE_H * 0.016));
+  const bandBottom = Math.max(10, Math.round(PAGE_H * 0.012));
+  const titleSize = isLandscape ? 36 : 42;
 
   return `
   <div dir="${dir}" style="
@@ -139,39 +212,36 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
     box-sizing:border-box;
     position:relative;display:flex;flex-direction:column;
   ">
-    <div style="height:18px;background:${opts.accent};"></div>
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:36px 44px 0;">
+    <div style="height:${bandTop}px;background:${opts.accent};"></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:${isLandscape ? 24 : 36}px ${padX}px 0;">
       <div style="
-        width:100%;height:560px;border-radius:18px;overflow:hidden;
+        width:100%;height:${coverH}px;border-radius:${isLandscape ? 14 : 18}px;overflow:hidden;
         border:4px solid ${opts.accent};
         box-shadow:0 10px 28px rgba(0,0,0,.12);
       ">
         ${cover}
       </div>
       <h1 style="
-        margin:34px 0 8px;font-size:42px;font-weight:900;
+        margin:${isLandscape ? 20 : 34}px 0 8px;font-size:${titleSize}px;font-weight:900;
         color:${opts.accent};text-align:center;line-height:1.2;
       ">${title}</h1>
-      <p style="margin:0 0 16px;font-size:16px;color:#6b7079;text-align:center;">${escapeHtml(sub)}</p>
+      <p style="margin:0 0 12px;font-size:16px;color:#6b7079;text-align:center;">${escapeHtml(sub)}</p>
       <div style="text-align:center;">${chips}</div>
     </div>
-    <div style="text-align:center;padding:16px 0 28px;">
+    <div style="text-align:center;padding:${isLandscape ? 8 : 16}px 0 ${isLandscape ? 14 : 28}px;">
       ${logoImg}
-      <div style="font-size:14px;font-weight:700;color:${opts.accent};">${brand}</div>
-      <div style="font-size:11px;color:${opts.gold};margin-top:4px;">${tag}</div>
+      <div style="font-size:14px;font-weight:700;color:${opts.accent};">${escapeHtml(s.brand)}</div>
+      <div style="font-size:11px;color:${opts.gold};margin-top:4px;">${escapeHtml(s.tag)}</div>
     </div>
-    <div style="height:12px;background:${opts.gold};"></div>
+    <div style="height:${bandBottom}px;background:${opts.gold};"></div>
   </div>`;
 }
 
 function buildPageHtml(p: { number: number; text: string; imageUrl: string | null }, total: number, a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; imgData: string | null; disclaimer: string }) {
-  const isAr = a.language === "ar";
   const isRtl = a.language !== "en";
+  const isLandscape = a.orientation === "landscape";
   const dir = isRtl ? "rtl" : "ltr";
-  const align = isRtl ? "right" : "left";
-  const brand = isAr ? "بصمة حكاية" : "Basma Hekaya";
-  const pageLabel = isAr ? `صفحة ${p.number} من ${total}` : `Page ${p.number} of ${total}`;
-  const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
+  const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
   const img = opts.imgData
     ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain;background:#F0E6D2;display:block;" />`
     : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
@@ -179,6 +249,45 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
     ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:22px;height:22px;object-fit:contain;display:inline-block;vertical-align:middle;margin:0 6px;" />`
     : "";
   const text = escapeHtml(p.text || "").replace(/\n+/g, "<br/>");
+
+  const padX = isLandscape ? 64 : 44;
+  const bandTop = Math.max(10, Math.round(PAGE_H * 0.013));
+  const bandBottom = Math.max(6, Math.round(PAGE_H * 0.008));
+
+  // Landscape: image + text side-by-side. Portrait: stacked.
+  const body = isLandscape
+    ? `
+      <div style="flex:1;display:flex;flex-direction:${isRtl ? "row" : "row"};gap:22px;padding:20px ${padX}px 0;min-height:0;">
+        <div style="
+          width:45%;border-radius:16px;overflow:hidden;
+          border:3px solid ${opts.accent};
+          box-shadow:0 8px 20px rgba(0,0,0,.10);
+          background:#F0E6D2;flex-shrink:0;
+        ">${img}</div>
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+          <div style="height:2px;background:linear-gradient(to ${isRtl ? "left" : "right"}, ${opts.gold}, transparent);margin:6px 0 14px;"></div>
+          <div style="
+            font-size:20px;line-height:1.95;font-weight:500;
+            text-align:justify;text-justify:inter-word;color:#1a2128;
+            flex:1;word-wrap:break-word;overflow-wrap:break-word;
+          ">${text}</div>
+        </div>
+      </div>`
+    : `
+      <div style="flex:1;display:flex;flex-direction:column;padding:26px ${padX}px 0;min-height:0;">
+        <div style="
+          width:100%;height:${Math.round(PAGE_H * 0.42)}px;border-radius:16px;overflow:hidden;
+          border:3px solid ${opts.accent};
+          box-shadow:0 8px 20px rgba(0,0,0,.10);
+          flex-shrink:0;background:#F0E6D2;
+        ">${img}</div>
+        <div style="height:2px;background:linear-gradient(to ${isRtl ? "left" : "right"}, ${opts.gold}, transparent);margin:18px 0 14px;"></div>
+        <div style="
+          font-size:22px;line-height:2.05;font-weight:500;
+          text-align:justify;text-justify:inter-word;color:#1a2128;
+          flex:1;word-wrap:break-word;overflow-wrap:break-word;
+        ">${text}</div>
+      </div>`;
 
   return `
   <div dir="${dir}" lang="${a.language}" style="
@@ -189,61 +298,43 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
     box-sizing:border-box;
     position:relative;display:flex;flex-direction:column;
   ">
-    <div style="height:14px;background:${opts.accent};"></div>
-    <div style="flex:1;display:flex;flex-direction:column;padding:26px 44px 0;min-height:0;">
-      <div style="
-        width:100%;height:430px;border-radius:16px;overflow:hidden;
-        border:3px solid ${opts.accent};
-        box-shadow:0 8px 20px rgba(0,0,0,.10);
-        flex-shrink:0;background:#F0E6D2;
-      ">
-        ${img}
-      </div>
-      <div style="height:2px;background:linear-gradient(to ${isRtl ? "left" : "right"}, ${opts.gold}, transparent);margin:18px 0 14px;"></div>
-      <div style="
-        font-size:22px;line-height:2.05;font-weight:500;
-        text-align:${isAr ? "justify" : "justify"};
-        text-justify:inter-word;
-        color:#1a2128;
-        flex:1;
-        word-wrap:break-word;
-        overflow-wrap:break-word;
-      ">${text}</div>
-    </div>
+    <div style="height:${bandTop}px;background:${opts.accent};"></div>
+    ${body}
     <div style="
-      padding:8px 44px 0;
+      padding:8px ${padX}px 0;
       border-top:1px solid ${opts.accent}55;
       display:flex;justify-content:space-between;align-items:center;
       font-size:12px;color:#6b7079;
     ">
-      <span>${pageLabel}</span>
+      <span>${escapeHtml(s.pageLabel(p.number, total))}</span>
       <span style="font-weight:700;color:${opts.accent};display:inline-flex;align-items:center;">
-        ${logoImg}${brand}
+        ${logoImg}${escapeHtml(s.brand)}
       </span>
     </div>
-    <div style="text-align:center;font-size:10px;color:${opts.gold};padding:4px 44px 2px;">${tag}</div>
-    <div style="font-size:8.5px;line-height:1.5;color:#8a8f96;padding:0 44px 6px;text-align:center;">
+    <div style="text-align:center;font-size:10px;color:${opts.gold};padding:4px ${padX}px 2px;">${escapeHtml(s.tag)}</div>
+    <div style="font-size:8.5px;line-height:1.5;color:#8a8f96;padding:0 ${padX}px 6px;text-align:center;">
       ${escapeHtml((opts.disclaimer ?? "").slice(0, 220))}
     </div>
-    <div style="height:8px;background:${opts.gold};"></div>
+    <div style="height:${bandBottom}px;background:${opts.gold};"></div>
   </div>`;
 }
 
 function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; disclaimer: string }) {
-  const isAr = a.language === "ar";
   const isRtl = a.language !== "en";
   const dir = isRtl ? "rtl" : "ltr";
-  const thanks = isAr ? "شكراً لاختياركم بصمة حكاية" : "Thank you for choosing Basma Hekaya";
-  const note = isAr ? "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة." : "Follow us on TikTok and tell us your next story idea.";
-  const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
-  const disclaimerTitle = isAr ? "إخلاء مسؤولية" : "Disclaimer";
-  const certTitle = isAr ? "شهادة البطل" : "Hero Certificate";
-  const certLine = isAr ? "هذه الحكاية من نصيب البطل" : "This story belongs to";
-  const questionTitle = isAr ? "سؤال لك يا بطل" : "A question for you, hero";
-  const signature = isAr ? "توقيع: بصمة حكاية" : "Signed: Basma Hekaya";
-  const heroName = a.customerName || (isAr ? "بطلنا" : "our hero");
+  const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
+  const thanks = s.thanks;
+  const note = s.note;
+  const tag = s.tag;
+  const disclaimerTitle = s.disclaimerTitle;
+  const certTitle = s.certTitle;
+  const certLine = s.certLine;
+  const questionTitle = s.questionTitle;
+  const signature = s.signature;
+  const heroName = a.customerName || s.heroFallback;
   const orderNum = a.orderNumber ? `#${a.orderNumber}` : "";
-  const dateStr = new Date().toLocaleDateString(isAr ? "ar-IQ" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+  const locale = a.language === "ar" ? "ar-IQ" : a.language === "ku" ? "ckb-IQ" : "en-US";
+  const dateStr = new Date().toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
   const question = (a.reflectiveQuestion ?? "").trim();
   const logoImg = opts.logo
     ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:70px;height:70px;object-fit:contain;display:block;margin:0 auto 8px;" />`
@@ -376,7 +467,9 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
       a.disclaimer ??
       (a.language === "ar"
         ? "إخلاء مسؤولية: «بصمة حكاية» أداة ذكاء اصطناعي مخصّصة لهذه الفكرة بدون أي تدخّل بشري. المستخدم هو المسؤول الوحيد عن كل المُدخلات والنتائج، بعد تسديد المبالغ لا يتم استرجاعها. تحتفظ الإدارة بحق قبول أو رفض الطلب."
-        : "Disclaimer: Basma Hekaya is an AI tool built for this concept with no human involvement. The user is solely responsible for all inputs and outputs; paid amounts are non-refundable. The admin reserves the right to accept or reject any order.");
+        : a.language === "ku"
+          ? "ڕوونکردنەوەی بەرپرسیارێتی: «بەسمە حیکایە» ئامرازێکی زیرەکی دەستکردە بۆ ئەم بیرۆکەیە بەبێ هیچ دەستێوەردانێکی مرۆیی. بەکارهێنەر بە تەنیا بەرپرسە لە هەموو داغڵ و دەرکردنێک، دوای پارەدان پارە ناگەڕێتەوە. بەڕێوەبردن مافی وەرگرتن یان ڕەتکردنەوەی داواکارییەکەی هەیە."
+          : "Disclaimer: Basma Hekaya is an AI tool built for this concept with no human involvement. The user is solely responsible for all inputs and outputs; paid amounts are non-refundable. The admin reserves the right to accept or reject any order.");
     const opts = { accent, gold, logo: logoData, disclaimer };
     const htmlParts: string[] = [
       buildCoverHtml(a, { accent, gold, logo: logoData, coverData }),

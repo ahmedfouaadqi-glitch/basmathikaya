@@ -1,64 +1,148 @@
-# الخطة
+# خطة التحسينات المتوافقة مع النظام الحالي
 
-## 1) نموذج مجاني للقصة بدون استهلاك أي توكن
+كل التحسينات إضافية بحتة. لا تغيير على:
+- منطق الأسعار / الدفع / الكوبونات / الصلاحيات / سير العمل.
+- الجداول الحالية أو الأعمدة الحالية أو الـ RLS الحالية.
+- الـ APIs / server functions / routes الموجودة (توقيعاتها تبقى كما هي).
+- شكل الطلب أو صفحة المعاينة الحالية `preview.$orderId` — تبقى تعمل كما هي.
 
-الفكرة: لا نُشغّل أي نموذج ذكاء اصطناعي عند طلب "المعاينة". نعرض للمستخدم قصة نموذجية **جاهزة مُسبقاً** (Static Sample Story) تُحاكي شكل ملفه الفعلي، مع استبدال اسم البطل والأجواء ورقم الصفحات نصياً فقط (Template Substitution) — بدون أي استدعاء لـ Chat/Image.
+الإضافات كلها Backward Compatible: جداول جديدة + أعمدة اختيارية + شاشات إدارة جديدة + خطوات جديدة داخل نفس الدوال (خلف flags).
 
-### آلية العمل
-- إنشاء مجلد `src/lib/sample-story/` يحتوي:
-  - `sample-ar.json`, `sample-en.json`, `sample-ku.json` — كل ملف فيه: عنوان، 5 صفحات (نص + وصف بصري + رابط صورة ثابتة)، سؤال ختامي.
-  - `covers/` و `pages/` — 6 صور توضيحية ثابتة (مرة واحدة يتم توليدها مسبقاً وتُحفظ في `src/assets/` أو `public/sample/`) لكل لغة أو مشتركة.
-- زر جديد في صفحة `/create` بعنوان "معاينة نموذج مجاني" بجانب زر الإرسال — يفتح Modal يستعرض القصة النموذجية بنفس تنسيق `preview.$orderId` (نفس الغلاف/الإطار/التوجه) ويستبدل:
-  - `{{hero}}` → اسم البطل الرئيسي المُدخل.
-  - `{{mood}}` → أول جو مختار.
-  - `{{pages}}` → مقتطع حسب عدد الصفحات المختار (حتى الحد الأقصى للنموذج).
-- الاستبدال يتم كلياً على الـclient — صفر طلبات شبكة، صفر تكلفة.
-- توضيح ظاهر أعلى المعاينة: "هذه معاينة نموذجية للتصميم فقط — قصتك الفعلية ستُكتب وتُرسم خصيصاً لك بعد تأكيد الدفع."
+---
 
-## 2) تدقيق جودة النصوص/الصور والاتساق
+## 1) نظام النماذج المُدار من الإدارة (بدون توكن)
 
-مراجعة مقصورة على الجانب المرئي/التوجيهي (بدون تغيير منطق الأعمال):
+### قاعدة البيانات (جدول جديد فقط — لا تعديل على الحالي)
+جدول `preview_templates` مع GRANT + RLS:
+```
+id, name, language (ar|en|ku), story_type, moods text[],
+cover_image_path, page_images text[], title, pages jsonb (نص كل صفحة),
+reflective_question, page_count, orientation, frame_style, palette jsonb,
+active bool, hidden bool, seasonal_start date null, seasonal_end date null,
+priority int, created_at, updated_at
+```
+- `GRANT SELECT ON public.preview_templates TO anon, authenticated` (للعرض العام).
+- `GRANT ALL TO service_role` (للإدارة عبر `supabaseAdmin`).
+- RLS: `SELECT` مسموح للجميع بشرط `active = true AND hidden = false AND (seasonal window matches OR seasonal_* IS NULL)`؛ الـ writes ممنوعة عبر RLS ويتم كل الإدارة من `createServerFn` بصلاحية admin.
+- Bucket جديد اختياري `preview-templates` (public read) لصور القوالب، أو إعادة استخدام `story-covers` مع مسار خاص `templates/`.
 
-- **الربط بين النص والصورة**: التحقق أن `image_prompt` لكل صفحة في `orders.functions.ts` يعيد ذِكر `character_visual` + `visual_brief` (من تحليل صورة العميل) بشكل ثابت في كل صفحة، لضمان تطابق الشخصية عبر الصفحات.
-- **الاتجاه (portrait / landscape)**: تمرير `pdf_orientation` إلى برومبت الصورة (`aspect ratio: 3:4` أو `4:3`) بدل توليد صور مربعة ثم اقتصاصها — يمنع بتر الشخصيات.
-- **إطار الغلاف والصفحات في PDF** (`src/lib/pdf-client.ts`): مراجعة تناسق:
-  - سماكة/لون الإطار بين الغلاف (4px) والصفحات (3px) — توحيد نسبة الحواف مع الاتجاه landscape (حالياً القيم مُثبّتة للـportrait).
-  - ارتفاع صورة الصفحة (430px ثابت) — تحويلها إلى نسبة من `PAGE_H` حتى تعمل في landscape.
-  - الشريط الذهبي السفلي والمساحة المتبقية للنص عند landscape.
-- **جودة الصور**: تأكيد أن `image_quality_tier === "premium"` يمرّر فعلاً إلى Gateway (نموذج/إعداد أعلى) وأن `standard` يستخدم النموذج الأسرع.
-- تسليم تقرير مختصر بالنتائج + إصلاحات صغيرة موضعية عند اللزوم (لا إعادة كتابة كبيرة).
+### الإدارة — صفحة جديدة
+- `/admin/templates` (route جديد `admin.templates.tsx`) لا يتأثر بها أي route حالي.
+- CRUD كامل: إنشاء / تعديل / حذف / تفعيل / إخفاء / رفع صور الغلاف والصفحات / تحديد نافذة موسمية.
+- Server functions جديدة: `adminListTemplates`, `adminCreateTemplate`, `adminUpdateTemplate`, `adminDeleteTemplate`, `adminSetTemplateActive` (كلها خلف `gate()` الحالي).
+- رابط للصفحة الجديدة في `admin.index.tsx` فقط (إضافة سطر).
 
-## 3 و 4) دعم اللغة الكردية (سوراني) في كل الموقع + في القصص المُولَّدة
+### الاستخدام في الواجهة
+- server function عامّة جديدة: `listPublicPreviewTemplates({ language, moods?, storyType? })` تُرجع القوالب المتطابقة مع الاحترام لنافذة الموسم.
+- في `create.tsx`، زر "معاينة نموذج مجاني" الحالي يبقى، لكنه يستدعي أولاً `listPublicPreviewTemplates`:
+  - إن وجد قالب مناسب → يفتح المعاينة على أساس القالب الفعلي (صور حقيقية + نصوص جاهزة).
+  - إن لم يوجد → يعود لسلوك `buildSampleStory` الحالي (fallback — لا كسر).
+- صفر استدعاءات AI. صفر توكن.
 
-الوضع الحالي: `Lang = "ar" | "en"` فقط (في `src/lib/i18n.tsx` و `orders.functions.ts` وسكيمات الطلب و PDF). المطلوب توسعتها لـ `"ku"`.
+---
 
-### التغييرات
+## 2) Story QA (بعد إنشاء نص القصة)
 
-**أ) i18n وواجهة الموقع**
-- `src/lib/i18n.tsx`: توسيع النوع إلى `"ar" | "en" | "ku"`، وإضافة حقل `ku` لكل مفتاح في القاموس `D`. الكردية السورانية تُكتب من اليمين لليسار بالحروف العربية، فيتم ضبط `dir="rtl"` لها تلقائياً (نفس منطق العربية).
-- زر تبديل اللغة في الهيدر: إضافة خيار "کوردی".
-- الخطوط: `Tajawal` يدعم السورانية جزئياً؛ سنضيف `Noto Kufi Arabic` أو `Vazirmatn` كـfallback عبر `<link>` في `__root.tsx` وتفعيله عند `lang="ku"` فقط.
+خطوة جديدة داخل `generateFullStory` بعد `runChat` وقبل حفظ الصفحات — بدون تغيير التوقيع.
 
-**ب) نموذج إنشاء الطلب**
-- `src/routes/create.tsx`: إضافة اختيار اللغة قبل الإرسال (زر ثلاثي: عربي / English / کوردی) وتمريرها في `data.language`.
-- `src/lib/orders.functions.ts`: توسيع `z.enum(["ar","en"])` → `z.enum(["ar","en","ku"])` في `CreateInput`، وفي `analyzeCharacterPhoto`، وفي `generateFullStory` (اللغة تُقرأ من `characters.language`).
+- دالة داخلية `runStoryQA(plan, pageCount, language, moods)` تُشغّل مرّة واحدة بنموذج نصّي رخيص (`google/gemini-2.5-flash`) بـ `response_format: json_object`:
+  - تكرار الجُمل / الفقرات.
+  - ترابط الصفحات.
+  - توافق النهاية مع البداية.
+  - ملاءمة اللغة لعمر البطل الرئيسي.
+  - عدم وجود انتقالات مفاجئة.
+  - مطابقة عدد الصفحات المطلوب.
+- تُرجع `{ ok, failing_pages: [n], reason }`.
+- إن فشل: إعادة توليد النص فقط عبر `runChat` مرة واحدة إضافية بـ seed جديد (لا نمس الطلب ولا الصور ولا الدفع).
+- سقف محاولات: 1 إعادة كحد أقصى لتفادي أي تكلفة زائدة.
+- تُسجّل كل خطوة في `generation_events` بـ `step="story_qa"` (نفس الجدول والدالة `logEvent` الحاليتين).
+- عمود اختياري جديد على `orders`: `story_qa_report jsonb null` (إضافة بدون كسر).
 
-**ج) توليد القصة بالكردية**
-- في `generateFullStory` و`analyzeCharacterPhoto`: إضافة فرع `isKu` مع برومبت مكتوب بالسورانية يطلب من النموذج كتابة كل النصوص (العنوان، الصفحات، وصف الشخصية، السؤال الختامي) بالسورانية. النموذج `google/gemini-2.5-flash` يدعم السورانية جيداً.
-- برومبتات الصور تبقى بالإنجليزية (لأنها تعليمات فنية للنموذج البصري) — لا حاجة لترجمتها.
+---
 
-**د) PDF بالكردية**
-- `src/lib/pdf-client.ts`: توسيع `language: "ar" | "en"` → `"ar" | "en" | "ku"`، ومعاملة `ku` كـRTL (نفس فروع `isAr` للاتجاه والمحاذاة)، مع نصوص ثابتة مترجمة (Thank you page, disclaimer, page label, hero certificate).
-- الخط: تضمين `Vazirmatn` أو `Noto Kufi Arabic` لضمان عرض السورانية بشكل صحيح داخل PDF.
+## 3) Image QA (بعد كل صورة)
 
-**هـ) إخلاء المسؤولية والمحتوى الإداري**
-- `src/lib/site-content.functions.ts`: إضافة `DEFAULT_DISCLAIMER_KU` بترجمة سورانية للنص الحالي، وإرجاعه عند `lang === "ku"`.
+خطوة جديدة داخل `adminConfirmPaymentAndGenerate` بعد كل `generateOneImage` — بدون تغيير التوقيع.
 
-**و) نموذج المعاينة المجانية (البند 1)**
-- إنشاء `sample-ku.json` مع قصة نموذجية سورانية.
+- دالة داخلية `runImageQA({ imagePath, expectedPrompt, characterDNA, language })`:
+  - تنزيل الصورة كـ data URL (نفس النمط الحالي في `photoToDataUrl`).
+  - استدعاء `callChat` برؤية (`google/gemini-2.5-flash`) بـ prompt يفحص:
+    ثبات الشخصية / الملابس / الشعر / البشرة، تشوّه الأطراف، وجود نصوص أو إطار داخل الصورة، قصّ الشخصية، توافق الصورة مع نص الصفحة.
+  - يرجع `{ ok, issues: [...] }`.
+- إن فشل: إعادة توليد **الصورة فقط** (مرة واحدة كحد أقصى لكل صفحة) عبر `generateOneImage` مع تعزيز الـ negatives الموجودة أصلاً.
+- تُسجّل في `generation_events` بـ `step="image_qa_pageN"` — القيم تدخل تلقائياً في `order_costs_v` الحالي.
+- عمود اختياري جديد على `story_pages`: `qa_report jsonb null`, `qa_retries int default 0` (إضافة بدون كسر).
 
-## ملاحظات
+---
 
-- لا تغييرات على منطق الأسعار، الدفع، أو الصلاحيات.
-- الترجمة الكردية للنصوص الثابتة (i18n) ستُكتب مبدئياً من قبلي بالسورانية القياسية؛ يُفضّل أن يراجعها ناطق أصلي لاحقاً — نضع تعليقاً في الملف لتسهيل ذلك.
-- كل التغييرات متوافقة مع الإعدادات الحالية للمستخدمين (اللغة الافتراضية تبقى العربية).
+## 4) تحسين الـ PDF (تناسق portrait / landscape)
+
+تعديلات محصورة داخل `src/lib/pdf-client.ts` (لا تغيير على التوقيع أو الـ assets):
+
+- إزالة القيم الثابتة `height:430px` و `height:560px` واستبدالها بنِسَب من `PAGE_H`:
+  - غلاف portrait: `Math.round(PAGE_H * 0.55)`.
+  - غلاف landscape: `Math.round(PAGE_H * 0.72)` مع تخطيط عمودَين (صورة + عنوان جنب بعض).
+  - صفحة portrait: `Math.round(PAGE_H * 0.42)`.
+  - صفحة landscape: صورة يسار + نص يمين بنسبة 45/55 (مع `dir` صحيح).
+- إطار الغلاف: 4px يبقى، لكن `border-radius` يتقلّص في landscape لـ 14px.
+- إطار الصفحة: 3px يبقى، مع padding أفقي أعرض في landscape (`64px` بدل `44px`).
+- الشريط الذهبي السفلي والعلوي: نسبة من `PAGE_H` بدل px ثابتة.
+- الهوامش وأماكن النص: تعتمد `dir` و`orientation`.
+- تمرير `orientation` إلى prompts الصور موجود أصلاً — يبقى كما هو (يمنع القص).
+- كل ذلك بلا تغيير على `StoryPdfAssets` type أو على callers.
+
+---
+
+## 5) دعم اللغة الكردية — تكميل ما ينقص
+
+اللغة الكردية موجودة أصلاً في `i18n.tsx` + `orders.functions.ts` + `pdf-client.ts` + `create.tsx`. المطلوب سدّ الفجوات فقط:
+
+- **PDF thanks/certificate**: إضافة فرع `isKu` (حالياً يستخدم فرع Arabic كـ fallback فقط للاتجاه). ترجمة سورانية للنصوص الثابتة (`thanks`, `note`, `certTitle`, `certLine`, `questionTitle`, `signature`, `disclaimerTitle`, `pageLabel`, `brand`, `tag`).
+- **لوحة الإدارة**: مراجعة سريعة لكل `admin.*.tsx` لتفعيل التبديل الكامل للـ dir/lang (بدون تغيير المحتوى الوظيفي).
+- **صفحة الطلبات (`my-orders.tsx`) و `preview.$orderId.tsx`**: إضافة مفاتيح i18n الناقصة بالكردية.
+- **قوالب المعاينة (البند 1)**: عمود `language` يدعم `ku` أصلاً في التصميم.
+- **generateFullStory**: فرع `isKu` موجود مسبقاً — لا تعديل.
+
+---
+
+## 6) Character Profile ثابت
+
+بدلاً من الاعتماد على نص حرّ في `visual_brief`، إضافة عمود منظّم:
+- على `order_characters`: عمود جديد اختياري `character_profile jsonb null` بحقول:
+  ```
+  { gender, age_group, skin_tone, hair_color, hair_style, eye_color,
+    face_shape, body_build, clothing, distinctive_features, locked: true }
+  ```
+- في `analyzeCharacterPhoto`: طلب الإخراج بصيغة JSON إضافة لسطر `visual_brief` النصّي الحالي (نُبقي `visual_brief` كما هو للتوافق العكسي). في حال فشل الـ JSON نُبقي على السلوك الحالي فقط.
+- بناء `dnaLines` في `adminConfirmPaymentAndGenerate` يستخدم `character_profile` إن وُجد، وإلا يعود إلى `visual_brief` الحالي (fallback كامل).
+- لا يستهلك توكن إضافي: نفس الاستدعاء الواحد الحالي، فقط prompt أوضح يطلب سطراً JSON نهائياً.
+
+---
+
+## 7) الحفاظ على المعمارية
+
+- لا تعديل على: `pricing.ts`, `admin.settings.tsx` (الأسعار), الدفع, الكوبونات (`admin.coupons.tsx`), الصلاحيات (`admin-session.server.ts`), إدارة الطلبات (`admin.orders.$id.tsx`), قاعدة البيانات باستثناء الإضافات المذكورة أعلاه.
+- كل السطور الحالية في `create.tsx`, `preview.$orderId.tsx`, `orders.functions.ts`, `pdf-client.ts` تعمل كما هي؛ التغيير الوحيد هو إضافات لا تُبطل أي مسار.
+
+---
+
+## ملفات الترحيل الجديدة
+
+- migration 1: `preview_templates` (جدول + GRANT + RLS + trigger updated_at).
+- migration 2: `orders.story_qa_report jsonb null` + `story_pages.qa_report jsonb null` + `story_pages.qa_retries int default 0` + `order_characters.character_profile jsonb null`.
+- storage: bucket `preview-templates` (اختياري — يمكن استخدام مسار داخل `story-covers`).
+
+## ملفات الكود
+
+جديدة:
+- `src/lib/preview-templates.functions.ts` (public list + admin CRUD).
+- `src/routes/admin.templates.tsx`.
+- `src/lib/story-qa.server.ts` (helper يُستدعى من داخل handler).
+- `src/lib/image-qa.server.ts`.
+
+تعديلات موضعية:
+- `src/lib/orders.functions.ts`: استدعاء `runStoryQA` داخل `generateFullStory`، استدعاء `runImageQA` داخل `adminConfirmPaymentAndGenerate` بعد كل صورة، بناء `dnaLines` من `character_profile` إن وُجد، توسيع `analyzeCharacterPhoto` لإرجاع JSON إضافةً للنص.
+- `src/lib/pdf-client.ts`: نِسَب مبنية على `PAGE_H` + فرع `isKu` للنصوص الثابتة + تخطيط landscape عمودَين.
+- `src/lib/i18n.tsx`: مفاتيح ناقصة بالكردية.
+- `src/routes/create.tsx`: ربط زر المعاينة بـ `listPublicPreviewTemplates` مع fallback على `buildSampleStory`.
+- `src/routes/admin.index.tsx`: رابط "قوالب المعاينة".

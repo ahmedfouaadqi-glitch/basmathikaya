@@ -10,6 +10,7 @@ import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
 import { buildSampleStory } from "../lib/sample-story";
+import { listPublicPreviewTemplates, type PreviewTemplate } from "../lib/preview-templates.functions";
 
 
 export const Route = createFileRoute("/create")({
@@ -634,10 +635,47 @@ function SamplePreviewModal({
   orientation: "portrait" | "landscape";
 }) {
   const isRtl = lang !== "en";
-  const story = buildSampleStory({ lang, heroName, mood, pageCount });
-  const pageStyle: React.CSSProperties = orientation === "landscape"
+  const listFn = useServerFn(listPublicPreviewTemplates);
+  const tplQ = useQuery({
+    queryKey: ["preview-templates-public", lang, mood],
+    queryFn: () => listFn({ data: { language: lang, moods: mood ? [mood] : [], storyType: null } }),
+    staleTime: 5 * 60_000,
+  });
+
+  const templates = (tplQ.data ?? []) as PreviewTemplate[];
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const picked = templates.find((t) => t.id === pickedId) ?? templates[0] ?? null;
+  const usingTemplate = Boolean(picked);
+
+  // Fallback (no admin templates yet): pure client-side sample.
+  const fallback = buildSampleStory({ lang, heroName, mood, pageCount });
+
+  const effectiveOrientation = picked?.orientation ?? orientation;
+  const pageStyle: React.CSSProperties = effectiveOrientation === "landscape"
     ? { aspectRatio: "4 / 3" }
     : { aspectRatio: "3 / 4" };
+
+  const title = picked?.title
+    ? picked.title.replaceAll("{{hero}}", heroName || "").replaceAll("{{mood}}", mood || "")
+    : fallback.title;
+  const intro = usingTemplate
+    ? (lang === "en"
+        ? "This is a real sample from our library — your story will be crafted uniquely after payment."
+        : lang === "ku"
+          ? "ئەمە نموونەیەکی ڕاستەقینەیە لە کتێبخانەکەمان — چیرۆکەکەت بە شێوەیەکی تایبەت دوای پارەدان دروست دەکرێت."
+          : "هذا نموذج حقيقي من مكتبتنا — قصتك ستُصنع خصيصاً بعد الدفع.")
+    : fallback.intro;
+  const reflective = picked?.reflective_question
+    ? picked.reflective_question.replaceAll("{{hero}}", heroName || "")
+    : fallback.reflectiveQuestion;
+
+  const pages = usingTemplate && picked
+    ? picked.pages.slice(0, picked.page_count).map((p, i) => ({
+        number: i + 1,
+        text: (p.text ?? "").replaceAll("{{hero}}", heroName || "").replaceAll("{{mood}}", mood || ""),
+        imageUrl: (picked.page_urls ?? [])[i] ?? null,
+      }))
+    : fallback.pages.map((p) => ({ number: p.number, text: p.text, imageUrl: null, emoji: p.emoji, gradient: p.gradient }));
 
   return (
     <div
@@ -651,9 +689,9 @@ function SamplePreviewModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-extrabold text-primary">{story.title}</h2>
+            <h2 className="text-lg font-extrabold text-primary">{title}</h2>
             <p className="mt-1 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
-              {story.intro}
+              {intro}
             </p>
           </div>
           <button
@@ -666,23 +704,50 @@ function SamplePreviewModal({
           </button>
         </div>
 
+        {/* Template picker (only when we have >1) */}
+        {templates.length > 1 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {templates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setPickedId(t.id)}
+                className={`rounded-full border px-3 py-1 text-xs ${
+                  (pickedId ?? templates[0].id) === t.id ? "border-primary bg-primary/10 text-primary font-bold" : "hover:bg-secondary"
+                }`}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Cover */}
         <div
-          className="mb-4 flex items-center justify-center rounded-xl border-4 border-primary text-6xl"
-          style={{ ...pageStyle, background: story.cover.gradient }}
+          className="mb-4 overflow-hidden rounded-xl border-4 border-primary"
+          style={pageStyle}
         >
-          <span>{story.cover.emoji}</span>
+          {usingTemplate && picked?.cover_url ? (
+            <img src={picked.cover_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-6xl" style={{ background: fallback.cover.gradient }}>
+              <span>{fallback.cover.emoji}</span>
+            </div>
+          )}
         </div>
 
         {/* Pages */}
         <div className="space-y-4">
-          {story.pages.map((p) => (
+          {pages.map((p) => (
             <div key={p.number} className="rounded-xl border bg-background p-3">
-              <div
-                className="mb-3 flex items-center justify-center rounded-lg border-2 border-primary/60 text-5xl"
-                style={{ ...pageStyle, background: p.gradient }}
-              >
-                <span>{p.emoji}</span>
+              <div className="mb-3 overflow-hidden rounded-lg border-2 border-primary/60" style={pageStyle}>
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-5xl" style={{ background: (p as { gradient?: string }).gradient ?? "linear-gradient(135deg,#7DD3FC,#818CF8)" }}>
+                    <span>{(p as { emoji?: string }).emoji ?? "📖"}</span>
+                  </div>
+                )}
               </div>
               <div className="text-xs font-bold text-primary mb-1">
                 {lang === "en" ? `Page ${p.number}` : lang === "ku" ? `لاپەڕە ${p.number}` : `صفحة ${p.number}`}
@@ -697,7 +762,7 @@ function SamplePreviewModal({
           <div className="text-xs font-bold text-primary mb-1">
             {lang === "en" ? "A question for you" : lang === "ku" ? "پرسیارێک بۆ تۆ" : "سؤال لك يا بطل"}
           </div>
-          <p className="text-sm font-medium">{story.reflectiveQuestion}</p>
+          <p className="text-sm font-medium">{reflective}</p>
         </div>
 
         <button

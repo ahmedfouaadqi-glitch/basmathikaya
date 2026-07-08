@@ -333,17 +333,32 @@ async function photoToDataUrl(path: string): Promise<string | null> {
 }
 
 /** Run Gemini vision over the uploaded photo to extract a stable visual brief. */
+export type CharacterProfile = {
+  gender?: string;
+  age_group?: string;
+  skin_tone?: string;
+  hair_color?: string;
+  hair_style?: string;
+  eye_color?: string;
+  face_shape?: string;
+  body_build?: string;
+  clothing?: string;
+  distinctive_features?: string;
+  locked?: boolean;
+};
+
 async function analyzeCharacterPhoto(args: {
   dataUrl: string;
   name: string;
   language: "ar" | "en" | "ku";
-}): Promise<string | null> {
+}): Promise<{ brief: string; profile: CharacterProfile | null } | null> {
   try {
     const { callChat } = await import("./ai-gateway.server");
     const isAr = args.language === "ar";
+    const jsonHint = `\nAfter the description, append a fenced JSON block with exactly these keys (in English values): {"gender","age_group","skin_tone","hair_color","hair_style","eye_color","face_shape","body_build","clothing","distinctive_features"}. Wrap it in \`\`\`json ... \`\`\`.`;
     const prompt = isAr
-      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (5-7 أسطر، عربي) وبإلزام تام: الجنس (ذكر/أنثى)، الفئة العمرية (طفل صغير/طفل/مراهق/شاب/بالغ/مسنّ)، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، شكل الوجه، بنية الجسم، الملابس البارزة، أي ميزات مميزة. يجب أن يبدأ الوصف بسطر: "الجنس والعمر: <ذكر/أنثى> · <الفئة العمرية>". لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.`
-      : `Analyze this person (${args.name}) and produce 5-7 short lines describing (mandatory): gender (male/female), age group (toddler/child/teen/young adult/adult/senior), skin tone, hair (length/color/style), eye color, face shape, body build, notable clothing, distinctive features. Start with: "Gender & age: <male/female> · <age group>". No real names. Pure visual brief for drawing a consistent cartoon character.`;
+      ? `حلّل صورة هذا الشخص (${args.name}) ووصِف بإيجاز (5-7 أسطر، عربي) وبإلزام تام: الجنس (ذكر/أنثى)، الفئة العمرية (طفل صغير/طفل/مراهق/شاب/بالغ/مسنّ)، لون البشرة، الشعر (طول/لون/تسريحة)، لون العينين، شكل الوجه، بنية الجسم، الملابس البارزة، أي ميزات مميزة. يجب أن يبدأ الوصف بسطر: "الجنس والعمر: <ذكر/أنثى> · <الفئة العمرية>". لا تذكر اسماً حقيقياً، فقط الوصف البصري لاستخدامه كمرجع لرسم شخصية كرتونية متطابقة.${jsonHint}`
+      : `Analyze this person (${args.name}) and produce 5-7 short lines describing (mandatory): gender (male/female), age group (toddler/child/teen/young adult/adult/senior), skin tone, hair (length/color/style), eye color, face shape, body build, notable clothing, distinctive features. Start with: "Gender & age: <male/female> · <age group>". No real names. Pure visual brief for drawing a consistent cartoon character.${jsonHint}`;
     const r = await callChat({
       model: "google/gemini-2.5-flash",
       messages: [
@@ -353,7 +368,15 @@ async function analyzeCharacterPhoto(args: {
         ] },
       ],
     });
-    return r.content.trim().slice(0, 900);
+    const raw = r.content.trim();
+    // Extract JSON if present, keep only the descriptive text as `brief`.
+    let profile: CharacterProfile | null = null;
+    const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/i) ?? raw.match(/\{[\s\S]*"gender"[\s\S]*\}/);
+    if (jsonMatch) {
+      try { profile = { ...JSON.parse(jsonMatch[1] ?? jsonMatch[0]), locked: true }; } catch { /* ignore */ }
+    }
+    const brief = raw.replace(/```json[\s\S]*?```/gi, "").trim().slice(0, 900);
+    return { brief, profile };
   } catch {
     return null;
   }
@@ -426,13 +449,14 @@ export const generateFullStory = createServerFn({ method: "POST" })
         if (c.visual_brief || !c.photo_path) return;
         const dataUrl = await photoToDataUrl(c.photo_path);
         if (!dataUrl) return;
-        const brief = await analyzeCharacterPhoto({ dataUrl, name: c.name, language });
-        if (brief) {
+        const res = await analyzeCharacterPhoto({ dataUrl, name: c.name, language });
+        if (res) {
           await supabaseAdmin
             .from("order_characters")
-            .update({ visual_brief: brief })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .update({ visual_brief: res.brief, character_profile: (res.profile ?? null) as any })
             .eq("id", c.id);
-          c.visual_brief = brief;
+          c.visual_brief = res.brief;
         }
       }),
     );
@@ -577,6 +601,37 @@ Return JSON exactly like:
       const retry = await runChat(creativeSeed);
       if (retry && retry.pages?.length) plan = retry;
     }
+
+    // === Story QA — one shot, one re-run max, fail-open on QA errors. ===
+    try {
+      const { runStoryQA } = await import("./story-qa.server");
+      const heroAge = (chars.find((c) => c.is_primary)?.age as number | null) ?? null;
+      let qa = await runStoryQA({
+        plan: { title: plan.title, pages: plan.pages },
+        pageCount, language, moods, heroAge,
+      });
+      await logEvent(data.orderId, "story_qa", "google/gemini-2.5-flash", "chat",
+        { log_id: null, run_id: null, usage: qa.usage, duration_ms: qa.duration_ms },
+        qa.cost_usd, 0, pricing, qa.ok ? "success" : "error", qa.ok ? null : qa.reasons.join(" | "));
+      if (!qa.ok) {
+        creativeSeed = makeSeed();
+        const retry = await runChat(creativeSeed);
+        if (retry && retry.pages?.length) {
+          plan = retry;
+          qa = await runStoryQA({
+            plan: { title: plan.title, pages: plan.pages },
+            pageCount, language, moods, heroAge,
+          });
+          await logEvent(data.orderId, "story_qa_retry", "google/gemini-2.5-flash", "chat",
+            { log_id: null, run_id: null, usage: qa.usage, duration_ms: qa.duration_ms },
+            qa.cost_usd, 0, pricing, qa.ok ? "success" : "error", qa.ok ? null : qa.reasons.join(" | "));
+        }
+      }
+      await supabaseAdmin.from("orders").update({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        story_qa_report: qa as any,
+      }).eq("id", data.orderId);
+    } catch { /* fail-open: QA must never break the flow */ }
 
     const pagesPlan = plan.pages.slice(0, pageCount);
     while (pagesPlan.length < pageCount) {
@@ -1085,7 +1140,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         .order("page_number");
       const { data: chars } = await supabaseAdmin
         .from("order_characters")
-        .select("photo_path, is_primary, visual_brief")
+        .select("photo_path, is_primary, visual_brief, character_profile")
         .eq("order_id", data.orderId)
         .order("position");
 
@@ -1114,8 +1169,28 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
       }
       const style = artStyleLock;
+      // Prefer the locked JSON character_profile when present; fall back to the free-text visual_brief.
       const dnaLines = (chars ?? [])
-        .map((c) => (c.visual_brief ? `• ${c.visual_brief}` : ""))
+        .map((c) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const p = c.character_profile as any as CharacterProfile | null;
+          if (p && typeof p === "object") {
+            const parts = [
+              p.gender && `gender: ${p.gender}`,
+              p.age_group && `age: ${p.age_group}`,
+              p.skin_tone && `skin: ${p.skin_tone}`,
+              p.hair_color && `hair color: ${p.hair_color}`,
+              p.hair_style && `hair style: ${p.hair_style}`,
+              p.eye_color && `eyes: ${p.eye_color}`,
+              p.face_shape && `face: ${p.face_shape}`,
+              p.body_build && `build: ${p.body_build}`,
+              p.clothing && `outfit: ${p.clothing}`,
+              p.distinctive_features && `features: ${p.distinctive_features}`,
+            ].filter(Boolean).join(", ");
+            return parts ? `• ${parts}` : (c.visual_brief ? `• ${c.visual_brief}` : "");
+          }
+          return c.visual_brief ? `• ${c.visual_brief}` : "";
+        })
         .filter(Boolean)
         .join("\n");
       const dnaTag = dnaLines
@@ -1174,25 +1249,78 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
 
       // Page images
       const todo = (pages ?? []).filter((p) => !p.image_path);
+      const { runImageQA } = await import("./image-qa.server");
+      const characterDna = dnaLines || brief;
+      const langForQa = ((order.characters as { language?: string } | null)?.language ?? "ar") as "ar" | "en" | "ku";
       await runWithConcurrency(todo, 3, async (p) => {
         const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
         const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
-        const prompt = `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
-        const path = await generateOneImage({
+        const basePrompt = `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${negatives}`;
+        let path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
-          prompt,
+          prompt: basePrompt,
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
           model: pageModel,
           referenceImages: pageModel.startsWith("google/") ? referenceImages : undefined,
         });
         if (path) {
-          await supabaseAdmin
-            .from("story_pages")
-            .update({ image_path: path })
-            .eq("order_id", data.orderId)
-            .eq("page_number", p.page_number);
+          // Image QA — one retry max, fail-open on QA errors.
+          try {
+            const qa = await runImageQA({
+              imagePath: path,
+              expectedScene: p.image_prompt ?? "",
+              characterDna,
+              language: langForQa,
+            });
+            await logEvent(data.orderId, `image_qa_page_${p.page_number}`, "google/gemini-2.5-flash", "chat",
+              { log_id: null, run_id: null, usage: qa.usage, duration_ms: qa.duration_ms },
+              qa.cost_usd, 0, pricing, qa.ok ? "success" : "error", qa.ok ? null : qa.issues.join(" | "));
+            let retries = 0;
+            let finalQa = qa;
+            if (!qa.ok) {
+              const stronger = basePrompt + " AVOID: deformed hands, extra limbs, embedded text, image-in-image, character cropping. ";
+              const retryPath = await generateOneImage({
+                orderId: data.orderId,
+                step: `page_${p.page_number}_image_retry`,
+                prompt: stronger,
+                storagePath: `pages/${data.orderId}/${p.page_number}.png`,
+                pricing,
+                model: pageModel,
+                referenceImages: pageModel.startsWith("google/") ? referenceImages : undefined,
+              });
+              if (retryPath) {
+                path = retryPath;
+                retries = 1;
+                finalQa = await runImageQA({
+                  imagePath: retryPath,
+                  expectedScene: p.image_prompt ?? "",
+                  characterDna,
+                  language: langForQa,
+                });
+                await logEvent(data.orderId, `image_qa_page_${p.page_number}_retry`, "google/gemini-2.5-flash", "chat",
+                  { log_id: null, run_id: null, usage: finalQa.usage, duration_ms: finalQa.duration_ms },
+                  finalQa.cost_usd, 0, pricing, finalQa.ok ? "success" : "error", finalQa.ok ? null : finalQa.issues.join(" | "));
+              }
+            }
+            await supabaseAdmin
+              .from("story_pages")
+              .update({
+                image_path: path,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                qa_report: finalQa as any,
+                qa_retries: retries,
+              })
+              .eq("order_id", data.orderId)
+              .eq("page_number", p.page_number);
+          } catch {
+            await supabaseAdmin
+              .from("story_pages")
+              .update({ image_path: path })
+              .eq("order_id", data.orderId)
+              .eq("page_number", p.page_number);
+          }
         }
       });
 

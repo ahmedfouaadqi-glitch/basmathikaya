@@ -388,6 +388,7 @@ export type Database = {
       order_characters: {
         Row: {
           age: number | null
+          character_profile: Json | null
           created_at: string
           description: string | null
           id: string
@@ -401,6 +402,7 @@ export type Database = {
         }
         Insert: {
           age?: number | null
+          character_profile?: Json | null
           created_at?: string
           description?: string | null
           id?: string
@@ -414,6 +416,7 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          character_profile?: Json | null
           created_at?: string
           description?: string | null
           id?: string
@@ -479,6 +482,7 @@ export type Database = {
           rejected_at: string | null
           rejection_reason: string | null
           status: Database["public"]["Enums"]["order_status"]
+          story_qa_report: Json | null
           tier: Database["public"]["Enums"]["order_tier"] | null
           title: string | null
           updated_at: string
@@ -521,6 +525,7 @@ export type Database = {
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          story_qa_report?: Json | null
           tier?: Database["public"]["Enums"]["order_tier"] | null
           title?: string | null
           updated_at?: string
@@ -563,6 +568,7 @@ export type Database = {
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          story_qa_report?: Json | null
           tier?: Database["public"]["Enums"]["order_tier"] | null
           title?: string | null
           updated_at?: string
@@ -634,6 +640,78 @@ export type Database = {
           banned_by?: string | null
           phone?: string
           reason?: string | null
+        }
+        Relationships: []
+      }
+      preview_templates: {
+        Row: {
+          active: boolean
+          cover_image_path: string | null
+          created_at: string
+          frame_style: string | null
+          hidden: boolean
+          id: string
+          language: string
+          moods: string[]
+          name: string
+          orientation: string
+          page_count: number
+          page_images: string[]
+          pages: Json
+          palette: Json | null
+          priority: number
+          reflective_question: string | null
+          seasonal_end: string | null
+          seasonal_start: string | null
+          story_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cover_image_path?: string | null
+          created_at?: string
+          frame_style?: string | null
+          hidden?: boolean
+          id?: string
+          language?: string
+          moods?: string[]
+          name: string
+          orientation?: string
+          page_count?: number
+          page_images?: string[]
+          pages?: Json
+          palette?: Json | null
+          priority?: number
+          reflective_question?: string | null
+          seasonal_end?: string | null
+          seasonal_start?: string | null
+          story_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cover_image_path?: string | null
+          created_at?: string
+          frame_style?: string | null
+          hidden?: boolean
+          id?: string
+          language?: string
+          moods?: string[]
+          name?: string
+          orientation?: string
+          page_count?: number
+          page_images?: string[]
+          pages?: Json
+          palette?: Json | null
+          priority?: number
+          reflective_question?: string | null
+          seasonal_end?: string | null
+          seasonal_start?: string | null
+          story_type?: string | null
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -967,6 +1045,8 @@ export type Database = {
           image_prompt: string | null
           order_id: string
           page_number: number
+          qa_report: Json | null
+          qa_retries: number
           text: string | null
           updated_at: string
         }
@@ -977,6 +1057,8 @@ export type Database = {
           image_prompt?: string | null
           order_id: string
           page_number: number
+          qa_report?: Json | null
+          qa_retries?: number
           text?: string | null
           updated_at?: string
         }
@@ -987,6 +1069,8 @@ export type Database = {
           image_prompt?: string | null
           order_id?: string
           page_number?: number
+          qa_report?: Json | null
+          qa_retries?: number
           text?: string | null
           updated_at?: string
         }
