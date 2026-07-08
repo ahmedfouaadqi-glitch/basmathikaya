@@ -16,6 +16,7 @@ import { Route as MyOrdersRouteImport } from './routes/my-orders'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FamilyRouteImport } from './routes/family'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -82,6 +83,11 @@ const HowItWorksRoute = HowItWorksRouteImport.update({
 const GalleryRoute = GalleryRouteImport.update({
   id: '/gallery',
   path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FamilyRoute = FamilyRouteImport.update({
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
@@ -380,6 +389,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/faq'
     | '/gallery'
     | '/how-it-works'
     | '/mcp'
@@ -420,6 +430,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/faq'
     | '/gallery'
     | '/how-it-works'
     | '/mcp'
@@ -461,6 +472,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/faq'
     | '/gallery'
     | '/how-it-works'
     | '/mcp'
@@ -503,6 +515,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CreateRoute: typeof CreateRoute
   FamilyRoute: typeof FamilyRoute
+  FaqRoute: typeof FaqRoute
   GalleryRoute: typeof GalleryRoute
   HowItWorksRoute: typeof HowItWorksRoute
   McpRoute: typeof McpRoute
@@ -568,6 +581,13 @@ declare module '@tanstack/react-router' {
       path: '/gallery'
       fullPath: '/gallery'
       preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/family': {
@@ -851,6 +871,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CreateRoute: CreateRoute,
   FamilyRoute: FamilyRoute,
+  FaqRoute: FaqRoute,
   GalleryRoute: GalleryRoute,
   HowItWorksRoute: HowItWorksRoute,
   McpRoute: McpRoute,
