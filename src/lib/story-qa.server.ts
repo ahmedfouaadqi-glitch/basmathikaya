@@ -107,7 +107,7 @@ Return JSON EXACTLY:
     let parsed: {
       ok?: boolean; score?: number; reasons?: unknown; failing_pages?: unknown; language_fit?: boolean;
     } = {};
-    try { parsed = JSON.parse(r.content); } catch { /* ignore */ }
+    try { parsed = JSON.parse(content); } catch { /* ignore */ }
     const reasons = Array.isArray(parsed.reasons) ? parsed.reasons.map(String).slice(0, 8) : [];
     const failing = Array.isArray(parsed.failing_pages)
       ? parsed.failing_pages.map((n) => Number(n)).filter((n) => Number.isFinite(n))
@@ -118,8 +118,8 @@ Return JSON EXACTLY:
       failing_pages: failing,
       score: Number.isFinite(parsed.score) ? Number(parsed.score) : 0,
       language_fit: Boolean(parsed.language_fit ?? parsed.ok),
-      duration_ms: r.meta.duration_ms,
-      usage: r.meta.usage,
+      duration_ms: meta.duration_ms,
+      usage: meta.usage,
       cost_usd: cost,
     };
   } catch {
