@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Phone, KeyRound } from "lucide-react";
 import { useT } from "../lib/i18n";
-import { requestOtp, verifyOtp } from "../lib/auth.functions";
+import { requestOtp, verifyOtp, getCurrentUser } from "../lib/auth.functions";
 import { redeemReferralCode } from "../lib/referrals.functions";
 
 export const Route = createFileRoute("/auth")({

@@ -1,63 +1,26 @@
-## Stage 8: Referrals, Public Gallery, and Marketing Tools
 
-بعد اكتمال المراحل 1-7، ننتقل للمرحلة 8 التي تركز على أدوات النمو والتسويق.
+## المشكلة
+بعد إدخال رمز OTP، الخادم ينشئ الجلسة بنجاح (`verifyOtp` يُرجع `userId`)، لكن المتصفح داخل iframe المعاينة لا يُرفق كوكي `basma-user` مع الطلب التالي `getCurrentUser` الذي يستدعيه `beforeLoad` في `/create`. النتيجة: يُعاد توجيه المستخدم إلى `/auth` فيبدو أن الدخول لم يكتمل.
 
-### 1) نظام الإحالات (Referrals)
-- **جدول جديد `referrals`**: `id`, `referrer_user_id`, `referred_user_id`, `code`, `status` (pending/completed/rewarded), `reward_amount`, `created_at`, `completed_at`
-- **جدول `referral_rewards`**: تتبع المكافآت المصروفة (رصيد/كوبونات)
-- **حقل `referral_code`** في `users` (يُولَّد تلقائياً عند التسجيل)
-- **دوال server**:
-  - `getMyReferralStats` — إحصائيات المستخدم (عدد الإحالات، المكافآت)
-  - `generateReferralLink` — رابط مشاركة بالكود
-  - `redeemReferralOnSignup` — عند تسجيل مستخدم جديد بكود
-  - `completeReferralOnFirstOrder` — منح المكافأة عند أول طلب مكتمل
-- **صفحة `/referrals`**: لوحة المستخدم مع الرابط، الإحصائيات، سجل الإحالات
-- **إضافة حقل كود الإحالة** في صفحة التسجيل `/auth`
+## الإصلاح
+1. **تأكيد الجلسة قبل الانتقال** في `src/routes/auth.tsx`:
+   - بعد `verFn(...)` استدعِ `getCurrentUser` مباشرة للتحقق من ضبط الكوكي فعلياً.
+   - إن رجع `null`: أظهر رسالة واضحة "تعذّر حفظ الجلسة داخل هذا الإطار — افتح الرابط في تبويب جديد" مع زر `window.open(redirect, "_top")` أو `top.location.href = redirect`.
+   - إن نجح: تابع `navigate` كالمعتاد.
 
-### 2) المعرض العام (Public Gallery)
-- **صفحة `/gallery`** عامة (بدون auth) — SSR
-- تعرض القصص التي تم مشاركتها علناً (`orders.is_public = true` أو عبر `share_events`)
-- بطاقات بالصورة، اسم البطل، الثيم، رابط للـ `/s/$token`
-- فلترة حسب الثيم/العمر
-- **جدول `orders`**: إضافة عمود `is_public boolean default false` و `gallery_featured boolean`
-- إعداد في صفحة `/my-orders` للسماح للمستخدم بجعل قصته عامة
-- إدارة في `/admin/gallery` للترشيح والإخفاء
+2. **تحسين إعداد الكوكي** في `src/lib/user-session.server.ts`:
+   - إبقاء `SameSite=None; Secure; Partitioned` (مطلوب للـ iframe عبر النطاقات) — سليم أصلاً.
+   - إضافة `domain` غير محدّد (default host) للتأكد من أن الكوكي يُرسل مع نفس المضيف.
 
-### 3) صفحات تسويقية
-- **`/how-it-works`** — شرح مصور بالخطوات
-- **`/pricing`** — عرض الباقات من `pricing_settings` + مقارنة
-- **`/testimonials`** — شهادات من `site_content` أو جدول جديد `testimonials`
-- **`/faq`** — أسئلة شائعة من `site_content`
-- تحديث الصفحة الرئيسية `/` لتشمل روابط لهذه الصفحات + قسم من المعرض
+3. **فتح الروابط بأمان داخل المعاينة**:
+   - في زر "اذهب إلى /create" الاحتياطي، استخدم `window.top?.location.assign(...)` كخيار بديل عندما لا تعمل الكوكيات المقسّمة.
 
-### 4) SEO & Meta
-- head() فريد لكل صفحة (title, description, og:image)
-- `/gallery` و `/s/$token` تستخدم صور القصص كـ og:image
-- إضافة `sitemap.xml` عبر server route `/api/public/sitemap.xml`
-- `robots.txt` عبر server route
+4. **تحقق سريع (Playwright)** بعد التنفيذ:
+   - افتح `/auth?redirect=/create`، أرسل OTP، أدخل الرمز، تأكد من وصول المستخدم إلى `/create`.
 
-### 5) تحليلات التسويق
-- **صفحة `/admin/referrals`** — إحصائيات الإحالات، أفضل المروجين، تكلفة الاكتساب
-- **صفحة `/admin/gallery`** — إدارة القصص العامة، ترشيح المميّزة
-- تتبع مصدر الزيارة (utm params) في `download_events` أو جدول جديد `visit_events`
+## الملفات المعدّلة
+- `src/routes/auth.tsx` — إضافة تحقّق `getCurrentUser` بعد `verifyOtp` وواجهة بديلة عند فشل الكوكي.
+- (اختياري) `src/lib/user-session.server.ts` — تعليقات توضيحية فقط، لا تغييرات جوهرية.
 
-### ملفات جديدة (تقريباً 15-18):
-- Migration واحدة: `referrals`, `referral_rewards`, `testimonials`, تعديلات على `users` و `orders`
-- `src/lib/referrals.functions.ts`, `src/lib/gallery.functions.ts`, `src/lib/marketing.functions.ts`
-- Routes: `referrals.tsx`, `gallery.tsx`, `how-it-works.tsx`, `pricing.tsx`, `testimonials.tsx`, `faq.tsx`
-- Admin: `admin.referrals.tsx`, `admin.gallery.tsx`
-- Server routes: `api/public/sitemap.xml.ts`, `api/public/robots.txt.ts`
-- تحديثات: `auth.tsx` (كود إحالة)، `my-orders.tsx` (زر جعل عامة)، `index.tsx` (روابط تسويقية)، `admin.tsx` (nav)
-
-### مبادئ:
-- تراجعية آمنة: الحقول الجديدة كلها optional مع defaults
-- RLS صارم: `referrals` يقرأها المالك فقط، `gallery` عام للقراءة إن `is_public=true`
-- audit_log لكل عملية إدارية
-
-### التحقق:
-- `bunx tsgo --noEmit`
-- اختبار تسجيل بكود إحالة → أول طلب → صرف المكافأة
-- تحميل `/gallery` كضيف
-- تحقق `og:image` عبر Playwright على `/s/$token` و `/gallery`
-
-هل أبدأ التنفيذ الكامل، أم تريد جزءاً محدداً فقط (مثلاً: الإحالات والمعرض فقط دون الصفحات التسويقية)؟
+## المخاطر
+- لا تعديلات على منطق الأعمال أو قاعدة البيانات؛ التغيير محصور بواجهة `/auth`.
