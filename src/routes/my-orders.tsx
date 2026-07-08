@@ -35,6 +35,9 @@ type Row = {
   rejection_reason?: string | null;
   redownload_status?: string | null; redownload_amount_iqd?: number | null;
   is_public?: boolean | null;
+  public_title?: string | null;
+  show_author?: boolean | null;
+  public_author_name?: string | null;
 };
 
 function MyOrdersPage() {
