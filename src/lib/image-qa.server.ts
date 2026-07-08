@@ -2,6 +2,8 @@
 // Catches character drift, deformed hands, text bleed, photo-in-photo, and
 // scene/text mismatch. Fail-open on any error to never block delivery.
 import { callChat, estimateTextCostUsd } from "./ai-gateway.server";
+import { isFeatureEnabled } from "./feature-flags.server";
+import { runTextTask } from "./ai/orchestrator.server";
 
 export type ImageQaReport = {
   ok: boolean;
