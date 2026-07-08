@@ -62,15 +62,48 @@ Return JSON EXACTLY:
 }`;
 
   try {
-    const r = await callChat({
-      model,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: user },
-      ],
-      response_format: { type: "json_object" },
-    });
-    const cost = estimateTextCostUsd(model, r.meta.usage);
+    // Try orchestrator when feature flag is enabled; falls back to legacy path on error.
+    const useOrch = await isFeatureEnabled("use_orchestrator");
+    let content: string;
+    let meta: { duration_ms: number; usage: { input_tokens?: number; output_tokens?: number } };
+    let modelUsed = model;
+    if (useOrch) {
+      try {
+        const res = await runTextTask({ task: "story_qa" }, () => ({
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user },
+          ],
+          response_format: { type: "json_object" },
+        }));
+        content = res.result.content;
+        meta = res.result.meta;
+        modelUsed = res.model_used;
+      } catch {
+        const r = await callChat({
+          model,
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user },
+          ],
+          response_format: { type: "json_object" },
+        });
+        content = r.content;
+        meta = r.meta;
+      }
+    } else {
+      const r = await callChat({
+        model,
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: user },
+        ],
+        response_format: { type: "json_object" },
+      });
+      content = r.content;
+      meta = r.meta;
+    }
+    const cost = estimateTextCostUsd(modelUsed, meta.usage);
     let parsed: {
       ok?: boolean; score?: number; reasons?: unknown; failing_pages?: unknown; language_fit?: boolean;
     } = {};
