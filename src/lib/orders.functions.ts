@@ -33,6 +33,8 @@ const CreateInput = z.object({
     .default("standard")
     .transform((v) => (v === "fast" ? "standard" : v)),
   pdf_orientation: z.enum(["portrait", "landscape"]).default("portrait"),
+  art_style_category: z.enum(["realistic", "cartoon"]).optional().nullable(),
+  art_style_slug: z.string().trim().min(1).max(60).optional().nullable(),
 });
 
 
