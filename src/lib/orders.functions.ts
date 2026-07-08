@@ -747,6 +747,12 @@ export const getStoryProgress = createServerFn({ method: "GET" })
       .select("page_number, text, image_path")
       .eq("order_id", data.orderId)
       .order("page_number");
+    const { data: primaryChar } = await supabaseAdmin
+      .from("order_characters")
+      .select("name")
+      .eq("order_id", data.orderId)
+      .eq("is_primary", true)
+      .maybeSingle();
 
     const imagesReady = order?.images_status === "ready";
 
