@@ -437,7 +437,7 @@ export const setGalleryFlags = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireAdminSession();
     const s = await db();
-    const patch: Record<string, unknown> = {};
+    const patch: { is_public?: boolean; gallery_featured?: boolean; public_title?: string | null } = {};
     if (data.isPublic !== undefined) patch.is_public = data.isPublic;
     if (data.featured !== undefined) patch.gallery_featured = data.featured;
     if (data.publicTitle !== undefined) patch.public_title = data.publicTitle;
