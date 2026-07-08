@@ -320,20 +320,21 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
 }
 
 function buildThanksHtml(a: StoryPdfAssets, opts: { accent: string; gold: string; logo: string | null; disclaimer: string }) {
-  const isAr = a.language === "ar";
   const isRtl = a.language !== "en";
   const dir = isRtl ? "rtl" : "ltr";
-  const thanks = isAr ? "شكراً لاختياركم بصمة حكاية" : "Thank you for choosing Basma Hekaya";
-  const note = isAr ? "تابعونا على تيكتوك واكتبوا لنا فكرة حكايتكم القادمة." : "Follow us on TikTok and tell us your next story idea.";
-  const tag = isAr ? "بصمة حكاية — جزء من نظام معروف" : "Basma Hekaya — part of the Maaroof system";
-  const disclaimerTitle = isAr ? "إخلاء مسؤولية" : "Disclaimer";
-  const certTitle = isAr ? "شهادة البطل" : "Hero Certificate";
-  const certLine = isAr ? "هذه الحكاية من نصيب البطل" : "This story belongs to";
-  const questionTitle = isAr ? "سؤال لك يا بطل" : "A question for you, hero";
-  const signature = isAr ? "توقيع: بصمة حكاية" : "Signed: Basma Hekaya";
-  const heroName = a.customerName || (isAr ? "بطلنا" : "our hero");
+  const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
+  const thanks = s.thanks;
+  const note = s.note;
+  const tag = s.tag;
+  const disclaimerTitle = s.disclaimerTitle;
+  const certTitle = s.certTitle;
+  const certLine = s.certLine;
+  const questionTitle = s.questionTitle;
+  const signature = s.signature;
+  const heroName = a.customerName || s.heroFallback;
   const orderNum = a.orderNumber ? `#${a.orderNumber}` : "";
-  const dateStr = new Date().toLocaleDateString(isAr ? "ar-IQ" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+  const locale = a.language === "ar" ? "ar-IQ" : a.language === "ku" ? "ckb-IQ" : "en-US";
+  const dateStr = new Date().toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
   const question = (a.reflectiveQuestion ?? "").trim();
   const logoImg = opts.logo
     ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:70px;height:70px;object-fit:contain;display:block;margin:0 auto 8px;" />`
