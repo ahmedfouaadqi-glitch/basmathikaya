@@ -21,6 +21,8 @@ export const Route = createFileRoute("/create")({
       { name: "description", content: "أنشئ قصة فريدة بشخصياتك وأجوائك المفضلة." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) =>
+    z.object({ from: z.string().uuid().optional() }).parse(search),
   beforeLoad: async ({ location }) => {
     const me = await getCurrentUser();
     if (!me) {
