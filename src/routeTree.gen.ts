@@ -17,6 +17,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as STokenRouteImport } from './routes/s.$token'
 import { Route as PreviewOrderIdRouteImport } from './routes/preview.$orderId'
 import { Route as AdminVideosRouteImport } from './routes/admin.videos'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -73,6 +74,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const STokenRoute = STokenRouteImport.update({
+  id: '/s/$token',
+  path: '/s/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewOrderIdRoute = PreviewOrderIdRouteImport.update({
   id: '/preview/$orderId',
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
+  '/s/$token': typeof STokenRoute
   '/admin/': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -204,6 +211,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
+  '/s/$token': typeof STokenRoute
   '/admin': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
+  '/s/$token': typeof STokenRoute
   '/admin/': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/videos'
     | '/preview/$orderId'
+    | '/s/$token'
     | '/admin/'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/videos'
     | '/preview/$orderId'
+    | '/s/$token'
     | '/admin'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/videos'
     | '/preview/$orderId'
+    | '/s/$token'
     | '/admin/'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -328,6 +340,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
+  STokenRoute: typeof STokenRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksJobsTickRoute: typeof ApiPublicHooksJobsTickRoute
   ApiPublicShareCardsTokenRoute: typeof ApiPublicShareCardsTokenRoute
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/s/$token': {
+      id: '/s/$token'
+      path: '/s/$token'
+      fullPath: '/s/$token'
+      preLoaderRoute: typeof STokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/preview/$orderId': {
       id: '/preview/$orderId'
@@ -548,6 +568,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   PreviewOrderIdRoute: PreviewOrderIdRoute,
+  STokenRoute: STokenRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksJobsTickRoute: ApiPublicHooksJobsTickRoute,
   ApiPublicShareCardsTokenRoute: ApiPublicShareCardsTokenRoute,
