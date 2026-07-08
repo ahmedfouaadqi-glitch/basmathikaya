@@ -122,7 +122,7 @@ Return JSON EXACTLY:
     const failing = Array.isArray(parsed.failing_pages)
       ? parsed.failing_pages.map((n) => Number(n)).filter((n) => Number.isFinite(n))
       : [];
-    return {
+    const report: StoryQaReport = {
       ok: Boolean(parsed.ok),
       reasons,
       failing_pages: failing,
@@ -132,6 +132,10 @@ Return JSON EXACTLY:
       usage: meta.usage,
       cost_usd: cost,
     };
+    if (cacheKey) {
+      void setCached({ cacheKey, taskType: "story_qa", modelId: modelUsed, response: report, ttlSeconds: 60 * 60 * 24 * 7, costUsd: cost });
+    }
+    return report;
   } catch {
     // Fail-open: never block story creation if QA itself errors.
     return {
