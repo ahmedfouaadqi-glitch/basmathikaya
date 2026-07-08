@@ -295,8 +295,8 @@ export const cacheStats = createServerFn({ method: "GET" }).handler(async () => 
     s.from("prompt_cache").select("cost_saved_usd, hits").limit(10000),
     s.from("character_analysis_cache").select("cost_saved_usd, hits").limit(10000),
   ]);
-  const sum = (rows: unknown[] | null, k: string) =>
-    (rows ?? []).reduce((a, r) => a + Number((r as Record<string, unknown>)[k] ?? 0), 0);
+  const sum = (rows: unknown[] | null, k: string): number =>
+    (rows ?? []).reduce<number>((a, r) => a + Number((r as Record<string, unknown>)[k] ?? 0), 0);
   return {
     prompt: {
       total: prompt.count ?? 0,
