@@ -105,6 +105,8 @@ function OrderDetail() {
         disclaimer: content ? (lang === "ar" ? content.disclaimer_ar : content.disclaimer_en) : null,
         frameStyle: (th?.frame_style as StoryFrameStyle) ?? null,
         palette: th?.palette ?? null,
+        orientation: (p as { pdf_orientation?: "portrait" | "landscape" }).pdf_orientation ?? "portrait",
+        reflectiveQuestion: (p as { reflective_question?: string | null }).reflective_question ?? null,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطأ");
