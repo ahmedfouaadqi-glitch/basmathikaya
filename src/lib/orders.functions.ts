@@ -1173,7 +1173,28 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       // so the whole book feels like one illustrated set. Only the LIGHTING varies per page.
       let artStyleLock = (order.art_style_lock as string | null) ?? "";
       if (!artStyleLock) {
-        artStyleLock = "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
+        // Try to build lock from the chosen art_style_slug (new orders) → fallback to the default in DB → fallback to hardcoded storybook.
+        const chosenSlug = (order as { art_style_slug?: string | null }).art_style_slug ?? null;
+        let fragment: string | null = null;
+        if (chosenSlug) {
+          const { data: sty } = await supabaseAdmin
+            .from("art_styles")
+            .select("prompt_fragment")
+            .eq("slug", chosenSlug)
+            .maybeSingle();
+          fragment = (sty as { prompt_fragment?: string } | null)?.prompt_fragment ?? null;
+        }
+        if (!fragment) {
+          const { data: def } = await supabaseAdmin
+            .from("art_styles")
+            .select("prompt_fragment")
+            .eq("is_default", true)
+            .eq("category", "cartoon")
+            .maybeSingle();
+          fragment = (def as { prompt_fragment?: string } | null)?.prompt_fragment ?? null;
+        }
+        artStyleLock = fragment ??
+          "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
         await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
       }
       const style = artStyleLock;
