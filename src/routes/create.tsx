@@ -433,6 +433,60 @@ function CreatePage() {
           <p className="mt-1 text-xs text-muted-foreground">{t("field_mood_limit")}</p>
         </div>
 
+        {/* Art style — realistic vs cartoon (+ cartoon substyle) */}
+        {artStyles.length > 0 && (
+          <div>
+            <label className="mb-2 block text-sm font-bold">أسلوب الرسم</label>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              كيف تريد أن تظهر شخصية الطفل في القصة؟ يُطبَّق نفس الأسلوب على كل الصفحات.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-center text-sm">
+              {([
+                { v: "realistic" as const, label: "واقعي", hint: "صور واقعية" },
+                { v: "cartoon" as const, label: "كرتوني", hint: "رسوم كرتونية" },
+              ]).map((o) => (
+                <button
+                  type="button"
+                  key={o.v}
+                  onClick={() => {
+                    setArtStyleCategory(o.v);
+                    if (o.v === "realistic") setArtStyleSlug(realisticStyle?.slug ?? null);
+                    else setArtStyleSlug(null);
+                  }}
+                  aria-pressed={artStyleCategory === o.v}
+                  className={`rounded-xl border p-3 transition ${
+                    artStyleCategory === o.v ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30"
+                  }`}
+                >
+                  <div>{o.label}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{o.hint}</div>
+                </button>
+              ))}
+            </div>
+
+            {artStyleCategory === "cartoon" && cartoonStyles.length > 0 && (
+              <div className="mt-3">
+                <p className="mb-2 text-xs font-semibold text-primary">اختر نمط الرسم:</p>
+                <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
+                  {cartoonStyles.map((s) => (
+                    <button
+                      type="button"
+                      key={s.id}
+                      onClick={() => setArtStyleSlug(s.slug)}
+                      aria-pressed={artStyleSlug === s.slug}
+                      className={`rounded-xl border p-2.5 transition ${
+                        artStyleSlug === s.slug ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30 hover:bg-secondary"
+                      }`}
+                    >
+                      {s.name_ar}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Custom instructions */}
         <div>
           <label className="mb-2 block text-sm font-bold">{t("field_instructions")}</label>
