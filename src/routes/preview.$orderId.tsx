@@ -71,6 +71,8 @@ function PreviewPage() {
         title: progress.title || (lang === "ar" ? "حكايتي" : "My Story"),
         language: lang,
         customerName: progress.customer_name || "",
+        heroName: (progress as { hero_name?: string | null }).hero_name ?? null,
+        authorName: (progress as { author_name?: string | null }).author_name ?? progress.customer_name ?? null,
         moods: progress.moods ?? [],
         coverUrl: progress.cover_url,
         pages: progress.pages.map((pg) => ({ number: pg.page_number, text: pg.text, imageUrl: pg.image_url })),
