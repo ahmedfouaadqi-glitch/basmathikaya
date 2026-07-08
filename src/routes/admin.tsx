@@ -86,6 +86,15 @@ function AdminLayout() {
           <Link to="/admin/share-events" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Share2 className="size-4" /> المشاركات
           </Link>
+          <Link to="/admin/referrals" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Gift className="size-4" /> إحالات
+          </Link>
+          <Link to="/admin/gallery" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <ImageIcon className="size-4" /> المعرض
+          </Link>
+          <Link to="/admin/testimonials" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <MessageSquareQuote className="size-4" /> شهادات
+          </Link>
           <Link to="/admin/audit" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <ScrollText className="size-4" /> التدقيق
           </Link>
