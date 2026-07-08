@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useT } from "../lib/i18n";
 import { Sparkles, BookOpen, Truck } from "lucide-react";
 import { brandLogoUrl } from "../lib/brand";
@@ -8,6 +9,9 @@ import { BrandIntroCarousel } from "../components/BrandIntroCarousel";
 import { getHomeContent, DEFAULT_HOME_CONTENT } from "../lib/site-content.functions";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    ref: typeof s.ref === "string" ? s.ref : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
