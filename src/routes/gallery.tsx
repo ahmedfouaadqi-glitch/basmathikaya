@@ -83,6 +83,9 @@ function GalleryPage() {
                 <div className="text-sm font-bold line-clamp-1">
                   {g.public_title ?? g.title ?? `قصة #${g.order_number}`}
                 </div>
+                {g.show_author && g.public_author_name && (
+                  <div className="mt-0.5 text-[11px] text-muted-foreground truncate">بواسطة: {g.public_author_name}</div>
+                )}
                 <div className="mt-0.5 text-[10px] text-muted-foreground">
                   {new Date(g.created_at).toLocaleDateString("ar")}
                 </div>
