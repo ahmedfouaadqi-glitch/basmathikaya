@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useT } from "../lib/i18n";
 import { getCurrentUser, userLogout } from "../lib/auth.functions";
 import { myOrders, requestRedownload, reorderExisting } from "../lib/orders.functions";
+import { ensureShareToken } from "../lib/share.functions";
 import { listMyNotifications, markAllNotificationsRead } from "../lib/notifications.functions";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users } from "lucide-react";
