@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as FamilyRouteImport } from './routes/family'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -58,6 +59,11 @@ const MyOrdersRoute = MyOrdersRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FamilyRoute = FamilyRouteImport.update({
@@ -231,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/gallery': typeof GalleryRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/referrals': typeof ReferralsRoute
@@ -267,6 +274,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/gallery': typeof GalleryRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/referrals': typeof ReferralsRoute
@@ -305,6 +313,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/gallery': typeof GalleryRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/referrals': typeof ReferralsRoute
@@ -344,6 +353,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/gallery'
     | '/mcp'
     | '/my-orders'
     | '/referrals'
@@ -380,6 +390,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/gallery'
     | '/mcp'
     | '/my-orders'
     | '/referrals'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/gallery'
     | '/mcp'
     | '/my-orders'
     | '/referrals'
@@ -455,6 +467,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CreateRoute: typeof CreateRoute
   FamilyRoute: typeof FamilyRoute
+  GalleryRoute: typeof GalleryRoute
   McpRoute: typeof McpRoute
   MyOrdersRoute: typeof MyOrdersRoute
   ReferralsRoute: typeof ReferralsRoute
@@ -488,6 +501,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/family': {
@@ -771,6 +791,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CreateRoute: CreateRoute,
   FamilyRoute: FamilyRoute,
+  GalleryRoute: GalleryRoute,
   McpRoute: McpRoute,
   MyOrdersRoute: MyOrdersRoute,
   ReferralsRoute: ReferralsRoute,
