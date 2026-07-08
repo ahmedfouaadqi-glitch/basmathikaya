@@ -1,58 +1,93 @@
-## المطلوب
+## المرحلة 1 — قفل الموقع على العربية وإخفاء (EN/KU) دون حذف
 
-تعديلان بصريان صغيران على تدفق إنشاء القصة وعلى ملف PDF، دون كسر أي منطق حالي.
+**السبب:** بعد فحص الكود:
+- ملف `src/lib/i18n.tsx` يحتوي ~150 مفتاح مترجم، بينما هناك **20+ صفحة** فيها نصوص عربية مكتوبة مباشرة (hardcoded) بدون `t()` — من ضمنها: `faq.tsx`, `how-it-works.tsx`, `pricing.tsx`, `gallery.tsx`, `testimonials.tsx`, `referrals.tsx`, `s.$token.tsx`, `my-orders.tsx`, `preview.$orderId.tsx`, وكل صفحات `admin.*`.
+- الكوردية (ku) في أغلب المفاتيح غير مترجمة وتقع على fallback عربي — فتظهر بالعربية داخل واجهة "كوردية"، وهذا غير احترافي.
 
----
+**الحل:** إخفاء كامل للغتين الإنجليزية والكوردية من الواجهة، **مع الإبقاء على كل الكود والمفاتيح والبنية التحتية كما هي** لتفعيلها لاحقاً بترجمة كاملة.
 
-### 1) نقل اختيار أسلوب الرسم إلى بداية النموذج (تحت العمر)
+**التغييرات:**
+1. `src/routes/__root.tsx`: إخفاء `<LangSwitch>` بالكامل (desktop + mobile) — تعليق أو إزالة الاستدعاء فقط. المكوّن نفسه يبقى موجوداً في الملف.
+2. `src/lib/i18n.tsx`:
+   - `setLang()` تصبح no-op (تتجاهل أي محاولة تغيير لغة) — لكن التوقيع يبقى.
+   - القيمة الأولية دائماً `"ar"`، وتنظيف صامت لأي قيمة قديمة `en`/`ku` في `localStorage`.
+   - كل المفاتيح والترجمات تبقى في الملف بدون حذف.
+3. `<html lang="ar" dir="rtl">` مقفل.
 
-**الوضع الحالي:** بلوك "أسلوب الرسم" في `src/routes/create.tsx` يظهر بعد المزاج (Moods) والتعليمات المخصّصة.
+## المرحلة 2 — تحسين PWA شامل
 
-**المطلوب:** نقل نفس البلوك ليظهر مباشرة بعد بطاقات الشخصيات (التي تحوي اسم/عمر/صورة الشخصية) وقبل المزاج، بحيث يراه المستخدم مبكراً بشكل "مربعات" — وهو أصلاً بشكل مربعات (grid buttons)، فقط سيتم رفع موقعه في الصفحة.
+الفحص الحالي: `manifest.webmanifest` صحيح + أيقونات + `InstallGate`. لا يوجد service worker (متوافق مع توجيهات Lovable للـ manifest-only).
 
-- لا تغيير على منطق `createOrder` أو الـ state.
-- نفس المربعات: صف علوي (واقعي / كرتوني)، وعند اختيار "كرتوني" تظهر مصفوفة الأنماط الفرعية.
-- التحقق الحالي (`اختر أسلوب الرسم`) يبقى كما هو.
+**التحسينات:**
 
----
+1. **`public/manifest.webmanifest`:**
+   - إضافة `screenshots` (form_factor: `wide` + `narrow`) لتحسين مربّع تثبيت Chrome/Edge.
+   - إضافة `shortcuts`: "ابدأ حكاية جديدة" → `/create`، "طلباتي" → `/my-orders`.
+   - `prefer_related_applications: false`, `handle_links: "preferred"`.
 
-### 2) تصحيح "مخصّصة لـ ..." + إضافة سطر المؤلف
+2. **`src/routes/__root.tsx` (head):**
+   - `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`, `apple-mobile-web-app-title`, `mobile-web-app-capable`.
+   - `theme-color` بلونين (light/dark عبر `media`) لتحسين شريط الحالة على Android.
+   - `viewport` مع `viewport-fit=cover` لدعم safe-area (النوتش).
+   - `<link rel="apple-touch-startup-image">` (splash) لأجهزة iOS الشائعة (2-3 مقاسات).
 
-**الوضع الحالي في `src/lib/pdf-client.ts`:**
-- الغلاف: `subWith(a.customerName)` → "حكاية مخصّصة لـ {customerName}"
-- شهادة البطل في الصفحة الأخيرة: `heroName = a.customerName || fallback`
+3. **`src/components/InstallGate.tsx`:**
+   - عدم العرض داخل iframe (`window.top !== window.self`) ولا في `id-preview--*`, `preview--*`, `beta.lovable.dev`, `*.lovableproject.com`.
+   - تحسين تعليمات iOS (Share → Add to Home Screen).
+   - زر "لاحقاً" مع تذكير بعد N أيام (localStorage timestamp).
 
-المشكلة: `customerName` هو اسم صاحب الحساب وليس اسم البطل الذي أدخله المستخدم، فتظهر الحكاية "مخصّصة لصاحب الحساب" بدل البطل.
+4. **CSS safe-area** في `src/styles.css`:
+   - `padding-top: env(safe-area-inset-top)` للـ header، و`padding-bottom: env(safe-area-inset-bottom)` للأسفل.
+   - `@media (display-mode: standalone)` لإخفاء `InstallGate` في التطبيق المثبت.
 
-**التعديل:**
+**لن نضيف service worker** (طلبك لم يذكر offline، والتوجيهات تمنعه بدون حاجة صريحة).
 
-أ) إضافة حقل جديد اختياري إلى `StoryPdfAssets`:
-```
-heroName?: string | null;   // اسم البطل الأساسي من الشخصيات
-authorName?: string | null; // اسم صاحب الحساب (full_name)
-```
+## المرحلة 3 — تحسين التجاوب (Responsive) شامل
 
-ب) في `buildCoverHtml` و `buildThanksHtml`:
-- استخدم `heroName ?? customerName ?? fallback` بدلاً من `customerName` عند بناء "مخصّصة لـ" واسم شهادة البطل.
-- تحت اسم البطل مباشرة في الغلاف وفي بطاقة الشهادة، أضف سطراً واحداً بخط رفيع وأنيق:
-  - عربي: `المؤلف: {authorName}` (font-weight: 300، حجم صغير ~11px، لون رمادي هادئ، letter-spacing خفيف)
-  - إنجليزي/كردي: نص مقابل (`Author: …` / `نووسەر: …`)
-- إذا لم يتوفر `authorName` لا يُطبع السطر (Backward compatible).
+**المشاكل المكتشفة:**
+- `flex flex-wrap` في headers متعددة العناصر → ينكسر على الجوال.
+- جداول `admin.*` و`my-orders.tsx` بدون scroll أفقي على الجوال.
+- عناوين بحجم ثابت `text-2xl+` بدون scale متجاوب.
+- بعض الشبكات تقفز من 1 عمود إلى 3 دون خطوة `sm:grid-cols-2`.
 
-ج) تمرير الحقلين من مواقع الاستدعاء:
-- `src/routes/preview.$orderId.tsx` → `heroName: progress.hero_name` (أو `progress.characters?.[0]?.name` — يُحدَّد بعد قراءة شكل `progress`)، `authorName: progress.customer_name`.
-- `src/routes/admin.orders.$id.tsx` → `heroName: characters.find(c=>c.is_primary)?.name`, `authorName: user?.full_name`.
-- في `admin.orders.$id.tsx` الحالي يمرَّر `customerName: p.customer_name || user?.full_name` — نُبقيه كما هو للتوافق مع النسخ القديمة، ونضيف الحقلين الجديدين فقط.
+**التغييرات:**
 
-د) الطلبات القديمة (بدون heroName ممرّر) تعمل كما هي: تسقط تلقائياً على `customerName` ثم على `heroFallback`.
+1. **Headers نص + ويدجت:** تحويلها إلى النمط المعتمد في `responsive-layout-patterns`:
+   ```
+   grid grid-cols-[minmax(0,1fr)_auto] sm:flex sm:justify-between
+   + min-w-0 على النص + shrink-0 على الأيقونات + truncate على العناوين
+   ```
+   الملفات: `__root.tsx`, `admin.orders.$id.tsx`, `admin.index.tsx`, `admin.users.tsx`, `my-orders.tsx`, `preview.$orderId.tsx`.
 
----
+2. **الجداول:** لفّ كل `<table>` في `<div className="overflow-x-auto -mx-4 sm:mx-0"><table className="min-w-full">…` في صفحات الإدارة.
 
-### الملفات المتأثرة
+3. **العناوين المتجاوبة:** `text-2xl sm:text-3xl md:text-4xl` في `index.tsx`, `pricing.tsx`, `how-it-works.tsx`, `faq.tsx`.
 
-- `src/routes/create.tsx` — نقل بلوك أسلوب الرسم إلى ما بعد الشخصيات وقبل المزاج.
-- `src/lib/pdf-client.ts` — إضافة `heroName` و `authorName` إلى `StoryPdfAssets`، تحديث `buildCoverHtml` و `buildThanksHtml`، إضافة سلاسل "المؤلف" في `STRINGS` للغات الثلاث.
-- `src/routes/preview.$orderId.tsx` — تمرير `heroName` و `authorName`.
-- `src/routes/admin.orders.$id.tsx` — تمرير `heroName` و `authorName`.
+4. **الشبكات:** `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` + `gap-3 sm:gap-4 md:gap-6`.
 
-بدون أي تغيير على قاعدة البيانات أو سياسات RLS أو منطق التوليد.
+5. **`create.tsx`:** فحص خاص — نموذج طويل:
+   - حقول full-width على الجوال.
+   - أزرار Wizard steps عمود واحد أسفل `sm:`.
+   - Character cards grid: `grid-cols-2 sm:grid-cols-3 md:grid-cols-4`.
+   - Art style picker: يبقى مربعات، لكن `grid-cols-2 sm:grid-cols-3`.
+
+6. **PDF preview:** تأكيد أن iframe/canvas لا يتخطى `100vw`.
+
+7. **`src/styles.css`:** قاعدة safety net عامة `img, video, iframe { max-width: 100%; height: auto }`.
+
+8. **تحقق بصري:** Playwright بثلاث viewports (375, 768, 1280) على الصفحات الرئيسية بعد التنفيذ.
+
+## الملفات المتأثرة
+
+- `src/lib/i18n.tsx` — قفل اللغة (بدون حذف)
+- `src/routes/__root.tsx` — إخفاء LangSwitch + head PWA metadata + safe-area
+- `public/manifest.webmanifest` — shortcuts + screenshots
+- `src/components/InstallGate.tsx` — guards + تحسينات iOS
+- `src/styles.css` — safe-area + responsive safety net
+- ~10 صفحات (admin + public) — إصلاحات header/table/grid
+
+## ما لن نغيره
+
+- منطق العمل، قاعدة البيانات، RLS.
+- بنية `i18n` أو المفاتيح — كلها محفوظة للمستقبل.
+- لن نضيف Service Worker.
