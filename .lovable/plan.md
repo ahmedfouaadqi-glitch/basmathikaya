@@ -1,45 +1,64 @@
-# Stage 6 — Share Cards (Satori + resvg)
+# Stage 7 — Admin Operational Pages
 
-Generate branded PNG share cards for completed orders so parents can share a beautiful preview on WhatsApp/Instagram instead of a raw link. Uses the existing `share_cards` table and `share_tokens` already wired in Stage 4's `generate_share_cards` runner.
+Add the 9 missing operational admin pages that expose Stages 3–6 infra (feature flags, jobs, caches, AI health, kill switches) and clean up existing gaps (redownloads, phone bans, audit). All read-first with narrow write actions; every write goes through admin-authed server fns using the existing `adminCheck` middleware pattern.
 
-## Scope
+## Pages (all under `/admin/*`, wired into `admin.tsx` nav)
 
-- Real image generation via **Satori** (JSX → SVG) + **@resvg/resvg-wasm** (SVG → PNG). Both are Worker-compatible (pure JS + WASM), unlike sharp/canvas.
-- Public share page at `/s/$token` that renders the story preview and exposes the PNG via `og:image` / `twitter:image` for social crawlers.
-- Server route `/api/public/share-cards/$token.png` that returns the PNG bytes (generates on first hit, caches to `story-covers` storage bucket).
-- Wire "شارك" button in `/my-orders` for delivered orders → copies share URL.
-
-Non-goals: custom card templates per theme (single default template), video share cards, per-page cards.
+1. **`/admin/flags`** — Feature Flags (`feature_flags` table)
+   - Toggle each flag on/off, adjust `rollout_percentage`.
+   - Wire the 6 Stage-3 flags visibly.
+2. **`/admin/jobs`** — Background Jobs (`background_jobs` table)
+   - Filter by status/job_type, retry failed, cancel pending.
+   - Show pg_cron last run status from `cron.job_run_details`.
+3. **`/admin/ai-models`** — AI Models (`ai_models_config` + `ai_model_health` + `ai_model_events`)
+   - List models with enabled toggle, priority, last 24h success rate.
+   - Manual "test model" button.
+4. **`/admin/emergency`** — Emergency Controls (`emergency_controls`)
+   - Big kill switches: pause AI, pause orders, pause new registrations. Reason field required.
+5. **`/admin/audit`** — Audit Log viewer (`audit_log`)
+   - Filter by actor/action/date range. Read-only. Paginated (50/page).
+6. **`/admin/phone-bans`** — Phone Bans (`phone_bans`)
+   - Add/remove bans with reason. Search.
+7. **`/admin/redownloads`** — Redownload Requests (`redownload_requests`)
+   - Pending queue: approve (mark paid), reject with reason. Notifies user.
+8. **`/admin/caches`** — Cache Stats (`prompt_cache` + `character_analysis_cache`)
+   - Hit counts, total cost saved (sum of `cost_usd`), row count, purge-expired button.
+9. **`/admin/share-events`** — Share Analytics (`share_events`)
+   - Aggregated share counts by platform + top shared orders (last 30 days).
 
 ## Files
 
-**New**
-- `src/lib/share-cards.server.ts` — `renderShareCardPng({ title, childName, coverUrl, theme })`:
-  - Loads Arabic font (Cairo/Tajawal) from `story-covers` bucket or bundled asset via `fetch`.
-  - Calls `satori()` with a JSX layout (title, child name, cover thumbnail, brand mark, 1200×630).
-  - Runs `Resvg` (from `@resvg/resvg-wasm`) to rasterize. Loads WASM once, cached in module scope.
-- `src/lib/share-cards.functions.ts` — `getShareCardMeta({ token })` server fn: reads `share_cards` + joins `orders` to return `{ title, childName, coverUrl, orderNumber }` for the public page. No auth required (public token).
-- `src/routes/s.$token.tsx` — public route (SSR). Loader calls `getShareCardMeta`. `head()` sets `og:image` / `twitter:image` to absolute `/api/public/share-cards/$token.png`. Body renders a clean preview with "اطلب مثلها" CTA linking to `/create`.
-- `src/routes/api/public/share-cards/$token.png.ts` — server route. Verifies token exists in `share_cards`, checks if `image_path` already set → 302 to signed URL; otherwise generates via `renderShareCardPng`, uploads to `story-covers/share-cards/$token.png`, updates row, returns PNG with `Cache-Control: public, max-age=86400`.
+**New server fns** (all `.handler`s call `requireAdmin`):
+- `src/lib/admin/flags.functions.ts` — list, toggle, update rollout.
+- `src/lib/admin/jobs.functions.ts` — list, retry, cancel; `cronRuns()` reads `cron.job_run_details` via `supabaseAdmin.rpc` or plain query.
+- `src/lib/admin/ai-models.functions.ts` — list config+health, toggle enabled, update priority.
+- `src/lib/admin/emergency.functions.ts` — list, set control (with reason + `admin_id`).
+- `src/lib/admin/audit.functions.ts` — paginated list + filter.
+- `src/lib/admin/phone-bans.functions.ts` — list, add, remove.
+- `src/lib/admin/redownloads.functions.ts` — list pending, approve, reject.
+- `src/lib/admin/caches.functions.ts` — stats + purge expired.
+- `src/lib/admin/share-events.functions.ts` — aggregations.
 
-**Modified**
-- `src/routes/my-orders.tsx` — add "شارك" button per delivered order. Calls new `ensureShareToken({ orderId })` server fn (creates token if missing, returns URL). Copies `${origin}/s/$token` to clipboard.
-- `src/lib/orders.functions.ts` — add small `ensureShareToken` server fn (auth-scoped: verifies order belongs to user, sets `share_token` if null, upserts `share_cards` row with `image_path: null`). Nothing else in orders touched.
+**New routes**: 9 route files above, each following existing admin route pattern (`beforeLoad: adminCheck`, single-file page with table/toggles).
 
-**Packages**
-- `bun add satori @resvg/resvg-wasm` — both pure-JS/WASM, Worker-safe.
+**Modified**:
+- `src/routes/admin.tsx` — add 9 nav links, group into two rows if crowded.
 
 ## Principles
 
-- Fail-open: if PNG generation fails, `/s/$token` still renders (just no rich `og:image`); the endpoint returns a 500 that social crawlers gracefully skip.
-- Cache aggressively: first hit generates + stores, subsequent hits redirect to signed URL from `story-covers`.
-- Public route reads only safe columns (title, child name, cover thumbnail path). No PII (phone, address) on the share page.
-- No changes to existing order flow, PDF generation, or admin.
+- Read-first: every page loads and displays data before offering any write.
+- No destructive default: destructive actions (purge cache, ban phone, kill switch) require confirmation prompt.
+- All writes append an `audit_log` row.
+- No schema changes; all tables already exist.
+- Follow existing admin visual patterns (border cards, tables, badges).
 
 ## Verification
 
 - `bunx tsgo --noEmit`
-- Manual: mark a test order delivered → click "شارك" → open URL in incognito → confirm page renders and `curl -I <png-url>` returns image/png.
-- Meta debug: paste `/s/$token` into WhatsApp/Twitter preview tool.
+- Load each new page; verify data renders and one write action per page works end-to-end.
 
-Confirm to proceed.
+## Notes
+
+This is a large stage (~18 new files, ~2500 LOC). If you want a subset first, tell me which pages matter most and I'll cut the rest. Otherwise I'll ship all 9 in this session in the order listed above.
+
+Confirm to proceed with all 9, or reply with a subset (e.g. "1,2,4,7 only").

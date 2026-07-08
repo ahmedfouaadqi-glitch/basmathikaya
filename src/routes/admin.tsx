@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/
 import { useServerFn } from "@tanstack/react-start";
 import { adminCheck, adminLogout } from "../lib/admin.functions";
 import { useT } from "../lib/i18n";
-import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate } from "lucide-react";
+import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate, Flag, ListTree, Cpu, AlertTriangle, ScrollText, PhoneOff, Download, Database, Share2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ location }) => {
@@ -61,6 +61,33 @@ function AdminLayout() {
           <Link to="/admin/settings" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Settings className="size-4" />
             {t("admin_settings")}
+          </Link>
+          <Link to="/admin/redownloads" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Download className="size-4" /> إعادة التحميل
+          </Link>
+          <Link to="/admin/phone-bans" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <PhoneOff className="size-4" /> الحظر
+          </Link>
+          <Link to="/admin/flags" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Flag className="size-4" /> Flags
+          </Link>
+          <Link to="/admin/jobs" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <ListTree className="size-4" /> Jobs
+          </Link>
+          <Link to="/admin/ai-models" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Cpu className="size-4" /> AI Models
+          </Link>
+          <Link to="/admin/emergency" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-destructive hover:bg-destructive/10" activeProps={{ className: "bg-destructive/10 font-semibold" }}>
+            <AlertTriangle className="size-4" /> طوارئ
+          </Link>
+          <Link to="/admin/caches" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Database className="size-4" /> الكاش
+          </Link>
+          <Link to="/admin/share-events" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Share2 className="size-4" /> المشاركات
+          </Link>
+          <Link to="/admin/audit" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <ScrollText className="size-4" /> التدقيق
           </Link>
         </nav>
         <button
