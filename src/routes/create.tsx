@@ -237,6 +237,8 @@ function CreatePage() {
     if (submitting) return;
     if (!characters[0].name.trim()) return toast.error("اكتب اسم البطل الرئيسي");
     if (moods.length === 0) return toast.error("اختر جواً واحداً على الأقل");
+    if (artStyles.length > 0 && !artStyleCategory) return toast.error("اختر أسلوب الرسم");
+    if (artStyles.length > 0 && artStyleCategory === "cartoon" && !artStyleSlug) return toast.error("اختر نمط الرسم الكرتوني");
     if (!acceptedDisclaimer) return toast.error("يرجى الموافقة على إخلاء المسؤولية للمتابعة");
     setConfirmOpen(true);
   }
@@ -245,6 +247,10 @@ function CreatePage() {
     if (submitting) return;
     setSubmitting(true);
     try {
+      // Resolve slug: if realistic, use the single realistic style's slug.
+      const finalSlug = artStyleCategory === "realistic"
+        ? (realisticStyle?.slug ?? null)
+        : artStyleSlug;
       const res = await create({
         data: {
           characters: characters.map((c) => ({
@@ -261,6 +267,8 @@ function CreatePage() {
           image_quality_tier: qualityTier,
           tier,
           pdf_orientation: pdfOrientation,
+          art_style_category: artStyleCategory,
+          art_style_slug: finalSlug,
           draft_id: draftIdRef.current,
           disclaimer_accepted: true,
           coupon_code: couponCode.trim() || undefined,
