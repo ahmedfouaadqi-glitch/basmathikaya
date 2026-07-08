@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /admin/
+Disallow: /my-orders
+Disallow: /family
+Disallow: /referrals
+Disallow: /preview/
+Disallow: /api/
+
+Sitemap: https://basmathikaya.lovable.app/sitemap.xml

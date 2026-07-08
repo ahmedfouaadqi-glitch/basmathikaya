@@ -985,10 +985,12 @@ export type Database = {
           customer_phone: string
           delivered_at: string | null
           disclaimer_accepted_at: string | null
+          gallery_featured: boolean
           id: string
           image_quality_tier: string | null
           images_error: string | null
           images_status: string
+          is_public: boolean
           mood_extra_iqd: number
           moods: string[]
           notes: string | null
@@ -1001,6 +1003,7 @@ export type Database = {
           pdf_generation_status: string | null
           pdf_orientation: string
           pdf_path: string | null
+          public_title: string | null
           redownload_amount_iqd: number | null
           redownload_paid_at: string | null
           redownload_requested_at: string | null
@@ -1031,10 +1034,12 @@ export type Database = {
           customer_phone: string
           delivered_at?: string | null
           disclaimer_accepted_at?: string | null
+          gallery_featured?: boolean
           id?: string
           image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
+          is_public?: boolean
           mood_extra_iqd?: number
           moods?: string[]
           notes?: string | null
@@ -1047,6 +1052,7 @@ export type Database = {
           pdf_generation_status?: string | null
           pdf_orientation?: string
           pdf_path?: string | null
+          public_title?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
           redownload_requested_at?: string | null
@@ -1077,10 +1083,12 @@ export type Database = {
           customer_phone?: string
           delivered_at?: string | null
           disclaimer_accepted_at?: string | null
+          gallery_featured?: boolean
           id?: string
           image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
+          is_public?: boolean
           mood_extra_iqd?: number
           moods?: string[]
           notes?: string | null
@@ -1093,6 +1101,7 @@ export type Database = {
           pdf_generation_status?: string | null
           pdf_orientation?: string
           pdf_path?: string | null
+          public_title?: string | null
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
           redownload_requested_at?: string | null
@@ -1514,6 +1523,133 @@ export type Database = {
           },
         ]
       }
+      referral_rewards: {
+        Row: {
+          amount_iqd: number
+          applied_order_id: string | null
+          created_at: string
+          id: string
+          reason: string
+          referral_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_iqd: number
+          applied_order_id?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          referral_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_iqd?: number
+          applied_order_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          referral_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_rewards_applied_order_id_fkey"
+            columns: ["applied_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "referral_rewards_applied_order_id_fkey"
+            columns: ["applied_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_rewards_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_rewards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          code: string
+          completed_at: string | null
+          created_at: string
+          first_order_id: string | null
+          id: string
+          referred_user_id: string | null
+          referrer_user_id: string
+          reward_amount_iqd: number
+          rewarded_at: string | null
+          status: string
+        }
+        Insert: {
+          code: string
+          completed_at?: string | null
+          created_at?: string
+          first_order_id?: string | null
+          id?: string
+          referred_user_id?: string | null
+          referrer_user_id: string
+          reward_amount_iqd?: number
+          rewarded_at?: string | null
+          status?: string
+        }
+        Update: {
+          code?: string
+          completed_at?: string | null
+          created_at?: string
+          first_order_id?: string | null
+          id?: string
+          referred_user_id?: string | null
+          referrer_user_id?: string
+          reward_amount_iqd?: number
+          rewarded_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_first_order_id_fkey"
+            columns: ["first_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "referrals_first_order_id_fkey"
+            columns: ["first_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referred_user_id_fkey"
+            columns: ["referred_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_user_id_fkey"
+            columns: ["referrer_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasonal_themes: {
         Row: {
           accent_color: string | null
@@ -1832,6 +1968,48 @@ export type Database = {
           },
         ]
       }
+      testimonials: {
+        Row: {
+          author_city: string | null
+          author_name: string
+          avatar_url: string | null
+          content: string
+          created_at: string
+          featured: boolean
+          id: string
+          published: boolean
+          rating: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          author_city?: string | null
+          author_name: string
+          avatar_url?: string | null
+          content: string
+          created_at?: string
+          featured?: boolean
+          id?: string
+          published?: boolean
+          rating?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          author_city?: string | null
+          author_name?: string
+          avatar_url?: string | null
+          content?: string
+          created_at?: string
+          featured?: boolean
+          id?: string
+          published?: boolean
+          rating?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
@@ -1841,6 +2019,9 @@ export type Database = {
           marketing_consent: boolean
           notes: string | null
           phone: string
+          referral_code: string | null
+          referral_credit_iqd: number
+          referred_by_user_id: string | null
           status: string
           updated_at: string
         }
@@ -1852,6 +2033,9 @@ export type Database = {
           marketing_consent?: boolean
           notes?: string | null
           phone: string
+          referral_code?: string | null
+          referral_credit_iqd?: number
+          referred_by_user_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -1863,10 +2047,77 @@ export type Database = {
           marketing_consent?: boolean
           notes?: string | null
           phone?: string
+          referral_code?: string | null
+          referral_credit_iqd?: number
+          referred_by_user_id?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_referred_by_user_id_fkey"
+            columns: ["referred_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visit_events: {
+        Row: {
+          created_at: string
+          id: string
+          path: string
+          referral_code: string | null
+          referrer: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          path: string
+          referral_code?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          path?: string
+          referral_code?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1890,7 +2141,7 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      generate_referral_code: { Args: never; Returns: string }
     }
     Enums: {
       event_status: "success" | "error"

@@ -942,7 +942,7 @@ export const myOrders = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("orders")
-    .select("id, order_number, status, images_status, tier, amount_iqd, page_count, title, created_at, rejection_reason, rejected_at, redownload_status, redownload_amount_iqd")
+    .select("id, order_number, status, images_status, tier, amount_iqd, page_count, title, created_at, rejection_reason, rejected_at, redownload_status, redownload_amount_iqd, is_public")
     .eq("user_id", s.data.userId!)
     .order("created_at", { ascending: false })
     .limit(50);

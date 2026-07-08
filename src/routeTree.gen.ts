@@ -9,8 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TestimonialsRouteImport } from './routes/testimonials'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ReferralsRouteImport } from './routes/referrals'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FamilyRouteImport } from './routes/family'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -22,13 +29,16 @@ import { Route as PreviewOrderIdRouteImport } from './routes/preview.$orderId'
 import { Route as AdminVideosRouteImport } from './routes/admin.videos'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminThemesRouteImport } from './routes/admin.themes'
+import { Route as AdminTestimonialsRouteImport } from './routes/admin.testimonials'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminShareEventsRouteImport } from './routes/admin.share-events'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminReferralsRouteImport } from './routes/admin.referrals'
 import { Route as AdminRedownloadsRouteImport } from './routes/admin.redownloads'
 import { Route as AdminPhoneBansRouteImport } from './routes/admin.phone-bans'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
+import { Route as AdminGalleryRouteImport } from './routes/admin.gallery'
 import { Route as AdminFlagsRouteImport } from './routes/admin.flags'
 import { Route as AdminEmergencyRouteImport } from './routes/admin.emergency'
 import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
@@ -44,6 +54,26 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as ApiPublicShareCardsTokenRouteImport } from './routes/api/public/share-cards/$token'
 import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/hooks/jobs-tick'
 
+const TestimonialsRoute = TestimonialsRouteImport.update({
+  id: '/testimonials',
+  path: '/testimonials',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReferralsRoute = ReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MyOrdersRoute = MyOrdersRouteImport.update({
   id: '/my-orders',
   path: '/my-orders',
@@ -52,6 +82,21 @@ const MyOrdersRoute = MyOrdersRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FamilyRoute = FamilyRouteImport.update({
@@ -109,6 +154,11 @@ const AdminThemesRoute = AdminThemesRouteImport.update({
   path: '/themes',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminTestimonialsRoute = AdminTestimonialsRouteImport.update({
+  id: '/testimonials',
+  path: '/testimonials',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -122,6 +172,11 @@ const AdminShareEventsRoute = AdminShareEventsRouteImport.update({
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReferralsRoute = AdminReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminRedownloadsRoute = AdminRedownloadsRouteImport.update({
@@ -142,6 +197,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
 const AdminJobsRoute = AdminJobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminGalleryRoute = AdminGalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFlagsRoute = AdminFlagsRouteImport.update({
@@ -225,8 +285,15 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/faq': typeof FaqRoute
+  '/gallery': typeof GalleryRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/pricing': typeof PricingRoute
+  '/referrals': typeof ReferralsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -237,13 +304,16 @@ export interface FileRoutesByFullPath {
   '/admin/coupons': typeof AdminCouponsRoute
   '/admin/emergency': typeof AdminEmergencyRoute
   '/admin/flags': typeof AdminFlagsRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
+  '/admin/referrals': typeof AdminReferralsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
@@ -260,8 +330,15 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/faq': typeof FaqRoute
+  '/gallery': typeof GalleryRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/pricing': typeof PricingRoute
+  '/referrals': typeof ReferralsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -272,13 +349,16 @@ export interface FileRoutesByTo {
   '/admin/coupons': typeof AdminCouponsRoute
   '/admin/emergency': typeof AdminEmergencyRoute
   '/admin/flags': typeof AdminFlagsRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
+  '/admin/referrals': typeof AdminReferralsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
@@ -297,8 +377,15 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
+  '/faq': typeof FaqRoute
+  '/gallery': typeof GalleryRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/pricing': typeof PricingRoute
+  '/referrals': typeof ReferralsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -309,13 +396,16 @@ export interface FileRoutesById {
   '/admin/coupons': typeof AdminCouponsRoute
   '/admin/emergency': typeof AdminEmergencyRoute
   '/admin/flags': typeof AdminFlagsRoute
+  '/admin/gallery': typeof AdminGalleryRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
+  '/admin/referrals': typeof AdminReferralsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/videos': typeof AdminVideosRoute
@@ -335,8 +425,15 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/faq'
+    | '/gallery'
+    | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/pricing'
+    | '/referrals'
+    | '/sitemap.xml'
+    | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -347,13 +444,16 @@ export interface FileRouteTypes {
     | '/admin/coupons'
     | '/admin/emergency'
     | '/admin/flags'
+    | '/admin/gallery'
     | '/admin/jobs'
     | '/admin/login'
     | '/admin/phone-bans'
     | '/admin/redownloads'
+    | '/admin/referrals'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
+    | '/admin/testimonials'
     | '/admin/themes'
     | '/admin/users'
     | '/admin/videos'
@@ -370,8 +470,15 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/faq'
+    | '/gallery'
+    | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/pricing'
+    | '/referrals'
+    | '/sitemap.xml'
+    | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -382,13 +489,16 @@ export interface FileRouteTypes {
     | '/admin/coupons'
     | '/admin/emergency'
     | '/admin/flags'
+    | '/admin/gallery'
     | '/admin/jobs'
     | '/admin/login'
     | '/admin/phone-bans'
     | '/admin/redownloads'
+    | '/admin/referrals'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
+    | '/admin/testimonials'
     | '/admin/themes'
     | '/admin/users'
     | '/admin/videos'
@@ -406,8 +516,15 @@ export interface FileRouteTypes {
     | '/auth'
     | '/create'
     | '/family'
+    | '/faq'
+    | '/gallery'
+    | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/pricing'
+    | '/referrals'
+    | '/sitemap.xml'
+    | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -418,13 +535,16 @@ export interface FileRouteTypes {
     | '/admin/coupons'
     | '/admin/emergency'
     | '/admin/flags'
+    | '/admin/gallery'
     | '/admin/jobs'
     | '/admin/login'
     | '/admin/phone-bans'
     | '/admin/redownloads'
+    | '/admin/referrals'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
+    | '/admin/testimonials'
     | '/admin/themes'
     | '/admin/users'
     | '/admin/videos'
@@ -443,8 +563,15 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CreateRoute: typeof CreateRoute
   FamilyRoute: typeof FamilyRoute
+  FaqRoute: typeof FaqRoute
+  GalleryRoute: typeof GalleryRoute
+  HowItWorksRoute: typeof HowItWorksRoute
   McpRoute: typeof McpRoute
   MyOrdersRoute: typeof MyOrdersRoute
+  PricingRoute: typeof PricingRoute
+  ReferralsRoute: typeof ReferralsRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TestimonialsRoute: typeof TestimonialsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
@@ -456,6 +583,34 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/testimonials': {
+      id: '/testimonials'
+      path: '/testimonials'
+      fullPath: '/testimonials'
+      preLoaderRoute: typeof TestimonialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referrals': {
+      id: '/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof ReferralsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/my-orders': {
       id: '/my-orders'
       path: '/my-orders'
@@ -468,6 +623,27 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/family': {
@@ -547,6 +723,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminThemesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/testimonials': {
+      id: '/admin/testimonials'
+      path: '/testimonials'
+      fullPath: '/admin/testimonials'
+      preLoaderRoute: typeof AdminTestimonialsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/templates': {
       id: '/admin/templates'
       path: '/templates'
@@ -566,6 +749,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/referrals': {
+      id: '/admin/referrals'
+      path: '/referrals'
+      fullPath: '/admin/referrals'
+      preLoaderRoute: typeof AdminReferralsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/redownloads': {
@@ -594,6 +784,13 @@ declare module '@tanstack/react-router' {
       path: '/jobs'
       fullPath: '/admin/jobs'
       preLoaderRoute: typeof AdminJobsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/gallery': {
+      id: '/admin/gallery'
+      path: '/gallery'
+      fullPath: '/admin/gallery'
+      preLoaderRoute: typeof AdminGalleryRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/flags': {
@@ -706,13 +903,16 @@ interface AdminRouteChildren {
   AdminCouponsRoute: typeof AdminCouponsRoute
   AdminEmergencyRoute: typeof AdminEmergencyRoute
   AdminFlagsRoute: typeof AdminFlagsRoute
+  AdminGalleryRoute: typeof AdminGalleryRoute
   AdminJobsRoute: typeof AdminJobsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPhoneBansRoute: typeof AdminPhoneBansRoute
   AdminRedownloadsRoute: typeof AdminRedownloadsRoute
+  AdminReferralsRoute: typeof AdminReferralsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShareEventsRoute: typeof AdminShareEventsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
+  AdminTestimonialsRoute: typeof AdminTestimonialsRoute
   AdminThemesRoute: typeof AdminThemesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVideosRoute: typeof AdminVideosRoute
@@ -729,13 +929,16 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCouponsRoute: AdminCouponsRoute,
   AdminEmergencyRoute: AdminEmergencyRoute,
   AdminFlagsRoute: AdminFlagsRoute,
+  AdminGalleryRoute: AdminGalleryRoute,
   AdminJobsRoute: AdminJobsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminPhoneBansRoute: AdminPhoneBansRoute,
   AdminRedownloadsRoute: AdminRedownloadsRoute,
+  AdminReferralsRoute: AdminReferralsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminShareEventsRoute: AdminShareEventsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
+  AdminTestimonialsRoute: AdminTestimonialsRoute,
   AdminThemesRoute: AdminThemesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVideosRoute: AdminVideosRoute,
@@ -751,8 +954,15 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CreateRoute: CreateRoute,
   FamilyRoute: FamilyRoute,
+  FaqRoute: FaqRoute,
+  GalleryRoute: GalleryRoute,
+  HowItWorksRoute: HowItWorksRoute,
   McpRoute: McpRoute,
   MyOrdersRoute: MyOrdersRoute,
+  PricingRoute: PricingRoute,
+  ReferralsRoute: ReferralsRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TestimonialsRoute: TestimonialsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,

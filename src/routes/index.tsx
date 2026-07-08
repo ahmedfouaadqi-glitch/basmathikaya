@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useT } from "../lib/i18n";
 import { Sparkles, BookOpen, Truck } from "lucide-react";
 import { brandLogoUrl } from "../lib/brand";
@@ -8,6 +9,9 @@ import { BrandIntroCarousel } from "../components/BrandIntroCarousel";
 import { getHomeContent, DEFAULT_HOME_CONTENT } from "../lib/site-content.functions";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    ref: typeof s.ref === "string" ? s.ref : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
@@ -26,9 +30,16 @@ function pick<T extends string>(ar: T, en: T, lang: "ar" | "en" | "ku"): T {
 
 function Home() {
   const { t, lang } = useT();
+  const { ref } = Route.useSearch();
   const homeFn = useServerFn(getHomeContent);
   const q = useQuery({ queryKey: ["site-home"], queryFn: () => homeFn(), staleTime: 60_000 });
   const c = q.data ?? DEFAULT_HOME_CONTENT;
+
+  useEffect(() => {
+    if (ref && typeof window !== "undefined") {
+      localStorage.setItem("bh_ref", ref.toUpperCase());
+    }
+  }, [ref]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24">
@@ -89,6 +100,27 @@ function Home() {
           </div>
         ))}
       </section>
+
+      {/* Marketing quick links */}
+      <section className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+        <Link to="/gallery" className="rounded-xl border bg-card p-4 hover:border-primary hover:shadow-sm transition">
+          <div className="text-sm font-bold">المعرض</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">قصص حقيقية</div>
+        </Link>
+        <Link to="/how-it-works" className="rounded-xl border bg-card p-4 hover:border-primary hover:shadow-sm transition">
+          <div className="text-sm font-bold">كيف يعمل</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">أربع خطوات</div>
+        </Link>
+        <Link to="/pricing" className="rounded-xl border bg-card p-4 hover:border-primary hover:shadow-sm transition">
+          <div className="text-sm font-bold">الأسعار</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">شفافة وواضحة</div>
+        </Link>
+        <Link to="/faq" className="rounded-xl border bg-card p-4 hover:border-primary hover:shadow-sm transition">
+          <div className="text-sm font-bold">أسئلة شائعة</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">إجابات مباشرة</div>
+        </Link>
+      </section>
+
 
       {/* Disclaimer */}
       <section className="mt-14">

@@ -1,14 +1,16 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Phone, KeyRound } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { requestOtp, verifyOtp } from "../lib/auth.functions";
+import { redeemReferralCode } from "../lib/referrals.functions";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
     redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+    ref: typeof s.ref === "string" ? s.ref : undefined,
   }),
   head: () => ({ meta: [{ title: "تسجيل دخول — بصمة حكاية" }] }),
   component: AuthPage,
@@ -18,9 +20,10 @@ function AuthPage() {
   const { t } = useT();
   const navigate = useNavigate();
   const router = useRouter();
-  const { redirect } = Route.useSearch();
+  const { redirect, ref } = Route.useSearch();
   const reqFn = useServerFn(requestOtp);
   const verFn = useServerFn(verifyOtp);
+  const redeemFn = useServerFn(redeemReferralCode);
 
   const [step, setStep] = useState<"request" | "verify">("request");
   const [name, setName] = useState("");
@@ -29,6 +32,15 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  const [referralCode, setReferralCode] = useState<string>(ref ?? "");
+
+  useEffect(() => {
+    // Also read from ?ref= or from localStorage stashed by index page
+    if (!referralCode && typeof window !== "undefined") {
+      const stored = localStorage.getItem("bh_ref");
+      if (stored) setReferralCode(stored);
+    }
+  }, [referralCode]);
 
   async function onRequest(e: React.FormEvent) {
     e.preventDefault();
@@ -57,6 +69,11 @@ function AuthPage() {
     try {
       await verFn({ data: { phone: phone.trim(), code: code.trim(), full_name: name.trim() } });
       toast.success("تم تسجيل الدخول");
+      // Redeem referral (best effort)
+      if (referralCode.trim()) {
+        try { await redeemFn({ data: { code: referralCode.trim().toUpperCase() } }); } catch { /* ignore */ }
+        if (typeof window !== "undefined") localStorage.removeItem("bh_ref");
+      }
       await router.invalidate();
       // When the login was triggered from the preview page, stay on /auth
       // and let the user return manually instead of auto-redirecting.
@@ -108,6 +125,17 @@ function AuthPage() {
                   required
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">كود إحالة (اختياري)</label>
+              <input
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                maxLength={20}
+                dir="ltr"
+                className="w-full rounded-lg border bg-background px-3 py-2.5 font-mono tracking-wider outline-none focus:ring-2 focus:ring-primary"
+                placeholder="ABC12345"
+              />
             </div>
             <button
               disabled={loading}

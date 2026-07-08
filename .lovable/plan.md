@@ -1,64 +1,63 @@
-# Stage 7 — Admin Operational Pages
+## Stage 8: Referrals, Public Gallery, and Marketing Tools
 
-Add the 9 missing operational admin pages that expose Stages 3–6 infra (feature flags, jobs, caches, AI health, kill switches) and clean up existing gaps (redownloads, phone bans, audit). All read-first with narrow write actions; every write goes through admin-authed server fns using the existing `adminCheck` middleware pattern.
+بعد اكتمال المراحل 1-7، ننتقل للمرحلة 8 التي تركز على أدوات النمو والتسويق.
 
-## Pages (all under `/admin/*`, wired into `admin.tsx` nav)
+### 1) نظام الإحالات (Referrals)
+- **جدول جديد `referrals`**: `id`, `referrer_user_id`, `referred_user_id`, `code`, `status` (pending/completed/rewarded), `reward_amount`, `created_at`, `completed_at`
+- **جدول `referral_rewards`**: تتبع المكافآت المصروفة (رصيد/كوبونات)
+- **حقل `referral_code`** في `users` (يُولَّد تلقائياً عند التسجيل)
+- **دوال server**:
+  - `getMyReferralStats` — إحصائيات المستخدم (عدد الإحالات، المكافآت)
+  - `generateReferralLink` — رابط مشاركة بالكود
+  - `redeemReferralOnSignup` — عند تسجيل مستخدم جديد بكود
+  - `completeReferralOnFirstOrder` — منح المكافأة عند أول طلب مكتمل
+- **صفحة `/referrals`**: لوحة المستخدم مع الرابط، الإحصائيات، سجل الإحالات
+- **إضافة حقل كود الإحالة** في صفحة التسجيل `/auth`
 
-1. **`/admin/flags`** — Feature Flags (`feature_flags` table)
-   - Toggle each flag on/off, adjust `rollout_percentage`.
-   - Wire the 6 Stage-3 flags visibly.
-2. **`/admin/jobs`** — Background Jobs (`background_jobs` table)
-   - Filter by status/job_type, retry failed, cancel pending.
-   - Show pg_cron last run status from `cron.job_run_details`.
-3. **`/admin/ai-models`** — AI Models (`ai_models_config` + `ai_model_health` + `ai_model_events`)
-   - List models with enabled toggle, priority, last 24h success rate.
-   - Manual "test model" button.
-4. **`/admin/emergency`** — Emergency Controls (`emergency_controls`)
-   - Big kill switches: pause AI, pause orders, pause new registrations. Reason field required.
-5. **`/admin/audit`** — Audit Log viewer (`audit_log`)
-   - Filter by actor/action/date range. Read-only. Paginated (50/page).
-6. **`/admin/phone-bans`** — Phone Bans (`phone_bans`)
-   - Add/remove bans with reason. Search.
-7. **`/admin/redownloads`** — Redownload Requests (`redownload_requests`)
-   - Pending queue: approve (mark paid), reject with reason. Notifies user.
-8. **`/admin/caches`** — Cache Stats (`prompt_cache` + `character_analysis_cache`)
-   - Hit counts, total cost saved (sum of `cost_usd`), row count, purge-expired button.
-9. **`/admin/share-events`** — Share Analytics (`share_events`)
-   - Aggregated share counts by platform + top shared orders (last 30 days).
+### 2) المعرض العام (Public Gallery)
+- **صفحة `/gallery`** عامة (بدون auth) — SSR
+- تعرض القصص التي تم مشاركتها علناً (`orders.is_public = true` أو عبر `share_events`)
+- بطاقات بالصورة، اسم البطل، الثيم، رابط للـ `/s/$token`
+- فلترة حسب الثيم/العمر
+- **جدول `orders`**: إضافة عمود `is_public boolean default false` و `gallery_featured boolean`
+- إعداد في صفحة `/my-orders` للسماح للمستخدم بجعل قصته عامة
+- إدارة في `/admin/gallery` للترشيح والإخفاء
 
-## Files
+### 3) صفحات تسويقية
+- **`/how-it-works`** — شرح مصور بالخطوات
+- **`/pricing`** — عرض الباقات من `pricing_settings` + مقارنة
+- **`/testimonials`** — شهادات من `site_content` أو جدول جديد `testimonials`
+- **`/faq`** — أسئلة شائعة من `site_content`
+- تحديث الصفحة الرئيسية `/` لتشمل روابط لهذه الصفحات + قسم من المعرض
 
-**New server fns** (all `.handler`s call `requireAdmin`):
-- `src/lib/admin/flags.functions.ts` — list, toggle, update rollout.
-- `src/lib/admin/jobs.functions.ts` — list, retry, cancel; `cronRuns()` reads `cron.job_run_details` via `supabaseAdmin.rpc` or plain query.
-- `src/lib/admin/ai-models.functions.ts` — list config+health, toggle enabled, update priority.
-- `src/lib/admin/emergency.functions.ts` — list, set control (with reason + `admin_id`).
-- `src/lib/admin/audit.functions.ts` — paginated list + filter.
-- `src/lib/admin/phone-bans.functions.ts` — list, add, remove.
-- `src/lib/admin/redownloads.functions.ts` — list pending, approve, reject.
-- `src/lib/admin/caches.functions.ts` — stats + purge expired.
-- `src/lib/admin/share-events.functions.ts` — aggregations.
+### 4) SEO & Meta
+- head() فريد لكل صفحة (title, description, og:image)
+- `/gallery` و `/s/$token` تستخدم صور القصص كـ og:image
+- إضافة `sitemap.xml` عبر server route `/api/public/sitemap.xml`
+- `robots.txt` عبر server route
 
-**New routes**: 9 route files above, each following existing admin route pattern (`beforeLoad: adminCheck`, single-file page with table/toggles).
+### 5) تحليلات التسويق
+- **صفحة `/admin/referrals`** — إحصائيات الإحالات، أفضل المروجين، تكلفة الاكتساب
+- **صفحة `/admin/gallery`** — إدارة القصص العامة، ترشيح المميّزة
+- تتبع مصدر الزيارة (utm params) في `download_events` أو جدول جديد `visit_events`
 
-**Modified**:
-- `src/routes/admin.tsx` — add 9 nav links, group into two rows if crowded.
+### ملفات جديدة (تقريباً 15-18):
+- Migration واحدة: `referrals`, `referral_rewards`, `testimonials`, تعديلات على `users` و `orders`
+- `src/lib/referrals.functions.ts`, `src/lib/gallery.functions.ts`, `src/lib/marketing.functions.ts`
+- Routes: `referrals.tsx`, `gallery.tsx`, `how-it-works.tsx`, `pricing.tsx`, `testimonials.tsx`, `faq.tsx`
+- Admin: `admin.referrals.tsx`, `admin.gallery.tsx`
+- Server routes: `api/public/sitemap.xml.ts`, `api/public/robots.txt.ts`
+- تحديثات: `auth.tsx` (كود إحالة)، `my-orders.tsx` (زر جعل عامة)، `index.tsx` (روابط تسويقية)، `admin.tsx` (nav)
 
-## Principles
+### مبادئ:
+- تراجعية آمنة: الحقول الجديدة كلها optional مع defaults
+- RLS صارم: `referrals` يقرأها المالك فقط، `gallery` عام للقراءة إن `is_public=true`
+- audit_log لكل عملية إدارية
 
-- Read-first: every page loads and displays data before offering any write.
-- No destructive default: destructive actions (purge cache, ban phone, kill switch) require confirmation prompt.
-- All writes append an `audit_log` row.
-- No schema changes; all tables already exist.
-- Follow existing admin visual patterns (border cards, tables, badges).
-
-## Verification
-
+### التحقق:
 - `bunx tsgo --noEmit`
-- Load each new page; verify data renders and one write action per page works end-to-end.
+- اختبار تسجيل بكود إحالة → أول طلب → صرف المكافأة
+- تحميل `/gallery` كضيف
+- تحقق `og:image` عبر Playwright على `/s/$token` و `/gallery`
 
-## Notes
-
-This is a large stage (~18 new files, ~2500 LOC). If you want a subset first, tell me which pages matter most and I'll cut the rest. Otherwise I'll ship all 9 in this session in the order listed above.
-
-Confirm to proceed with all 9, or reply with a subset (e.g. "1,2,4,7 only").
+هل أبدأ التنفيذ الكامل، أم تريد جزءاً محدداً فقط (مثلاً: الإحالات والمعرض فقط دون الصفحات التسويقية)؟

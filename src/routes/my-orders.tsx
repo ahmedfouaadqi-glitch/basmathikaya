@@ -5,9 +5,10 @@ import { useT } from "../lib/i18n";
 import { getCurrentUser, userLogout } from "../lib/auth.functions";
 import { myOrders, requestRedownload, reorderExisting } from "../lib/orders.functions";
 import { ensureShareToken } from "../lib/share.functions";
+import { setOrderPublic } from "../lib/gallery.functions";
 import { listMyNotifications, markAllNotificationsRead } from "../lib/notifications.functions";
-import { useNavigate, useRouter } from "@tanstack/react-router";
-import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users, Share2 } from "lucide-react";
+import { useNavigate, useRouter, Link } from "@tanstack/react-router";
+import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users, Share2, Globe, Lock, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -33,6 +34,7 @@ type Row = {
   tier: string | null; amount_iqd: number; page_count: number; title: string | null;
   rejection_reason?: string | null;
   redownload_status?: string | null; redownload_amount_iqd?: number | null;
+  is_public?: boolean | null;
 };
 
 function MyOrdersPage() {
@@ -48,6 +50,7 @@ function MyOrdersPage() {
   const notifFn = useServerFn(listMyNotifications);
   const markAllFn = useServerFn(markAllNotificationsRead);
   const shareFn = useServerFn(ensureShareToken);
+  const publicFn = useServerFn(setOrderPublic);
 
   const q = useQuery({ queryKey: ["my-orders"], queryFn: () => fn(), refetchInterval: 15_000 });
   const notifQ = useQuery({ queryKey: ["my-notifications"], queryFn: () => notifFn(), refetchInterval: 20_000 });
@@ -105,6 +108,16 @@ function MyOrdersPage() {
     finally { setBusy(null); }
   }
 
+  async function togglePublic(orderId: string, current: boolean) {
+    setBusy(orderId);
+    try {
+      await publicFn({ data: { orderId, isPublic: !current } });
+      toast.success(!current ? "تم نشر القصة في المعرض" : "تم إخفاء القصة");
+      qc.invalidateQueries({ queryKey: ["my-orders"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "خطأ"); }
+    finally { setBusy(null); }
+  }
+
 
 
   return (
@@ -115,6 +128,12 @@ function MyOrdersPage() {
           <p className="mt-1 text-xs text-muted-foreground">{me?.name} · <span dir="ltr">{me?.phone}</span></p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            to="/referrals"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+          >
+            <Gift className="size-4" /> الإحالات
+          </Link>
           <a
             href="/family"
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
@@ -241,6 +260,15 @@ function MyOrdersPage() {
                       className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs hover:bg-secondary disabled:opacity-60"
                     >
                       <Share2 className="size-3.5" /> شارك
+                    </button>
+                  )}
+                  {o.status === "delivered" && (
+                    <button
+                      onClick={() => togglePublic(o.id, !!o.is_public)}
+                      disabled={busy === o.id}
+                      className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs disabled:opacity-60 ${o.is_public ? "border-primary/40 bg-primary/10 text-primary" : "hover:bg-secondary"}`}
+                    >
+                      {o.is_public ? <><Globe className="size-3.5" /> في المعرض</> : <><Lock className="size-3.5" /> اجعلها عامة</>}
                     </button>
                   )}
                 </div>
