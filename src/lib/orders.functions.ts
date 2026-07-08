@@ -1150,7 +1150,11 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const coverModel = effectiveTier === "premium"
         ? "google/gemini-3-pro-image"
         : "google/gemini-3.1-flash-image";
-      const pageModel = coverModel;
+      // Cost/quality win: on premium, use pro-image ONLY for the cover
+      // (which becomes an additional reference for every page); pages use
+      // flash-image guided by that pro cover → ~30% savings, quality stays
+      // near-pro because the cover locks composition/style.
+      const pageModel = "google/gemini-3.1-flash-image";
 
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
       const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
