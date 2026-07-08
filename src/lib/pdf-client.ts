@@ -7,6 +7,8 @@ export type StoryPdfAssets = {
   title: string;
   language: "ar" | "en" | "ku";
   customerName: string;
+  heroName?: string | null;
+  authorName?: string | null;
   moods: string[];
   coverUrl: string | null;
   pages: Array<{ number: number; text: string; imageUrl: string | null }>;
