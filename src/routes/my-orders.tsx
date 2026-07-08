@@ -6,7 +6,7 @@ import { getCurrentUser, userLogout } from "../lib/auth.functions";
 import { myOrders, requestRedownload, reorderExisting } from "../lib/orders.functions";
 import { listMyNotifications, markAllNotificationsRead } from "../lib/notifications.functions";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell } from "lucide-react";
+import { LogOut, Download, Ban, Clock, CheckCircle2, RotateCcw, Bell, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -95,12 +95,20 @@ function MyOrdersPage() {
           <h1 className="text-2xl font-bold">{t("my_orders")}</h1>
           <p className="mt-1 text-xs text-muted-foreground">{me?.name} · <span dir="ltr">{me?.phone}</span></p>
         </div>
-        <button
-          onClick={async () => { await logoutFn(); await router.invalidate(); navigate({ to: "/" }); }}
-          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
-        >
-          <LogOut className="size-4" /> {t("nav_logout")}
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/family"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+          >
+            <Users className="size-4" /> عائلتي
+          </a>
+          <button
+            onClick={async () => { await logoutFn(); await router.invalidate(); navigate({ to: "/" }); }}
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-secondary"
+          >
+            <LogOut className="size-4" /> {t("nav_logout")}
+          </button>
+        </div>
       </div>
 
       {/* Notifications */}

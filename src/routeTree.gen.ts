@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as FamilyRouteImport } from './routes/family'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -40,6 +41,11 @@ const MyOrdersRoute = MyOrdersRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FamilyRoute = FamilyRouteImport.update({
+  id: '/family',
+  path: '/family',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoute = CreateRouteImport.update({
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
+  '/family': typeof FamilyRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
+  '/family': typeof FamilyRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -199,6 +207,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/create': typeof CreateRoute
+  '/family': typeof FamilyRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/create'
+    | '/family'
     | '/mcp'
     | '/my-orders'
     | '/.mcp/list-tools'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/create'
+    | '/family'
     | '/mcp'
     | '/my-orders'
     | '/.mcp/list-tools'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/create'
+    | '/family'
     | '/mcp'
     | '/my-orders'
     | '/.mcp/list-tools'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   CreateRoute: typeof CreateRoute
+  FamilyRoute: typeof FamilyRoute
   McpRoute: typeof McpRoute
   MyOrdersRoute: typeof MyOrdersRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -320,6 +333,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/family': {
+      id: '/family'
+      path: '/family'
+      fullPath: '/family'
+      preLoaderRoute: typeof FamilyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create': {
@@ -500,6 +520,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   CreateRoute: CreateRoute,
+  FamilyRoute: FamilyRoute,
   McpRoute: McpRoute,
   MyOrdersRoute: MyOrdersRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
