@@ -4,6 +4,7 @@
 import { callChat, estimateTextCostUsd } from "./ai-gateway.server";
 import { isFeatureEnabled } from "./feature-flags.server";
 import { runTextTask } from "./ai/orchestrator.server";
+import { getCached, setCached, hashKey } from "./ai/cache.server";
 
 export type StoryQaReport = {
   ok: boolean;
