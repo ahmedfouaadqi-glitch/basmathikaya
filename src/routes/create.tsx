@@ -139,6 +139,44 @@ function CreatePage() {
     return () => { cancelled = true; window.clearTimeout(id); };
   }, [couponCode, pages, qualityTier, tier, validateCouponFn]);
 
+  // Prefill the form from an existing order (?from=<orderId>) — "recreate with new options".
+  const fromOrderId = search.from;
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (!fromOrderId || prefilledRef.current) return;
+    prefilledRef.current = true;
+    (async () => {
+      try {
+        const p = await prefillFn({ data: { orderId: fromOrderId } });
+        if (p.characters.length > 0) {
+          setCharacters(
+            p.characters.map((c) => ({
+              name: c.name,
+              age: c.age != null ? String(c.age) : "",
+              role: c.role,
+              description: c.description,
+              photoPath: c.photo_path,
+              photoPreview: null,
+              uploading: false,
+            })),
+          );
+        }
+        setMoods(p.moods.length ? p.moods : ["adventure"]);
+        setInstructions(p.custom_instructions);
+        setPages(p.page_count);
+        setQualityTier(p.image_quality_tier);
+        setTier(p.tier);
+        setPdfOrientation(p.pdf_orientation);
+        setLang(p.language);
+        toast.success("تم تعبئة النموذج من قصتك السابقة — عدّل ما تشاء ثم أرسل الطلب");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "تعذّرت التعبئة");
+      }
+    })();
+  }, [fromOrderId, prefillFn, setLang]);
+
+
+
 
   function updateChar(i: number, patch: Partial<CharacterDraft>) {
     setCharacters((cs) => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
