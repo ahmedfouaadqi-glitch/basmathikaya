@@ -126,6 +126,17 @@ function AuthPage() {
                 />
               </div>
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">كود إحالة (اختياري)</label>
+              <input
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                maxLength={20}
+                dir="ltr"
+                className="w-full rounded-lg border bg-background px-3 py-2.5 font-mono tracking-wider outline-none focus:ring-2 focus:ring-primary"
+                placeholder="ABC12345"
+              />
+            </div>
             <button
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-primary to-accent py-3 font-bold text-primary-foreground shadow-warm disabled:opacity-60"
