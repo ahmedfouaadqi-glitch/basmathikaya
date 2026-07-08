@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as FamilyRouteImport } from './routes/family'
@@ -44,6 +45,11 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as ApiPublicShareCardsTokenRouteImport } from './routes/api/public/share-cards/$token'
 import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/hooks/jobs-tick'
 
+const ReferralsRoute = ReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MyOrdersRoute = MyOrdersRouteImport.update({
   id: '/my-orders',
   path: '/my-orders',
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/family': typeof FamilyRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/referrals': typeof ReferralsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByTo {
   '/family': typeof FamilyRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/referrals': typeof ReferralsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/family': typeof FamilyRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/referrals': typeof ReferralsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/family'
     | '/mcp'
     | '/my-orders'
+    | '/referrals'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -372,6 +382,7 @@ export interface FileRouteTypes {
     | '/family'
     | '/mcp'
     | '/my-orders'
+    | '/referrals'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/family'
     | '/mcp'
     | '/my-orders'
+    | '/referrals'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -445,6 +457,7 @@ export interface RootRouteChildren {
   FamilyRoute: typeof FamilyRoute
   McpRoute: typeof McpRoute
   MyOrdersRoute: typeof MyOrdersRoute
+  ReferralsRoute: typeof ReferralsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
@@ -456,6 +469,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/referrals': {
+      id: '/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof ReferralsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/my-orders': {
       id: '/my-orders'
       path: '/my-orders'
@@ -753,6 +773,7 @@ const rootRouteChildren: RootRouteChildren = {
   FamilyRoute: FamilyRoute,
   McpRoute: McpRoute,
   MyOrdersRoute: MyOrdersRoute,
+  ReferralsRoute: ReferralsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
