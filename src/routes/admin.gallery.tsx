@@ -32,6 +32,7 @@ function AdminGalleryPage() {
             <tr>
               <th className="p-2">#</th>
               <th className="p-2 text-start">العنوان</th>
+              <th className="p-2 text-start">المؤلف</th>
               <th className="p-2">عام</th>
               <th className="p-2">مميّزة</th>
               <th className="p-2">التاريخ</th>
@@ -42,6 +43,9 @@ function AdminGalleryPage() {
               <tr key={o.id} className="border-t">
                 <td className="p-2 font-mono">{o.order_number}</td>
                 <td className="p-2">{o.public_title ?? o.title ?? "—"}</td>
+                <td className="p-2 text-xs text-muted-foreground">
+                  {o.show_author && o.public_author_name ? o.public_author_name : "—"}
+                </td>
                 <td className="p-2 text-center">
                   <input
                     type="checkbox"
