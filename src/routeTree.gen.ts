@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TestimonialsRouteImport } from './routes/testimonials'
 import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
@@ -48,6 +49,11 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as ApiPublicShareCardsTokenRouteImport } from './routes/api/public/share-cards/$token'
 import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/hooks/jobs-tick'
 
+const TestimonialsRoute = TestimonialsRouteImport.update({
+  id: '/testimonials',
+  path: '/testimonials',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReferralsRoute = ReferralsRouteImport.update({
   id: '/referrals',
   path: '/referrals',
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/my-orders': typeof MyOrdersRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
+  '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/my-orders': typeof MyOrdersRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
+  '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -335,6 +343,7 @@ export interface FileRoutesById {
   '/my-orders': typeof MyOrdersRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
+  '/testimonials': typeof TestimonialsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
@@ -377,6 +386,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/pricing'
     | '/referrals'
+    | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -416,6 +426,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/pricing'
     | '/referrals'
+    | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -456,6 +467,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/pricing'
     | '/referrals'
+    | '/testimonials'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
@@ -497,6 +509,7 @@ export interface RootRouteChildren {
   MyOrdersRoute: typeof MyOrdersRoute
   PricingRoute: typeof PricingRoute
   ReferralsRoute: typeof ReferralsRoute
+  TestimonialsRoute: typeof TestimonialsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
@@ -508,6 +521,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/testimonials': {
+      id: '/testimonials'
+      path: '/testimonials'
+      fullPath: '/testimonials'
+      preLoaderRoute: typeof TestimonialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/referrals': {
       id: '/referrals'
       path: '/referrals'
@@ -837,6 +857,7 @@ const rootRouteChildren: RootRouteChildren = {
   MyOrdersRoute: MyOrdersRoute,
   PricingRoute: PricingRoute,
   ReferralsRoute: ReferralsRoute,
+  TestimonialsRoute: TestimonialsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
