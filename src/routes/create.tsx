@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, Trash2, Plus, UserCircle, Camera, X, CheckCircle2, XCircle, Eye } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { createOrderDraft, getPublicPricing, validateCoupon, getOrderPrefill } from "../lib/orders.functions";
+import { listPublicArtStyles, type ArtStyle } from "../lib/art-styles.functions";
 import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
