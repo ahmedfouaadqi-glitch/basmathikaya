@@ -49,8 +49,8 @@ registerJob("generate_pdf", async (_payload, ctx) => {
   return { ok: true };
 });
 
-// generate_share_cards: ensure share_token + insert a placeholder card row.
-// Full Satori rendering lands in Stage 6.
+// generate_share_cards: ensure share_token exists. Actual PNG is generated
+// on-demand by /api/public/share-cards/$token via signed cover URL.
 registerJob("generate_share_cards", async (_payload, ctx) => {
   if (!ctx.orderId) return { skipped: true, reason: "no order_id" };
   const { data: order } = await supabaseAdmin
@@ -59,21 +59,11 @@ registerJob("generate_share_cards", async (_payload, ctx) => {
     .eq("id", ctx.orderId)
     .maybeSingle();
   if (!order) return { skipped: true, reason: "order not found" };
-  let token = (order as any).share_token as string | null;
+  let token = (order as { share_token: string | null }).share_token;
   if (!token) {
     token = makeToken();
-    await supabaseAdmin.from("orders").update({ share_token: token } as never).eq("id", ctx.orderId);
+    await supabaseAdmin.from("orders").update({ share_token: token }).eq("id", ctx.orderId);
   }
-  // Placeholder card entry so admin dashboards see a row; real image URLs land in Stage 6.
-  await supabaseAdmin.from("share_cards").upsert(
-    {
-      order_id: ctx.orderId,
-      share_token: token,
-      aspect: "og",
-      image_path: null,
-    } as never,
-    { onConflict: "order_id,aspect" },
-  );
   return { ok: true, share_token: token };
 });
 
