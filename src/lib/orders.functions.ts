@@ -782,6 +782,8 @@ export const getStoryProgress = createServerFn({ method: "GET" })
       title: order?.title ?? null,
       page_count: order?.page_count ?? 5,
       customer_name: user?.full_name ?? "",
+      hero_name: (primaryChar?.name as string | null) ?? null,
+      author_name: user?.full_name ?? null,
       first_paragraph: gen?.first_paragraph ?? "",
       cover_url,
       pages: pagesOut,
