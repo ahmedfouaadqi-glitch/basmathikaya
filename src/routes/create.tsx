@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, Trash2, Plus, UserCircle, Camera, X, CheckCircle2, XCircle, Eye } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { createOrderDraft, getPublicPricing, validateCoupon, getOrderPrefill } from "../lib/orders.functions";
+import { listPublicArtStyles, type ArtStyle } from "../lib/art-styles.functions";
 import { uploadCharacterPhoto } from "../lib/uploads.functions";
 import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
@@ -93,6 +94,8 @@ function CreatePage() {
   const [qualityTier, setQualityTier] = useState<"standard" | "premium">("standard");
   const [tier, setTier] = useState<"pdf" | "printed" | "video">("pdf");
   const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [artStyleCategory, setArtStyleCategory] = useState<"realistic" | "cartoon" | null>(null);
+  const [artStyleSlug, setArtStyleSlug] = useState<string | null>(null);
   const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -100,6 +103,12 @@ function CreatePage() {
   const [couponState, setCouponState] = useState<
     { status: "idle" } | { status: "checking" } | { status: "valid"; label: string } | { status: "invalid"; reason: string }
   >({ status: "idle" });
+
+  const artStylesFn = useServerFn(listPublicArtStyles);
+  const artStylesQ = useQuery({ queryKey: ["art-styles-public"], queryFn: () => artStylesFn(), staleTime: 5 * 60_000 });
+  const artStyles = (artStylesQ.data ?? []) as ArtStyle[];
+  const cartoonStyles = artStyles.filter((s) => s.category === "cartoon");
+  const realisticStyle = artStyles.find((s) => s.category === "realistic") ?? null;
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
   const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
@@ -228,6 +237,8 @@ function CreatePage() {
     if (submitting) return;
     if (!characters[0].name.trim()) return toast.error("اكتب اسم البطل الرئيسي");
     if (moods.length === 0) return toast.error("اختر جواً واحداً على الأقل");
+    if (artStyles.length > 0 && !artStyleCategory) return toast.error("اختر أسلوب الرسم");
+    if (artStyles.length > 0 && artStyleCategory === "cartoon" && !artStyleSlug) return toast.error("اختر نمط الرسم الكرتوني");
     if (!acceptedDisclaimer) return toast.error("يرجى الموافقة على إخلاء المسؤولية للمتابعة");
     setConfirmOpen(true);
   }
@@ -236,6 +247,10 @@ function CreatePage() {
     if (submitting) return;
     setSubmitting(true);
     try {
+      // Resolve slug: if realistic, use the single realistic style's slug.
+      const finalSlug = artStyleCategory === "realistic"
+        ? (realisticStyle?.slug ?? null)
+        : artStyleSlug;
       const res = await create({
         data: {
           characters: characters.map((c) => ({
@@ -252,6 +267,8 @@ function CreatePage() {
           image_quality_tier: qualityTier,
           tier,
           pdf_orientation: pdfOrientation,
+          art_style_category: artStyleCategory,
+          art_style_slug: finalSlug,
           draft_id: draftIdRef.current,
           disclaimer_accepted: true,
           coupon_code: couponCode.trim() || undefined,
@@ -415,6 +432,60 @@ function CreatePage() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{t("field_mood_limit")}</p>
         </div>
+
+        {/* Art style — realistic vs cartoon (+ cartoon substyle) */}
+        {artStyles.length > 0 && (
+          <div>
+            <label className="mb-2 block text-sm font-bold">أسلوب الرسم</label>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              كيف تريد أن تظهر شخصية الطفل في القصة؟ يُطبَّق نفس الأسلوب على كل الصفحات.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-center text-sm">
+              {([
+                { v: "realistic" as const, label: "واقعي", hint: "صور واقعية" },
+                { v: "cartoon" as const, label: "كرتوني", hint: "رسوم كرتونية" },
+              ]).map((o) => (
+                <button
+                  type="button"
+                  key={o.v}
+                  onClick={() => {
+                    setArtStyleCategory(o.v);
+                    if (o.v === "realistic") setArtStyleSlug(realisticStyle?.slug ?? null);
+                    else setArtStyleSlug(null);
+                  }}
+                  aria-pressed={artStyleCategory === o.v}
+                  className={`rounded-xl border p-3 transition ${
+                    artStyleCategory === o.v ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30"
+                  }`}
+                >
+                  <div>{o.label}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{o.hint}</div>
+                </button>
+              ))}
+            </div>
+
+            {artStyleCategory === "cartoon" && cartoonStyles.length > 0 && (
+              <div className="mt-3">
+                <p className="mb-2 text-xs font-semibold text-primary">اختر نمط الرسم:</p>
+                <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
+                  {cartoonStyles.map((s) => (
+                    <button
+                      type="button"
+                      key={s.id}
+                      onClick={() => setArtStyleSlug(s.slug)}
+                      aria-pressed={artStyleSlug === s.slug}
+                      className={`rounded-xl border p-2.5 transition ${
+                        artStyleSlug === s.slug ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30 hover:bg-secondary"
+                      }`}
+                    >
+                      {s.name_ar}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Custom instructions */}
         <div>

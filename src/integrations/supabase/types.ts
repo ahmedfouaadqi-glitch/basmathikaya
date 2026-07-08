@@ -248,6 +248,48 @@ export type Database = {
         }
         Relationships: []
       }
+      art_styles: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_default: boolean
+          is_enabled: boolean
+          name_ar: string
+          name_en: string
+          prompt_fragment: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          is_enabled?: boolean
+          name_ar: string
+          name_en: string
+          prompt_fragment: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          is_enabled?: boolean
+          name_ar?: string
+          name_en?: string
+          prompt_fragment?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -973,7 +1015,9 @@ export type Database = {
       orders: {
         Row: {
           amount_iqd: number
+          art_style_category: string | null
           art_style_lock: string | null
+          art_style_slug: string | null
           batch_meta: Json | null
           character_brief: string | null
           character_dna: Json | null
@@ -1024,7 +1068,9 @@ export type Database = {
         }
         Insert: {
           amount_iqd?: number
+          art_style_category?: string | null
           art_style_lock?: string | null
+          art_style_slug?: string | null
           batch_meta?: Json | null
           character_brief?: string | null
           character_dna?: Json | null
@@ -1075,7 +1121,9 @@ export type Database = {
         }
         Update: {
           amount_iqd?: number
+          art_style_category?: string | null
           art_style_lock?: string | null
+          art_style_slug?: string | null
           batch_meta?: Json | null
           character_brief?: string | null
           character_dna?: Json | null

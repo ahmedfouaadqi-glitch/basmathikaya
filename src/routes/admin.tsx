@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/
 import { useServerFn } from "@tanstack/react-start";
 import { adminCheck, adminLogout } from "../lib/admin.functions";
 import { useT } from "../lib/i18n";
-import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate, Flag, ListTree, Cpu, AlertTriangle, ScrollText, PhoneOff, Download, Database, Share2, Gift, Image as ImageIcon, MessageSquareQuote } from "lucide-react";
+import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate, Flag, ListTree, Cpu, AlertTriangle, ScrollText, PhoneOff, Download, Database, Share2, Gift, Image as ImageIcon, MessageSquareQuote, Brush } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ location }) => {
@@ -41,6 +41,9 @@ function AdminLayout() {
           <Link to="/admin/themes" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Palette className="size-4" />
             {t("admin_themes")}
+          </Link>
+          <Link to="/admin/art-styles" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Brush className="size-4" /> أنماط الرسم
           </Link>
           <Link to="/admin/templates" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <LayoutTemplate className="size-4" />

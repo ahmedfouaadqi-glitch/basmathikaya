@@ -1,82 +1,95 @@
+## الهدف
+تحسينان كبيران دون كسر الطلبات الحالية:
+1. إعادة تصميم PDF ليبدو كتاب أطفال احترافي.
+2. إضافة اختيار "أسلوب الرسم" (واقعي/كرتوني + نمط فرعي) يُطبَّق ثابتاً على كل صور القصة، مع إدارة الأنماط من لوحة الإدارة.
 
-## 1) الطلب #20 عالق على خطأ الحصة (403 credit_limit_reached)
+---
 
-**السبب:** حالياً بعد فشل توليد الصور تُخزَّن `images_status='failed'` و`images_error` على الطلب، وشاشة تفاصيل الطلب تعرض رسالة الخطأ فقط. زر "إعادة توليد" الموجود يعمل لصفحة واحدة، ولا يوجد زر لإعادة توليد كامل الصور، فتبقى رسالة الخطأ ثابتة حتى بعد زيادة رصيد الحصة.
+## أولاً: إعادة تصميم PDF
 
-**الإصلاح:**
-- إضافة `adminRetryImageGeneration({ orderId })` في `src/lib/orders.functions.ts`:
-  - يمسح `images_error=null` ويضع `images_status='generating'`.
-  - يعيد تشغيل نفس منطق توليد الصور من `adminConfirmPaymentAndGenerate` (نستخرجه إلى دالة داخلية `runImageGenerationForOrder`).
-- في `src/routes/admin.orders.$id.tsx` ضمن بلوك `images_status === "failed"`:
-  - رسالة عربية أوضح إذا احتوى الخطأ على `credit_limit`/`403`.
-  - زر جديد "إعادة توليد كامل الصور" يستدعي الدالة أعلاه ثم `invalidateQueries`.
+الملف: `src/lib/pdf-client.ts` (537 سطراً — يستخدم pdf-lib في المتصفح).
 
-## 2) الضغط على قصة في المعرض لا يعرضها
+### تغييرات التخطيط
+- **صورة أكبر**: الصورة تشغل ~75% من ارتفاع الصفحة (بدل الحالي).
+- **إزالة الإطار السميك** واستبداله بظل ناعم (soft drop shadow) وحواف دائرية خفيفة (rounded corners عبر رسم مقاطع).
+- **صندوق النص**: مستطيل بخلفية `#FFF8EE` بشفافية 92% وحواف دائرية أسفل الصورة، بدون خط حاد.
+- **هوامش موحّدة**: 36pt (عمودي) / 48pt (أفقي)، متساوية على كل الجهات.
+- **رقم الصفحة**: أسفل الوسط، خط رفيع صغير `#8A7A5C`، مع زخرفة رمزية بسيطة (نقطة/شرطتان).
+- **Spread mode للأفقي**: صفحتان متتاليتان تُصمَّمان كلوحة واحدة (نفس الخلفية الممتدة، رقم الصفحة أسفل خارجي).
+- **الغلاف**: تصميم منفصل — العنوان بخط كبير مزخرف فوق الصورة الكاملة مع gradient overlay سفلي للقراءة.
+- **دعم RTL/العربية**: يبقى كما هو (نفس آلية `arabicFont`).
 
-**السبب:** `/s/$token` تعرض بطاقة تسويقية فقط (غلاف + CTA "اطلب مثلها"). لا قارئ لصفحات القصة.
+### دعم الاتجاهين
+- Portrait: صورة أعلى، نص أسفل.
+- Landscape: صورة يمين (RTL: يسار)، نص في العمود المقابل، مع "spread" يمتد عبر الصفحتين.
 
-**الإصلاح:**
-- إضافة `getPublicStory({ token })` في `src/lib/share.functions.ts` تُعيد صفحات القصة الكاملة بروابط موقّتة عندما يكون الطلب `is_public=true` و`status='delivered'`.
-- تحديث `src/routes/s.$token.tsx` ليعرض:
-  - غلاف + عنوان + (اختياريّاً) "بواسطة: {اسم}".
-  - قارئ صفحات (كل صفحة صورة + نص) بترتيب رأسي.
-  - CTA "اطلب مثلها" في الأسفل.
-  - إن لم يكن الطلب عاماً تُعرض البطاقة التسويقية الحالية كما هي.
+### عدم الكسر
+- توقيع `buildAndDownloadStoryPdf` يبقى كما هو.
+- لا تغيير على مصادر الصور/النصوص، فقط منطق الرسم.
 
-## 3) خيار ذكر اسم مُنشئ القصة عند النشر في المعرض
+---
 
-**قاعدة البيانات (migration جديدة):**
-```sql
-ALTER TABLE public.orders
-  ADD COLUMN IF NOT EXISTS show_author boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS public_author_name text;
+## ثانياً: نظام اختيار الأسلوب الفني
+
+### 1) قاعدة البيانات (migration جديدة)
+
+جدول جديد `art_styles`:
 ```
-
-**الخادم:** توسيع `setOrderPublic` لقبول `showAuthor: boolean` و`publicAuthorName?: string` (لو فارغاً والـ checkbox مفعّل يُخذ `users.full_name` افتراضياً). تضمين الحقلين في `listPublicGallery` و`getPublicStory` و`listGalleryAdmin`.
-
-**واجهة `my-orders`:** تحويل زر "اجعلها عامة" الحالي إلى حوار صغير عند النشر يسأل:
-1. عنوان عام (اختياري).
-2. checkbox: "أظهر اسمي كمؤلف".
-3. حقل اسم اختياري يظهر عند تفعيل الـ checkbox (افتراضي: الاسم الكامل).
-
-**العرض:** إظهار "بواسطة: {name}" فقط عند `show_author && public_author_name` في `gallery.tsx` و`s.$token.tsx` و`admin.gallery.tsx`.
-
-## 4) اتجاه PDF ثابت على "عمودي" حتى عند اختيار "أفقي"
-
-**السبب:** `downloadPdf` في `src/routes/admin.orders.$id.tsx` (سطر 94) لا يمرّر `orientation` ولا `reflectiveQuestion` إلى `buildAndDownloadStoryPdf`، فتُستخدم القيمة الافتراضية `portrait`. `src/routes/preview.$orderId.tsx` يمرّرهما بشكل صحيح.
-
-**الإصلاح:** إضافة السطرين إلى استدعاء الأدمن (`getStoryProgress` يُعيدهما أصلاً):
-```ts
-orientation: p.pdf_orientation ?? "portrait",
-reflectiveQuestion: p.reflective_question ?? null,
+id uuid pk, slug text unique, category text ('realistic'|'cartoon'),
+name_ar text, name_en text, prompt_fragment text,
+is_default boolean, is_enabled boolean, sort_order int,
+created_at, updated_at
 ```
-اختبار بصري: طلب أفقي جديد → تأكيد الدفع → تنزيل PDF من الأدمن → يفتح A4 landscape.
+GRANT SELECT للـ anon/authenticated، ALL للـ service_role.
+RLS: SELECT عام للمفعّل فقط؛ كتابة للـ admin عبر `has_role`.
 
-## 5) إعادة التحميل + إعادة الإنشاء بخيارات جديدة
+تعبئة seed بالأنماط المطلوبة:
+- realistic → Realistic
+- cartoon → Cartoon Classic, Anime, Manga, Pixar Style, Disney Style, Chibi, Watercolor, Storybook Illustration (افتراضي)
 
-الحالي في `src/lib/orders.functions.ts`:
-- `requestRedownload` (طلب إعادة تحميل مدفوع لنفس القصة) — ✓ موجود ومعروض في `my-orders`.
-- `reorderExisting` — ينسخ الطلب لكن يسمح بتعديل `quality` و`coupon_code` فقط، ويثبّت اللغة على `"ar"`. لا يسمح بتعديل الشخصيات/الأمزجة/عدد الصفحات/الاتجاه/التعليمات.
+إضافة على `orders`:
+- `art_style_category text` (nullable)
+- `art_style_slug text` (nullable)
 
-**الإصلاح:**
-- **إعادة التحميل:** إبقاء المسار الحالي (`requestRedownload`) كما هو، والتأكد من ظهور زر "إعادة تحميل" بوضوح لكل طلب `delivered` في `src/routes/my-orders.tsx` (نص وأيقونة موحّدين).
-- **إعادة الإنشاء بخيارات جديدة:** التحوّل من نسخ مباشر إلى تعبئة نموذج `/create`:
-  - إضافة `getOrderPrefill({ orderId })` في `src/lib/orders.functions.ts` تُعيد الشخصيات، الأمزجة، التعليمات، اللغة، عدد الصفحات، الاتجاه، جودة الصور، مستوى الطلب — للمستخدم صاحب الطلب فقط.
-  - في `src/routes/my-orders.tsx`: زر "إعادة الإنشاء بخيارات جديدة" ينقل إلى `/create?from=<orderId>`.
-  - في `src/routes/create.tsx`: قراءة `from` من الـ search params؛ عند وجودها، استدعاء `getOrderPrefill` وتعبئة كل الحقول (الشخصيات + الأمزجة + الصفحات + الاتجاه + الجودة + اللغة + التعليمات) قبل عرض النموذج. المستخدم يعدّل ما يشاء ثم يرسل كطلب جديد عبر نفس مسار `createOrderDraft` (تسعير جديد، رقم طلب جديد، دفع جديد).
-  - إزالة/تجاوز الحوار الحالي `reorderOpen` في `my-orders` (أو إبقاؤه كاختصار "أعد إرسال بنفس الإعدادات مع تغيير الجودة فقط" ثانوي).
+`art_style_lock` الحالي يبقى ويُعاد استخدامه كـ prompt المُجمَّد للطلب.
 
-## ملفات ستُعدَّل/تُنشأ
-- `src/lib/orders.functions.ts` — `runImageGenerationForOrder` + `adminRetryImageGeneration` + `getOrderPrefill`.
-- `src/routes/admin.orders.$id.tsx` — زر إعادة توليد كامل + رسالة 403 + تمرير `orientation`/`reflectiveQuestion`.
-- `src/lib/share.functions.ts` — `getPublicStory`.
-- `src/routes/s.$token.tsx` — قارئ قصة كامل للطلبات العامة.
-- `src/lib/gallery.functions.ts` — حقول المؤلف.
-- `src/routes/my-orders.tsx` — حوار نشر بخيار اسم المؤلف + زر "إعادة إنشاء بخيارات جديدة" ينقل إلى `/create?from=...`.
-- `src/routes/create.tsx` — قراءة `?from=` وتعبئة النموذج.
-- `src/routes/gallery.tsx` و`src/routes/admin.gallery.tsx` — عرض اسم المؤلف.
-- migration SQL جديدة لعمودَي `show_author` و`public_author_name`.
+### 2) واجهة الإنشاء `src/routes/create.tsx`
+بعد رفع الصورة وقبل الخطوة التالية:
+- سؤال 1: بطاقتان (واقعي / كرتوني).
+- إن كرتوني: سؤال 2 — شبكة بطاقات صغيرة بمعاينة اسم النمط (يمكن لاحقاً إضافة ثمبنيل).
+- الاختيار يُخزَّن في state ويُرسَل مع `createOrder`.
 
-## خارج النطاق
-- تعديل حدود حصة Lovable AI Gateway (تُدار من إعدادات مساحة العمل).
-- إعادة تصميم بصري للمعرض.
+### 3) الخادم `src/lib/orders.functions.ts`
+- `createOrder` يقبل `artStyleCategory` و `artStyleSlug` (اختياريان — Backward compatible).
+- `runImageGenerationForOrder`: عند أول توليد، يقرأ النمط من `art_styles` عبر `slug`، ويبني `art_style_lock` = `prompt_fragment` (بدلاً من الافتراضي المُشفَّر الحالي في السطر 1172).
+- إن كان الطلب قديماً بلا `art_style_slug`: يُعامَل كـ `cartoon/storybook` (نفس السلوك الحالي) — لا كسر.
+- الأسلوب يُطبَّق نفسه على: character sheet، DNA، cover، جميع الصفحات، إعادة التوليد، ومشاركة الشخصية في المكتبات (لأن الكل يمر عبر نفس `art_style_lock`).
+
+### 4) لوحة الإدارة — مسار جديد `src/routes/admin.art-styles.tsx`
+- جدول بأنماط `art_styles`.
+- تفعيل/تعطيل، ترتيب (سحب أو أزرار سهم)، تعديل الاسم، تعديل `prompt_fragment`، تعيين افتراضي (واحد لكل category)، إضافة/حذف.
+- server functions: `listArtStyles`, `upsertArtStyle`, `deleteArtStyle`, `setDefaultArtStyle` — كلها محمية بـ `requireSupabaseAuth` + فحص دور admin عبر `has_role`.
+- إضافة رابط في `src/routes/admin.tsx` sidebar.
+
+### 5) توافق خلفي
+- طلبات بلا `art_style_slug` → تعمل تماماً كما هي.
+- إعادة توليد صور طلب قديم → تستخدم `art_style_lock` الموجود.
+- إن حُذف نمط من الإدارة، الطلبات المرتبطة لا تتأثر لأن الـ prompt محفوظ في `art_style_lock`.
+
+---
+
+## الملفات المتأثرة
+- **جديد**: migration، `src/routes/admin.art-styles.tsx`، `src/lib/art-styles.functions.ts`.
+- **معدَّل**: `src/lib/pdf-client.ts` (إعادة كتابة تخطيط الصفحة)، `src/routes/create.tsx` (خطوة اختيار الأسلوب)، `src/lib/orders.functions.ts` (تمرير + قراءة النمط)، `src/routes/admin.tsx` (رابط)، `src/integrations/supabase/types.ts` (يُجدَّد آلياً بعد migration).
+
+---
+
+## خطوات التنفيذ
+1. migration (يحتاج موافقتك).
+2. server functions للأنماط + admin UI.
+3. تحديث `create.tsx` بخطوة الاختيار.
+4. تحديث `runImageGenerationForOrder` لقراءة prompt النمط.
+5. إعادة تصميم PDF layout (portrait + landscape + spread + cover).
+6. اختبار طلب قديم (بلا نمط) وطلب جديد (بنمط مختار).
+
+هل أبدأ التنفيذ؟

@@ -45,6 +45,7 @@ import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminCachesRouteImport } from './routes/admin.caches'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
+import { Route as AdminArtStylesRouteImport } from './routes/admin.art-styles'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminAiModelsRouteImport } from './routes/admin.ai-models'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -234,6 +235,11 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminArtStylesRoute = AdminArtStylesRouteImport.update({
+  id: '/art-styles',
+  path: '/art-styles',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -298,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/art-styles': typeof AdminArtStylesRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
@@ -343,6 +350,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/art-styles': typeof AdminArtStylesRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
@@ -390,6 +398,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/art-styles': typeof AdminArtStylesRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
@@ -438,6 +447,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
     | '/admin/analytics'
+    | '/admin/art-styles'
     | '/admin/audit'
     | '/admin/caches'
     | '/admin/content'
@@ -483,6 +493,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
     | '/admin/analytics'
+    | '/admin/art-styles'
     | '/admin/audit'
     | '/admin/caches'
     | '/admin/content'
@@ -529,6 +540,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
     | '/admin/analytics'
+    | '/admin/art-styles'
     | '/admin/audit'
     | '/admin/caches'
     | '/admin/content'
@@ -835,6 +847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/art-styles': {
+      id: '/admin/art-styles'
+      path: '/art-styles'
+      fullPath: '/admin/art-styles'
+      preLoaderRoute: typeof AdminArtStylesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/analytics': {
       id: '/admin/analytics'
       path: '/analytics'
@@ -897,6 +916,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAiModelsRoute: typeof AdminAiModelsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminArtStylesRoute: typeof AdminArtStylesRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminCachesRoute: typeof AdminCachesRoute
   AdminContentRoute: typeof AdminContentRoute
@@ -923,6 +943,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAiModelsRoute: AdminAiModelsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminArtStylesRoute: AdminArtStylesRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminCachesRoute: AdminCachesRoute,
   AdminContentRoute: AdminContentRoute,

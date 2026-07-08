@@ -188,52 +188,49 @@ function buildCoverHtml(a: StoryPdfAssets, opts: { accent: string; gold: string;
   const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
   const title = escapeHtml(a.title || s.defaultTitle);
   const sub = a.customerName ? s.subWith(a.customerName) : s.subNoName;
-  const chips = (a.moods || []).map((m) => `<span style="background:${opts.gold}22;color:${opts.gold};padding:6px 12px;border-radius:999px;font-weight:700;font-size:13px;margin:0 4px;display:inline-block;">${escapeHtml(m)}</span>`).join("");
+  const chips = (a.moods || []).map((m) => `<span style="background:${opts.gold}22;color:${opts.gold};padding:6px 14px;border-radius:999px;font-weight:700;font-size:13px;margin:0 4px;display:inline-block;">${escapeHtml(m)}</span>`).join("");
   const cover = opts.coverData
-    ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain;background:#F0E6D2;display:block;" />`
+    ? `<img src="${opts.coverData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
     : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
   const logoImg = opts.logo
-    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:60px;height:60px;object-fit:contain;display:block;margin:0 auto 6px;" />`
+    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:44px;height:44px;object-fit:contain;display:block;margin:0 auto 6px;" />`
     : "";
 
-  // Ratio-based heights so portrait and landscape look equally polished.
-  const coverH = Math.round(PAGE_H * (isLandscape ? 0.72 : 0.55));
-  const padX = isLandscape ? 64 : 44;
-  const bandTop = Math.max(14, Math.round(PAGE_H * 0.016));
-  const bandBottom = Math.max(10, Math.round(PAGE_H * 0.012));
-  const titleSize = isLandscape ? 36 : 42;
-
+  // Full-bleed cover with the title floating over a bottom gradient — feels like a real children's book.
   return `
   <div dir="${dir}" style="
     width:${PAGE_W}px;height:${PAGE_H}px;
-    background:#FFFBF5;
-    font-family:'Tajawal',sans-serif;
-    color:#1a2128;
-    box-sizing:border-box;
-    position:relative;display:flex;flex-direction:column;
+    background:#FFFBF5;font-family:'Tajawal',sans-serif;color:#1a2128;
+    box-sizing:border-box;position:relative;overflow:hidden;
   ">
-    <div style="height:${bandTop}px;background:${opts.accent};"></div>
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:${isLandscape ? 24 : 36}px ${padX}px 0;">
-      <div style="
-        width:100%;height:${coverH}px;border-radius:${isLandscape ? 14 : 18}px;overflow:hidden;
-        border:4px solid ${opts.accent};
-        box-shadow:0 10px 28px rgba(0,0,0,.12);
-      ">
-        ${cover}
-      </div>
+    <div style="position:absolute;inset:0;">${cover}</div>
+    <div style="
+      position:absolute;left:0;right:0;bottom:0;
+      height:${Math.round(PAGE_H * (isLandscape ? 0.42 : 0.36))}px;
+      background:linear-gradient(to top, rgba(20,15,10,.92) 0%, rgba(20,15,10,.75) 45%, rgba(20,15,10,0) 100%);
+      display:flex;flex-direction:column;justify-content:flex-end;
+      padding:${isLandscape ? 40 : 56}px ${isLandscape ? 64 : 48}px ${isLandscape ? 30 : 44}px;
+      text-align:center;color:#FFFBF5;
+    ">
       <h1 style="
-        margin:${isLandscape ? 20 : 34}px 0 8px;font-size:${titleSize}px;font-weight:900;
-        color:${opts.accent};text-align:center;line-height:1.2;
+        margin:0 0 10px;font-size:${isLandscape ? 40 : 48}px;font-weight:900;
+        line-height:1.18;letter-spacing:-.5px;
+        text-shadow:0 2px 12px rgba(0,0,0,.35);
+        color:#FFFBF5;
       ">${title}</h1>
-      <p style="margin:0 0 12px;font-size:16px;color:#6b7079;text-align:center;">${escapeHtml(sub)}</p>
+      <p style="margin:0 0 14px;font-size:16px;color:#F5E9CF;opacity:.92;">${escapeHtml(sub)}</p>
       <div style="text-align:center;">${chips}</div>
     </div>
-    <div style="text-align:center;padding:${isLandscape ? 8 : 16}px 0 ${isLandscape ? 14 : 28}px;">
-      ${logoImg}
-      <div style="font-size:14px;font-weight:700;color:${opts.accent};">${escapeHtml(s.brand)}</div>
-      <div style="font-size:11px;color:${opts.gold};margin-top:4px;">${escapeHtml(s.tag)}</div>
+    <div style="
+      position:absolute;top:22px;${isRtl ? "right" : "left"}:22px;
+      display:flex;align-items:center;gap:8px;
+      background:rgba(255,251,245,.92);border-radius:999px;
+      padding:6px 12px 6px 8px;
+      box-shadow:0 4px 14px rgba(0,0,0,.15);
+    ">
+      ${logoImg ? `<img src="${opts.logo!}" alt="" crossorigin="anonymous" style="width:26px;height:26px;object-fit:contain;display:block;" />` : ""}
+      <span style="font-size:12px;font-weight:800;color:${opts.accent};">${escapeHtml(s.brand)}</span>
     </div>
-    <div style="height:${bandBottom}px;background:${opts.gold};"></div>
   </div>`;
 }
 
@@ -243,79 +240,74 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
   const dir = isRtl ? "rtl" : "ltr";
   const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
   const img = opts.imgData
-    ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:contain;background:#F0E6D2;display:block;" />`
+    ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
     : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
-  const logoImg = opts.logo
-    ? `<img src="${opts.logo}" alt="" crossorigin="anonymous" style="width:22px;height:22px;object-fit:contain;display:inline-block;vertical-align:middle;margin:0 6px;" />`
-    : "";
   const text = escapeHtml(p.text || "").replace(/\n+/g, "<br/>");
 
-  const padX = isLandscape ? 64 : 44;
-  const bandTop = Math.max(10, Math.round(PAGE_H * 0.013));
-  const bandBottom = Math.max(6, Math.round(PAGE_H * 0.008));
+  // Unified margins — feels like a real book, not a memo.
+  const marginX = isLandscape ? 48 : 40;
+  const marginY = isLandscape ? 36 : 40;
 
-  // Landscape: image + text side-by-side. Portrait: stacked.
+  // Text card style — soft cream, no hard border, gentle rounded corners.
+  const textCard = `
+    background:rgba(255,248,232,.86);
+    border-radius:22px;
+    padding:${isLandscape ? "22px 30px" : "24px 30px"};
+    box-shadow:0 6px 22px rgba(90,60,20,.10), inset 0 0 0 1px rgba(212,165,55,.16);
+  `;
+  const imageCard = `
+    border-radius:22px;overflow:hidden;
+    box-shadow:0 14px 40px rgba(30,20,10,.18), 0 2px 6px rgba(30,20,10,.08);
+    background:#F0E6D2;
+  `;
+
+  // Landscape → side-by-side spread feel; Portrait → image top (large) + text card bottom.
   const body = isLandscape
     ? `
-      <div style="flex:1;display:flex;flex-direction:${isRtl ? "row" : "row"};gap:22px;padding:20px ${padX}px 0;min-height:0;">
-        <div style="
-          width:45%;border-radius:16px;overflow:hidden;
-          border:3px solid ${opts.accent};
-          box-shadow:0 8px 20px rgba(0,0,0,.10);
-          background:#F0E6D2;flex-shrink:0;
-        ">${img}</div>
-        <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
-          <div style="height:2px;background:linear-gradient(to ${isRtl ? "left" : "right"}, ${opts.gold}, transparent);margin:6px 0 14px;"></div>
-          <div style="
-            font-size:20px;line-height:1.95;font-weight:500;
-            text-align:justify;text-justify:inter-word;color:#1a2128;
-            flex:1;word-wrap:break-word;overflow-wrap:break-word;
-          ">${text}</div>
+      <div style="flex:1;display:flex;flex-direction:row;gap:26px;min-height:0;">
+        <div style="width:58%;${imageCard}">${img}</div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;">
+          <div style="${textCard}">
+            <div style="
+              font-size:20px;line-height:2.0;font-weight:500;
+              text-align:justify;text-justify:inter-word;color:#2a2118;
+              word-wrap:break-word;overflow-wrap:break-word;
+            ">${text}</div>
+          </div>
         </div>
       </div>`
     : `
-      <div style="flex:1;display:flex;flex-direction:column;padding:26px ${padX}px 0;min-height:0;">
-        <div style="
-          width:100%;height:${Math.round(PAGE_H * 0.42)}px;border-radius:16px;overflow:hidden;
-          border:3px solid ${opts.accent};
-          box-shadow:0 8px 20px rgba(0,0,0,.10);
-          flex-shrink:0;background:#F0E6D2;
-        ">${img}</div>
-        <div style="height:2px;background:linear-gradient(to ${isRtl ? "left" : "right"}, ${opts.gold}, transparent);margin:18px 0 14px;"></div>
-        <div style="
-          font-size:22px;line-height:2.05;font-weight:500;
-          text-align:justify;text-justify:inter-word;color:#1a2128;
-          flex:1;word-wrap:break-word;overflow-wrap:break-word;
-        ">${text}</div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:22px;min-height:0;">
+        <div style="width:100%;height:${Math.round(PAGE_H * 0.58)}px;${imageCard}">${img}</div>
+        <div style="${textCard}flex:1;display:flex;align-items:center;">
+          <div style="
+            font-size:21px;line-height:2.0;font-weight:500;
+            text-align:justify;text-justify:inter-word;color:#2a2118;
+            width:100%;word-wrap:break-word;overflow-wrap:break-word;
+          ">${text}</div>
+        </div>
       </div>`;
 
+  // Page number with a hairline separator + tiny brand mark — subtle, book-like.
+  const brandMark = `<span style="color:${opts.accent};font-weight:800;letter-spacing:.5px;">${escapeHtml(s.brand)}</span>`;
   return `
   <div dir="${dir}" lang="${a.language}" style="
     width:${PAGE_W}px;height:${PAGE_H}px;
-    background:#FFFBF5;
-    font-family:'Tajawal',sans-serif;
-    color:#1a2128;
-    box-sizing:border-box;
-    position:relative;display:flex;flex-direction:column;
+    background:#FFFBF5;font-family:'Tajawal',sans-serif;color:#2a2118;
+    box-sizing:border-box;position:relative;display:flex;flex-direction:column;
+    padding:${marginY}px ${marginX}px ${Math.max(24, marginY - 8)}px;
   ">
-    <div style="height:${bandTop}px;background:${opts.accent};"></div>
     ${body}
     <div style="
-      padding:8px ${padX}px 0;
-      border-top:1px solid ${opts.accent}55;
-      display:flex;justify-content:space-between;align-items:center;
-      font-size:12px;color:#6b7079;
+      margin-top:14px;display:flex;align-items:center;justify-content:center;gap:10px;
+      font-size:11px;color:#8a7a5c;
     ">
-      <span>${escapeHtml(s.pageLabel(p.number, total))}</span>
-      <span style="font-weight:700;color:${opts.accent};display:inline-flex;align-items:center;">
-        ${logoImg}${escapeHtml(s.brand)}
-      </span>
+      <span style="height:1px;width:36px;background:${opts.gold}66;"></span>
+      <span style="font-weight:600;">${escapeHtml(s.pageLabel(p.number, total))}</span>
+      <span style="opacity:.55;">·</span>
+      ${brandMark}
+      <span style="height:1px;width:36px;background:${opts.gold}66;"></span>
     </div>
-    <div style="text-align:center;font-size:10px;color:${opts.gold};padding:4px ${padX}px 2px;">${escapeHtml(s.tag)}</div>
-    <div style="font-size:8.5px;line-height:1.5;color:#8a8f96;padding:0 ${padX}px 6px;text-align:center;">
-      ${escapeHtml((opts.disclaimer ?? "").slice(0, 220))}
-    </div>
-    <div style="height:${bandBottom}px;background:${opts.gold};"></div>
   </div>`;
 }
 

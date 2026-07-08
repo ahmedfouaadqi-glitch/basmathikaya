@@ -33,6 +33,8 @@ const CreateInput = z.object({
     .default("standard")
     .transform((v) => (v === "fast" ? "standard" : v)),
   pdf_orientation: z.enum(["portrait", "landscape"]).default("portrait"),
+  art_style_category: z.enum(["realistic", "cartoon"]).optional().nullable(),
+  art_style_slug: z.string().trim().min(1).max(60).optional().nullable(),
 });
 
 
@@ -190,6 +192,8 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         custom_instructions: data.custom_instructions || null,
         image_quality_tier: data.image_quality_tier,
         pdf_orientation: data.pdf_orientation,
+        art_style_category: data.art_style_category ?? null,
+        art_style_slug: data.art_style_slug ?? null,
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
         coupon_code: code,
         whatsapp_sent_at: new Date().toISOString(),
@@ -1124,7 +1128,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     try {
       const { data: order } = await supabaseAdmin
         .from("orders")
-        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, pdf_orientation, characters(language)")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, art_style_slug, art_style_category, pdf_orientation, characters(language)")
         .eq("id", data.orderId)
         .single();
       if (!order) throw new Error("Order missing");
@@ -1169,7 +1173,28 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       // so the whole book feels like one illustrated set. Only the LIGHTING varies per page.
       let artStyleLock = (order.art_style_lock as string | null) ?? "";
       if (!artStyleLock) {
-        artStyleLock = "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
+        // Try to build lock from the chosen art_style_slug (new orders) → fallback to the default in DB → fallback to hardcoded storybook.
+        const chosenSlug = (order as { art_style_slug?: string | null }).art_style_slug ?? null;
+        let fragment: string | null = null;
+        if (chosenSlug) {
+          const { data: sty } = await supabaseAdmin
+            .from("art_styles")
+            .select("prompt_fragment")
+            .eq("slug", chosenSlug)
+            .maybeSingle();
+          fragment = (sty as { prompt_fragment?: string } | null)?.prompt_fragment ?? null;
+        }
+        if (!fragment) {
+          const { data: def } = await supabaseAdmin
+            .from("art_styles")
+            .select("prompt_fragment")
+            .eq("is_default", true)
+            .eq("category", "cartoon")
+            .maybeSingle();
+          fragment = (def as { prompt_fragment?: string } | null)?.prompt_fragment ?? null;
+        }
+        artStyleLock = fragment ??
+          "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
         await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
       }
       const style = artStyleLock;
