@@ -94,6 +94,8 @@ function CreatePage() {
   const [qualityTier, setQualityTier] = useState<"standard" | "premium">("standard");
   const [tier, setTier] = useState<"pdf" | "printed" | "video">("pdf");
   const [pdfOrientation, setPdfOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [artStyleCategory, setArtStyleCategory] = useState<"realistic" | "cartoon" | null>(null);
+  const [artStyleSlug, setArtStyleSlug] = useState<string | null>(null);
   const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -101,6 +103,12 @@ function CreatePage() {
   const [couponState, setCouponState] = useState<
     { status: "idle" } | { status: "checking" } | { status: "valid"; label: string } | { status: "invalid"; reason: string }
   >({ status: "idle" });
+
+  const artStylesFn = useServerFn(listPublicArtStyles);
+  const artStylesQ = useQuery({ queryKey: ["art-styles-public"], queryFn: () => artStylesFn(), staleTime: 5 * 60_000 });
+  const artStyles = (artStylesQ.data ?? []) as ArtStyle[];
+  const cartoonStyles = artStyles.filter((s) => s.category === "cartoon");
+  const realisticStyle = artStyles.find((s) => s.category === "realistic") ?? null;
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
   const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
