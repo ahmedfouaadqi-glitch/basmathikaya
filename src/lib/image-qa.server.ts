@@ -115,7 +115,7 @@ Return JSON EXACTLY:
     let parsed: { ok?: boolean; score?: number; issues?: unknown } = {};
     try { parsed = JSON.parse(content); } catch { /* ignore */ }
     const issues = Array.isArray(parsed.issues) ? parsed.issues.map(String).slice(0, 8) : [];
-    return {
+    const report: ImageQaReport = {
       ok: Boolean(parsed.ok),
       score: Number.isFinite(parsed.score) ? Number(parsed.score) : 0,
       issues,
@@ -123,6 +123,10 @@ Return JSON EXACTLY:
       usage: meta.usage,
       cost_usd: cost,
     };
+    if (cacheKey) {
+      void setCached({ cacheKey, taskType: "image_qa", modelId: modelUsed, response: report, ttlSeconds: 60 * 60 * 24 * 30, costUsd: cost });
+    }
+    return report;
   } catch {
     return { ok: true, score: 0, issues: ["qa_service_error"], duration_ms: 0, usage: {}, cost_usd: 0 };
   }
