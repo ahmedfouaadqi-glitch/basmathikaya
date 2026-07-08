@@ -1251,6 +1251,19 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         }
       }
 
+      // Add the cover itself as an extra reference for every page — this
+      // locks composition, color palette and character look across the book.
+      const pageRefs: string[] = [...referenceImages];
+      if (coverPath) {
+        try {
+          const signed = await supabaseAdmin.storage.from("story-covers").createSignedUrl(coverPath, 60 * 60);
+          if (signed.data?.signedUrl) {
+            const dataUrl = await photoToDataUrl(coverPath).catch(() => null);
+            if (dataUrl) pageRefs.push(dataUrl);
+          }
+        } catch { /* ignore */ }
+      }
+
       // Page images
       const todo = (pages ?? []).filter((p) => !p.image_path);
       const { runImageQA } = await import("./image-qa.server");
