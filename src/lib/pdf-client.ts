@@ -502,42 +502,68 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
       });
     }));
 
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    const [{ default: jsPDF }, htmlToImage] = await Promise.all([
       import("jspdf"),
-      import("html2canvas-pro"),
+      import("html-to-image"),
     ]);
+    // Lazy fallback loader (only if html-to-image fails on some page).
+    let html2canvasMod: typeof import("html2canvas-pro") | null = null;
+    const getHtml2Canvas = async () => {
+      if (!html2canvasMod) html2canvasMod = await import("html2canvas-pro");
+      return html2canvasMod.default;
+    };
 
     const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: isLandscape ? "landscape" : "portrait" });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
 
     const pageEls = Array.from(host.querySelectorAll<HTMLElement>("[data-pdf-page]"));
-    // Adaptive raster scale per device. iOS Safari has a hard ~16MP/canvas cap.
     const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
-    const scale = isIOS ? 1.4 : isMobile ? Math.min(1.6, dpr) : 2;
+    const pixelRatio = isIOS ? 1.5 : isMobile ? Math.min(1.75, dpr) : 2;
     const jpegQuality = isIOS ? 0.82 : 0.9;
 
     for (let i = 0; i < pageEls.length; i++) {
       const el = pageEls[i];
-      const canvas = await html2canvas(el, {
-        scale,
-        useCORS: true,
-        backgroundColor: "#FFFBF5",
-        logging: false,
-        width: PAGE_W,
-        height: PAGE_H,
-        windowWidth: PAGE_W,
-        windowHeight: PAGE_H,
-        imageTimeout: 15000,
-      });
-      const dataUrl = canvas.toDataURL("image/jpeg", jpegQuality);
-      // Free canvas memory immediately (matters on iOS for ≥5 pages).
-      canvas.width = 0; canvas.height = 0;
+      let dataUrl: string | null = null;
+      // Primary path: html-to-image (uses SVG foreignObject → preserves Arabic
+      // glyph shaping and RTL bidi exactly as the browser renders them).
+      try {
+        dataUrl = await htmlToImage.toJpeg(el, {
+          quality: jpegQuality,
+          pixelRatio,
+          cacheBust: false,
+          width: PAGE_W,
+          height: PAGE_H,
+          backgroundColor: "#FFFBF5",
+          skipFonts: false,
+        });
+      } catch {
+        dataUrl = null;
+      }
+      // Fallback: html2canvas-pro (may break Arabic shaping on some browsers,
+      // but at least produces *something* if the primary path fails).
+      if (!dataUrl) {
+        const html2canvas = await getHtml2Canvas();
+        const canvas = await html2canvas(el, {
+          scale: pixelRatio,
+          useCORS: true,
+          backgroundColor: "#FFFBF5",
+          logging: false,
+          width: PAGE_W,
+          height: PAGE_H,
+          windowWidth: PAGE_W,
+          windowHeight: PAGE_H,
+          imageTimeout: 15000,
+        });
+        dataUrl = canvas.toDataURL("image/jpeg", jpegQuality);
+        canvas.width = 0; canvas.height = 0;
+      }
       if (i > 0) pdf.addPage();
       pdf.addImage(dataUrl, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
       // Yield to the event loop so Safari can reclaim memory between pages.
       await new Promise((r) => setTimeout(r, 0));
     }
+
 
     const safeTitle = (a.title || "story").replace(/[^\p{L}\p{N}\s-]+/gu, "").trim().slice(0, 40) || "story";
     const filename = `basma-hekaya-${a.orderNumber ?? ""}-${safeTitle}.pdf`;
