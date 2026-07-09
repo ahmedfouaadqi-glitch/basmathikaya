@@ -69,7 +69,7 @@ flags المقترحة (اختر ما ينطبق):
 "weapons_instructions" — تعليمات أسلحة (A).
 
 أعِد JSON فقط:
-{"category":"A|B|OK","flags":["..."],"reason":"سطر عربي واحد يوضح السبب باختصار"}`;
+{"category":"A|B|OK","flags":["..."],"intent":"romantic|sensual|explicit|meditative|traumatic|neutral","reason":"سطر عربي واحد يوضح السبب باختصار"}`;
 
   const user = `العمر المُعلَن: ${payload.heroAge ?? "غير محدد"}
 الأمزجة: ${payload.moods.join("، ")}
