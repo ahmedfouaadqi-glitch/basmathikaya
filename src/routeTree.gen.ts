@@ -22,10 +22,12 @@ import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FamilyRouteImport } from './routes/family'
 import { Route as CreateRouteImport } from './routes/create'
+import { Route as ContentPolicyRouteImport } from './routes/content-policy'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as VerifyIdentityIdRouteImport } from './routes/verify-identity.$id'
 import { Route as VTokenRouteImport } from './routes/v.$token'
 import { Route as STokenRouteImport } from './routes/s.$token'
 import { Route as PreviewOrderIdRouteImport } from './routes/preview.$orderId'
@@ -36,6 +38,7 @@ import { Route as AdminTestimonialsRouteImport } from './routes/admin.testimonia
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminShareEventsRouteImport } from './routes/admin.share-events'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminReviewQueueRouteImport } from './routes/admin.review-queue'
 import { Route as AdminReferralsRouteImport } from './routes/admin.referrals'
 import { Route as AdminRedownloadsRouteImport } from './routes/admin.redownloads'
 import { Route as AdminPhoneBansRouteImport } from './routes/admin.phone-bans'
@@ -124,6 +127,11 @@ const CreateRoute = CreateRouteImport.update({
   path: '/create',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContentPolicyRoute = ContentPolicyRouteImport.update({
+  id: '/content-policy',
+  path: '/content-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -143,6 +151,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const VerifyIdentityIdRoute = VerifyIdentityIdRouteImport.update({
+  id: '/verify-identity/$id',
+  path: '/verify-identity/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const VTokenRoute = VTokenRouteImport.update({
   id: '/v/$token',
@@ -192,6 +205,11 @@ const AdminShareEventsRoute = AdminShareEventsRouteImport.update({
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReviewQueueRoute = AdminReviewQueueRouteImport.update({
+  id: '/review-queue',
+  path: '/review-queue',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminReferralsRoute = AdminReferralsRouteImport.update({
@@ -313,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/content-policy': typeof ContentPolicyRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
   '/faq': typeof FaqRoute
@@ -344,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/referrals': typeof AdminReferralsRoute
+  '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -354,6 +374,7 @@ export interface FileRoutesByFullPath {
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/s/$token': typeof STokenRoute
   '/v/$token': typeof VTokenRoute
+  '/verify-identity/$id': typeof VerifyIdentityIdRoute
   '/admin/': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -363,6 +384,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/content-policy': typeof ContentPolicyRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
   '/faq': typeof FaqRoute
@@ -394,6 +416,7 @@ export interface FileRoutesByTo {
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/referrals': typeof AdminReferralsRoute
+  '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -404,6 +427,7 @@ export interface FileRoutesByTo {
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/s/$token': typeof STokenRoute
   '/v/$token': typeof VTokenRoute
+  '/verify-identity/$id': typeof VerifyIdentityIdRoute
   '/admin': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -415,6 +439,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/content-policy': typeof ContentPolicyRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
   '/faq': typeof FaqRoute
@@ -446,6 +471,7 @@ export interface FileRoutesById {
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/referrals': typeof AdminReferralsRoute
+  '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -456,6 +482,7 @@ export interface FileRoutesById {
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/s/$token': typeof STokenRoute
   '/v/$token': typeof VTokenRoute
+  '/verify-identity/$id': typeof VerifyIdentityIdRoute
   '/admin/': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -468,6 +495,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/content-policy'
     | '/create'
     | '/family'
     | '/faq'
@@ -499,6 +527,7 @@ export interface FileRouteTypes {
     | '/admin/phone-bans'
     | '/admin/redownloads'
     | '/admin/referrals'
+    | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -509,6 +538,7 @@ export interface FileRouteTypes {
     | '/preview/$orderId'
     | '/s/$token'
     | '/v/$token'
+    | '/verify-identity/$id'
     | '/admin/'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -518,6 +548,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/content-policy'
     | '/create'
     | '/family'
     | '/faq'
@@ -549,6 +580,7 @@ export interface FileRouteTypes {
     | '/admin/phone-bans'
     | '/admin/redownloads'
     | '/admin/referrals'
+    | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -559,6 +591,7 @@ export interface FileRouteTypes {
     | '/preview/$orderId'
     | '/s/$token'
     | '/v/$token'
+    | '/verify-identity/$id'
     | '/admin'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -569,6 +602,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/content-policy'
     | '/create'
     | '/family'
     | '/faq'
@@ -600,6 +634,7 @@ export interface FileRouteTypes {
     | '/admin/phone-bans'
     | '/admin/redownloads'
     | '/admin/referrals'
+    | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -610,6 +645,7 @@ export interface FileRouteTypes {
     | '/preview/$orderId'
     | '/s/$token'
     | '/v/$token'
+    | '/verify-identity/$id'
     | '/admin/'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -621,6 +657,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ContentPolicyRoute: typeof ContentPolicyRoute
   CreateRoute: typeof CreateRoute
   FamilyRoute: typeof FamilyRoute
   FaqRoute: typeof FaqRoute
@@ -639,6 +676,7 @@ export interface RootRouteChildren {
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
   STokenRoute: typeof STokenRoute
   VTokenRoute: typeof VTokenRoute
+  VerifyIdentityIdRoute: typeof VerifyIdentityIdRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksJobsTickRoute: typeof ApiPublicHooksJobsTickRoute
   ApiPublicShareCardsTokenRoute: typeof ApiPublicShareCardsTokenRoute
@@ -737,6 +775,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/content-policy': {
+      id: '/content-policy'
+      path: '/content-policy'
+      fullPath: '/content-policy'
+      preLoaderRoute: typeof ContentPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -764,6 +809,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/verify-identity/$id': {
+      id: '/verify-identity/$id'
+      path: '/verify-identity/$id'
+      fullPath: '/verify-identity/$id'
+      preLoaderRoute: typeof VerifyIdentityIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/v/$token': {
       id: '/v/$token'
@@ -833,6 +885,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/review-queue': {
+      id: '/admin/review-queue'
+      path: '/review-queue'
+      fullPath: '/admin/review-queue'
+      preLoaderRoute: typeof AdminReviewQueueRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/referrals': {
@@ -1009,6 +1068,7 @@ interface AdminRouteChildren {
   AdminPhoneBansRoute: typeof AdminPhoneBansRoute
   AdminRedownloadsRoute: typeof AdminRedownloadsRoute
   AdminReferralsRoute: typeof AdminReferralsRoute
+  AdminReviewQueueRoute: typeof AdminReviewQueueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShareEventsRoute: typeof AdminShareEventsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
@@ -1037,6 +1097,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPhoneBansRoute: AdminPhoneBansRoute,
   AdminRedownloadsRoute: AdminRedownloadsRoute,
   AdminReferralsRoute: AdminReferralsRoute,
+  AdminReviewQueueRoute: AdminReviewQueueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminShareEventsRoute: AdminShareEventsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
@@ -1054,6 +1115,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
+  ContentPolicyRoute: ContentPolicyRoute,
   CreateRoute: CreateRoute,
   FamilyRoute: FamilyRoute,
   FaqRoute: FaqRoute,
@@ -1073,6 +1135,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewOrderIdRoute: PreviewOrderIdRoute,
   STokenRoute: STokenRoute,
   VTokenRoute: VTokenRoute,
+  VerifyIdentityIdRoute: VerifyIdentityIdRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksJobsTickRoute: ApiPublicHooksJobsTickRoute,
   ApiPublicShareCardsTokenRoute: ApiPublicShareCardsTokenRoute,

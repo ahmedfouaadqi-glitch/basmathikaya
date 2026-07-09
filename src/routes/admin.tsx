@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/
 import { useServerFn } from "@tanstack/react-start";
 import { adminCheck, adminLogout } from "../lib/admin.functions";
 import { useT } from "../lib/i18n";
-import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate, Flag, ListTree, Cpu, AlertTriangle, ScrollText, PhoneOff, Download, Database, Share2, Gift, Image as ImageIcon, MessageSquareQuote, Brush } from "lucide-react";
+import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate, Flag, ListTree, Cpu, AlertTriangle, ScrollText, PhoneOff, Download, Database, Share2, Gift, Image as ImageIcon, MessageSquareQuote, Brush, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ location }) => {
@@ -30,6 +30,10 @@ function AdminLayout() {
             <ListOrdered className="size-4" />
             {t("admin_orders")}
           </Link>
+          <Link to="/admin/review-queue" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-amber-700 hover:bg-amber-500/10" activeProps={{ className: "bg-amber-500/15 font-semibold" }}>
+            <ShieldAlert className="size-4" /> المراجعة
+          </Link>
+
           <Link to="/admin/users" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Users className="size-4" />
             {t("admin_users")}

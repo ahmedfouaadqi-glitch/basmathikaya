@@ -241,14 +241,29 @@ export const createOrderDraft = createServerFn({ method: "POST" })
     lines.push(`الاسم: ${session.data.name ?? ""}`);
     const whatsapp_url = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines.join("\n"))}`;
 
+    // Run content screening (best-effort). Flags for admin review if needed.
+    let requires_review = false;
+    let review_reason: string | null = null;
+    try {
+      const { screenOrder } = await import("./content-screening.functions");
+      const res = await screenOrder({ data: { orderId: ord.id } });
+      requires_review = res.requires_admin_review;
+      review_reason = res.reason;
+    } catch {
+      /* ignore screening failures — order stays in normal flow */
+    }
+
     return {
       orderId: ord.id as string,
       orderNumber: ord.order_number as number,
       amount_iqd: amount,
       discount_iqd: discount,
       whatsapp_url,
+      requires_review,
+      review_reason,
     };
   });
+
 
 
 const OrderIdInput = z.object({ orderId: z.string().uuid() });

@@ -536,6 +536,54 @@ export type Database = {
         }
         Relationships: []
       }
+      content_screening_log: {
+        Row: {
+          category: string
+          created_at: string
+          decision: string
+          flags: Json
+          id: string
+          model_used: string | null
+          order_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          decision: string
+          flags?: Json
+          id?: string
+          model_used?: string | null
+          order_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          decision?: string
+          flags?: Json
+          id?: string
+          model_used?: string | null
+          order_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_screening_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "content_screening_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupon_redemptions: {
         Row: {
           coupon_id: string
@@ -1059,6 +1107,11 @@ export type Database = {
       }
       orders: {
         Row: {
+          admin_review_note: string | null
+          admin_reviewed_at: string | null
+          admin_reviewed_by: string | null
+          age_bucket: string | null
+          age_verification_status: string | null
           amount_iqd: number
           art_style_category: string | null
           art_style_lock: string | null
@@ -1067,6 +1120,7 @@ export type Database = {
           character_brief: string | null
           character_dna: Json | null
           character_id: string | null
+          content_flags: Json | null
           coupon_code: string | null
           coupon_discount_iqd: number
           created_at: string
@@ -1076,10 +1130,13 @@ export type Database = {
           disclaimer_accepted_at: string | null
           gallery_featured: boolean
           id: string
+          identity_document_path: string | null
+          identity_verification_status: string | null
           image_quality_tier: string | null
           images_error: string | null
           images_status: string
           is_public: boolean
+          journey_type: string | null
           mood_extra_iqd: number
           moods: string[]
           notes: string | null
@@ -1092,6 +1149,8 @@ export type Database = {
           pdf_generation_status: string | null
           pdf_orientation: string
           pdf_path: string | null
+          photo_age_confidence: number | null
+          photo_age_estimate: number | null
           public_author_name: string | null
           public_title: string | null
           redownload_amount_iqd: number | null
@@ -1101,6 +1160,7 @@ export type Database = {
           reflective_question: string | null
           rejected_at: string | null
           rejection_reason: string | null
+          requires_admin_review: boolean | null
           share_token: string | null
           show_author: boolean
           status: Database["public"]["Enums"]["order_status"]
@@ -1112,6 +1172,11 @@ export type Database = {
           whatsapp_sent_at: string | null
         }
         Insert: {
+          admin_review_note?: string | null
+          admin_reviewed_at?: string | null
+          admin_reviewed_by?: string | null
+          age_bucket?: string | null
+          age_verification_status?: string | null
           amount_iqd?: number
           art_style_category?: string | null
           art_style_lock?: string | null
@@ -1120,6 +1185,7 @@ export type Database = {
           character_brief?: string | null
           character_dna?: Json | null
           character_id?: string | null
+          content_flags?: Json | null
           coupon_code?: string | null
           coupon_discount_iqd?: number
           created_at?: string
@@ -1129,10 +1195,13 @@ export type Database = {
           disclaimer_accepted_at?: string | null
           gallery_featured?: boolean
           id?: string
+          identity_document_path?: string | null
+          identity_verification_status?: string | null
           image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
           is_public?: boolean
+          journey_type?: string | null
           mood_extra_iqd?: number
           moods?: string[]
           notes?: string | null
@@ -1145,6 +1214,8 @@ export type Database = {
           pdf_generation_status?: string | null
           pdf_orientation?: string
           pdf_path?: string | null
+          photo_age_confidence?: number | null
+          photo_age_estimate?: number | null
           public_author_name?: string | null
           public_title?: string | null
           redownload_amount_iqd?: number | null
@@ -1154,6 +1225,7 @@ export type Database = {
           reflective_question?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          requires_admin_review?: boolean | null
           share_token?: string | null
           show_author?: boolean
           status?: Database["public"]["Enums"]["order_status"]
@@ -1165,6 +1237,11 @@ export type Database = {
           whatsapp_sent_at?: string | null
         }
         Update: {
+          admin_review_note?: string | null
+          admin_reviewed_at?: string | null
+          admin_reviewed_by?: string | null
+          age_bucket?: string | null
+          age_verification_status?: string | null
           amount_iqd?: number
           art_style_category?: string | null
           art_style_lock?: string | null
@@ -1173,6 +1250,7 @@ export type Database = {
           character_brief?: string | null
           character_dna?: Json | null
           character_id?: string | null
+          content_flags?: Json | null
           coupon_code?: string | null
           coupon_discount_iqd?: number
           created_at?: string
@@ -1182,10 +1260,13 @@ export type Database = {
           disclaimer_accepted_at?: string | null
           gallery_featured?: boolean
           id?: string
+          identity_document_path?: string | null
+          identity_verification_status?: string | null
           image_quality_tier?: string | null
           images_error?: string | null
           images_status?: string
           is_public?: boolean
+          journey_type?: string | null
           mood_extra_iqd?: number
           moods?: string[]
           notes?: string | null
@@ -1198,6 +1279,8 @@ export type Database = {
           pdf_generation_status?: string | null
           pdf_orientation?: string
           pdf_path?: string | null
+          photo_age_confidence?: number | null
+          photo_age_estimate?: number | null
           public_author_name?: string | null
           public_title?: string | null
           redownload_amount_iqd?: number | null
@@ -1207,6 +1290,7 @@ export type Database = {
           reflective_question?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          requires_admin_review?: boolean | null
           share_token?: string | null
           show_author?: boolean
           status?: Database["public"]["Enums"]["order_status"]
@@ -2410,7 +2494,13 @@ export type Database = {
     }
     Enums: {
       event_status: "success" | "error"
-      order_status: "pending" | "paid" | "delivered" | "cancelled"
+      order_status:
+        | "pending"
+        | "paid"
+        | "delivered"
+        | "cancelled"
+        | "pending_review"
+        | "rejected"
       order_tier: "pdf" | "printed" | "video"
     }
     CompositeTypes: {
@@ -2540,7 +2630,14 @@ export const Constants = {
   public: {
     Enums: {
       event_status: ["success", "error"],
-      order_status: ["pending", "paid", "delivered", "cancelled"],
+      order_status: [
+        "pending",
+        "paid",
+        "delivered",
+        "cancelled",
+        "pending_review",
+        "rejected",
+      ],
       order_tier: ["pdf", "printed", "video"],
     },
   },
