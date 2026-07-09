@@ -45,6 +45,7 @@ import { Route as AdminCouponsRouteImport } from './routes/admin.coupons'
 import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminCachesRouteImport } from './routes/admin.caches'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
+import { Route as AdminAudioRouteImport } from './routes/admin.audio'
 import { Route as AdminArtStylesRouteImport } from './routes/admin.art-styles'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminAiModelsRouteImport } from './routes/admin.ai-models'
@@ -235,6 +236,11 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAudioRoute = AdminAudioRouteImport.update({
+  id: '/audio',
+  path: '/audio',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminArtStylesRoute = AdminArtStylesRouteImport.update({
   id: '/art-styles',
   path: '/art-styles',
@@ -305,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
+  '/admin/audio': typeof AdminAudioRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
+  '/admin/audio': typeof AdminAudioRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
@@ -399,6 +407,7 @@ export interface FileRoutesById {
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
+  '/admin/audio': typeof AdminAudioRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/caches': typeof AdminCachesRoute
   '/admin/content': typeof AdminContentRoute
@@ -448,6 +457,7 @@ export interface FileRouteTypes {
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
+    | '/admin/audio'
     | '/admin/audit'
     | '/admin/caches'
     | '/admin/content'
@@ -494,6 +504,7 @@ export interface FileRouteTypes {
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
+    | '/admin/audio'
     | '/admin/audit'
     | '/admin/caches'
     | '/admin/content'
@@ -541,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
+    | '/admin/audio'
     | '/admin/audit'
     | '/admin/caches'
     | '/admin/content'
@@ -847,6 +859,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/audio': {
+      id: '/admin/audio'
+      path: '/audio'
+      fullPath: '/admin/audio'
+      preLoaderRoute: typeof AdminAudioRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/art-styles': {
       id: '/admin/art-styles'
       path: '/art-styles'
@@ -917,6 +936,7 @@ interface AdminRouteChildren {
   AdminAiModelsRoute: typeof AdminAiModelsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminArtStylesRoute: typeof AdminArtStylesRoute
+  AdminAudioRoute: typeof AdminAudioRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminCachesRoute: typeof AdminCachesRoute
   AdminContentRoute: typeof AdminContentRoute
@@ -944,6 +964,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAiModelsRoute: AdminAiModelsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminArtStylesRoute: AdminArtStylesRoute,
+  AdminAudioRoute: AdminAudioRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminCachesRoute: AdminCachesRoute,
   AdminContentRoute: AdminContentRoute,
