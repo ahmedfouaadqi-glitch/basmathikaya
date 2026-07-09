@@ -246,15 +246,18 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <InstallGate>
-          <ThemeBanner />
-          <Header />
-          <main className="min-h-[calc(100vh-220px)]">
-            <Outlet />
-          </main>
-          <SiteFooter />
-        </InstallGate>
-        <Toaster richColors position="top-center" />
+        <AudioProvider>
+          <InstallGate>
+            <ThemeBanner />
+            <Header />
+            <main className="min-h-[calc(100vh-220px)]">
+              <Outlet />
+            </main>
+            <SiteFooter />
+            <MiniMusicPlayer />
+          </InstallGate>
+          <Toaster richColors position="top-center" />
+        </AudioProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
