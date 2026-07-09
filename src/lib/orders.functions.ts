@@ -1239,14 +1239,29 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const pricing = await getPricing();
       const tier = (order.image_quality_tier as "fast" | "standard" | "premium" | null) ?? "standard";
       const effectiveTier: "standard" | "premium" = tier === "premium" ? "premium" : "standard";
+
+      // Adult / sensitive context — parallels the text-side detection so images
+      // match the story's actual tone instead of defaulting to children's storybook.
+      const imgContentFlags = (((order as { content_flags?: string[] | null }).content_flags) ?? []).map((f) => f.toLowerCase());
+      const imgIsAdult = imgContentFlags.some((f) =>
+        /sexual|erotic|libertine|polyam|romance|colloquial_explicit|جنسي|إباحي|تحرري|رومانسي|شبق/.test(f),
+      );
+      const imgAgeBucket = ((order as { age_bucket?: string | null }).age_bucket) ?? null;
+      const imgIsAdultAudience = imgIsAdult || imgAgeBucket === "adult" || imgAgeBucket === "young_adult" || imgAgeBucket === "senior";
+      const imgIntent = (((order as { content_intent?: string | null }).content_intent) ?? "neutral") as
+        "romantic" | "sensual" | "explicit" | "meditative" | "traumatic" | "neutral";
+
+      // Model fallback chains — try higher-freedom providers first, then fall back to the alternates.
       const coverModel = effectiveTier === "premium"
         ? "google/gemini-3-pro-image"
         : "google/gemini-3.1-flash-image";
-      // Cost/quality win: on premium, use pro-image ONLY for the cover
-      // (which becomes an additional reference for every page); pages use
-      // flash-image guided by that pro cover → ~30% savings, quality stays
-      // near-pro because the cover locks composition/style.
+      const coverChain: string[] = imgIsAdultAudience
+        ? [coverModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
+        : [coverModel];
       const pageModel = "google/gemini-3.1-flash-image";
+      const pageChain: string[] = imgIsAdultAudience
+        ? [pageModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
+        : [pageModel];
 
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
       const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
