@@ -2162,6 +2162,172 @@ export type Database = {
           },
         ]
       }
+      video_daily_stats: {
+        Row: {
+          count: number
+          day: string
+          total_credits: number
+          updated_at: string
+        }
+        Insert: {
+          count?: number
+          day: string
+          total_credits?: number
+          updated_at?: string
+        }
+        Update: {
+          count?: number
+          day?: string
+          total_credits?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      video_orders: {
+        Row: {
+          admin_note: string | null
+          ai_cost_iqd: number
+          ai_credits_used: number
+          approved_at: string | null
+          completed_at: string | null
+          created_at: string
+          duration_sec: number | null
+          error: string | null
+          final_url: string | null
+          id: string
+          is_public: boolean
+          poster_url: string | null
+          price_iqd: number
+          product_id: string
+          rejection_reason: string | null
+          segments: Json | null
+          share_token: string | null
+          status: string
+          story_order_id: string
+          storyboard: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          ai_cost_iqd?: number
+          ai_credits_used?: number
+          approved_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          duration_sec?: number | null
+          error?: string | null
+          final_url?: string | null
+          id?: string
+          is_public?: boolean
+          poster_url?: string | null
+          price_iqd?: number
+          product_id: string
+          rejection_reason?: string | null
+          segments?: Json | null
+          share_token?: string | null
+          status?: string
+          story_order_id: string
+          storyboard?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          ai_cost_iqd?: number
+          ai_credits_used?: number
+          approved_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          duration_sec?: number | null
+          error?: string | null
+          final_url?: string | null
+          id?: string
+          is_public?: boolean
+          poster_url?: string | null
+          price_iqd?: number
+          product_id?: string
+          rejection_reason?: string | null
+          segments?: Json | null
+          share_token?: string | null
+          status?: string
+          story_order_id?: string
+          storyboard?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "video_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_orders_story_order_id_fkey"
+            columns: ["story_order_id"]
+            isOneToOne: false
+            referencedRelation: "order_costs_v"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "video_orders_story_order_id_fkey"
+            columns: ["story_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_products: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          daily_cap: number
+          description_ar: string | null
+          display_order: number
+          duration_sec: number
+          enabled: boolean
+          id: string
+          name_ar: string
+          name_en: string | null
+          price_iqd: number
+          sample_video_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          daily_cap?: number
+          description_ar?: string | null
+          display_order?: number
+          duration_sec?: number
+          enabled?: boolean
+          id: string
+          name_ar: string
+          name_en?: string | null
+          price_iqd?: number
+          sample_video_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          daily_cap?: number
+          description_ar?: string | null
+          display_order?: number
+          duration_sec?: number
+          enabled?: boolean
+          id?: string
+          name_ar?: string
+          name_en?: string | null
+          price_iqd?: number
+          sample_video_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       visit_events: {
         Row: {
           created_at: string
