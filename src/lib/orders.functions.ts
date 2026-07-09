@@ -295,45 +295,52 @@ async function generateOneImage(args: {
   storagePath: string;
   pricing: PricingRow;
   model?: string;
+  models?: string[]; // fallback chain — tried in order, first success wins
   referenceImages?: string[];
 }): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { callImage, estimateImageCostUsd } = await import("./ai-gateway.server");
-  const imgModel = args.model ?? "google/gemini-3.1-flash-image";
-  try {
-    const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
-    const buf = Buffer.from(img.b64, "base64");
-    const up = await supabaseAdmin.storage
-      .from("story-covers")
-      .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
-    if (up.error) throw new Error(up.error.message);
-    await logEvent(
-      args.orderId,
-      args.step,
-      imgModel,
-      "image",
-      img.meta,
-      estimateImageCostUsd(imgModel, 1),
-      1,
-      args.pricing,
-    );
-    return args.storagePath;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    await logEvent(
-      args.orderId,
-      args.step,
-      imgModel,
-      "image",
-      { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
-      0,
-      0,
-      args.pricing,
-      "error",
-      msg,
-    );
-    return null;
+  const chain: string[] = args.models && args.models.length
+    ? args.models
+    : [args.model ?? "google/gemini-3.1-flash-image"];
+  let lastErr: string | null = null;
+  for (const imgModel of chain) {
+    try {
+      const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
+      const buf = Buffer.from(img.b64, "base64");
+      const up = await supabaseAdmin.storage
+        .from("story-covers")
+        .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
+      if (up.error) throw new Error(up.error.message);
+      await logEvent(
+        args.orderId,
+        args.step,
+        imgModel,
+        "image",
+        img.meta,
+        estimateImageCostUsd(imgModel, 1),
+        1,
+        args.pricing,
+      );
+      return args.storagePath;
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      await logEvent(
+        args.orderId,
+        args.step,
+        imgModel,
+        "image",
+        { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
+        0,
+        0,
+        args.pricing,
+        "error",
+        lastErr.slice(0, 400),
+      );
+      // Try next model in chain
+    }
   }
+  return null;
 }
 
 /** Download a stored character photo and return a base64 data URL. Caps at ~1MB. */
