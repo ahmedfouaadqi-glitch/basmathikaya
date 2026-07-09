@@ -26,6 +26,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as VTokenRouteImport } from './routes/v.$token'
 import { Route as STokenRouteImport } from './routes/s.$token'
 import { Route as PreviewOrderIdRouteImport } from './routes/preview.$orderId'
 import { Route as AdminVideosRouteImport } from './routes/admin.videos'
@@ -142,6 +143,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const VTokenRoute = VTokenRouteImport.update({
+  id: '/v/$token',
+  path: '/v/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const STokenRoute = STokenRouteImport.update({
   id: '/s/$token',
@@ -347,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/s/$token': typeof STokenRoute
+  '/v/$token': typeof VTokenRoute
   '/admin/': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -396,6 +403,7 @@ export interface FileRoutesByTo {
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/s/$token': typeof STokenRoute
+  '/v/$token': typeof VTokenRoute
   '/admin': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -447,6 +455,7 @@ export interface FileRoutesById {
   '/admin/videos': typeof AdminVideosRoute
   '/preview/$orderId': typeof PreviewOrderIdRoute
   '/s/$token': typeof STokenRoute
+  '/v/$token': typeof VTokenRoute
   '/admin/': typeof AdminIndexRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
@@ -499,6 +508,7 @@ export interface FileRouteTypes {
     | '/admin/videos'
     | '/preview/$orderId'
     | '/s/$token'
+    | '/v/$token'
     | '/admin/'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -548,6 +558,7 @@ export interface FileRouteTypes {
     | '/admin/videos'
     | '/preview/$orderId'
     | '/s/$token'
+    | '/v/$token'
     | '/admin'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -598,6 +609,7 @@ export interface FileRouteTypes {
     | '/admin/videos'
     | '/preview/$orderId'
     | '/s/$token'
+    | '/v/$token'
     | '/admin/'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
@@ -626,6 +638,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
   STokenRoute: typeof STokenRoute
+  VTokenRoute: typeof VTokenRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksJobsTickRoute: typeof ApiPublicHooksJobsTickRoute
   ApiPublicShareCardsTokenRoute: typeof ApiPublicShareCardsTokenRoute
@@ -751,6 +764,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/v/$token': {
+      id: '/v/$token'
+      path: '/v/$token'
+      fullPath: '/v/$token'
+      preLoaderRoute: typeof VTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/s/$token': {
       id: '/s/$token'
@@ -1052,6 +1072,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   PreviewOrderIdRoute: PreviewOrderIdRoute,
   STokenRoute: STokenRoute,
+  VTokenRoute: VTokenRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksJobsTickRoute: ApiPublicHooksJobsTickRoute,
   ApiPublicShareCardsTokenRoute: ApiPublicShareCardsTokenRoute,
