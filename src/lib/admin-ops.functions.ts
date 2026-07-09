@@ -496,3 +496,89 @@ export const deleteTestimonial = createServerFn({ method: "POST" })
     await audit("testimonial_delete", "testimonial", data.id, null, null);
     return { ok: true as const };
   });
+
+/* ============= Story Page Editing (Admin manual override) ============= */
+
+export const adminUpdatePageText = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    orderId: z.string().uuid(),
+    pageNumber: z.coerce.number().int().min(1),
+    text: z.string().max(5000),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const s = await db();
+    const { error } = await s.from("story_pages")
+      .update({ text: data.text })
+      .eq("order_id", data.orderId)
+      .eq("page_number", data.pageNumber);
+    if (error) throw new Error(error.message);
+    // Invalidate cached PDF so next download rebuilds with new text.
+    const { data: ord } = await s.from("orders").select("pdf_path").eq("id", data.orderId).maybeSingle();
+    if (ord?.pdf_path) {
+      await s.storage.from("story-pdfs").remove([ord.pdf_path]);
+      await s.from("orders").update({ pdf_path: null }).eq("id", data.orderId);
+    }
+    await audit("page.text_update", "story_page", `${data.orderId}#${data.pageNumber}`, null, { len: data.text.length });
+    return { ok: true as const };
+  });
+
+export const adminUploadPageImage = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    orderId: z.string().uuid(),
+    pageNumber: z.coerce.number().int().min(0), // 0 = cover
+    dataUrl: z.string().min(20),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const s = await db();
+    const m = data.dataUrl.match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/);
+    if (!m) throw new Error("Invalid data URL");
+    const mime = m[1];
+    const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+    const bytes = Buffer.from(m[2], "base64");
+    const isCover = data.pageNumber === 0;
+    const bucket = isCover ? "story-covers" : "story-uploads";
+    const path = isCover
+      ? `covers/${data.orderId}.${ext}`
+      : `pages/${data.orderId}/${data.pageNumber}.${ext}`;
+    const { error: upErr } = await s.storage.from(bucket).upload(path, bytes, {
+      contentType: mime,
+      upsert: true,
+    });
+    if (upErr) throw new Error(upErr.message);
+    if (isCover) {
+      await s.from("orders").update({ cover_path: path }).eq("id", data.orderId);
+    } else {
+      await s.from("story_pages")
+        .update({ image_path: path })
+        .eq("order_id", data.orderId)
+        .eq("page_number", data.pageNumber);
+    }
+    // Invalidate cached PDF.
+    const { data: ord } = await s.from("orders").select("pdf_path").eq("id", data.orderId).maybeSingle();
+    if (ord?.pdf_path) {
+      await s.storage.from("story-pdfs").remove([ord.pdf_path]);
+      await s.from("orders").update({ pdf_path: null }).eq("id", data.orderId);
+    }
+    await audit("page.image_upload", "story_page", `${data.orderId}#${data.pageNumber}`, null, { bytes: bytes.length });
+    return { ok: true as const };
+  });
+
+export const adminUpdatePagePrompt = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    orderId: z.string().uuid(),
+    pageNumber: z.coerce.number().int().min(1),
+    imagePrompt: z.string().max(4000),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    await requireAdminSession();
+    const s = await db();
+    const { error } = await s.from("story_pages")
+      .update({ image_prompt: data.imagePrompt })
+      .eq("order_id", data.orderId)
+      .eq("page_number", data.pageNumber);
+    if (error) throw new Error(error.message);
+    await audit("page.prompt_update", "story_page", `${data.orderId}#${data.pageNumber}`, null, { len: data.imagePrompt.length });
+    return { ok: true as const };
+  });
