@@ -156,8 +156,6 @@ export const adminApproveOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { requireAdmin } = await import("./admin-session.server");
-    const admin = await requireAdmin();
     await supabaseAdmin
       .from("orders")
       .update({
@@ -165,15 +163,15 @@ export const adminApproveOrder = createServerFn({ method: "POST" })
         status: "pending",
         admin_review_note: data.note ?? "approved",
         admin_reviewed_at: new Date().toISOString(),
-        admin_reviewed_by: admin.userId ?? null,
       })
       .eq("id", data.orderId);
     await supabaseAdmin.from("audit_log").insert({
-      actor_id: admin.userId ?? null,
+      actor_type: "admin",
+      actor_id: "admin",
       action: "review_approve",
-      entity: "orders",
-      entity_id: data.orderId,
-      meta: { note: data.note ?? null },
+      target_type: "orders",
+      target_id: data.orderId,
+      after: { note: data.note ?? null } as never,
     });
     return { ok: true };
   });
@@ -183,8 +181,6 @@ export const adminRejectOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { requireAdmin } = await import("./admin-session.server");
-    const admin = await requireAdmin();
     await supabaseAdmin
       .from("orders")
       .update({
@@ -192,15 +188,15 @@ export const adminRejectOrder = createServerFn({ method: "POST" })
         requires_admin_review: false,
         admin_review_note: data.reason,
         admin_reviewed_at: new Date().toISOString(),
-        admin_reviewed_by: admin.userId ?? null,
       })
       .eq("id", data.orderId);
     await supabaseAdmin.from("audit_log").insert({
-      actor_id: admin.userId ?? null,
+      actor_type: "admin",
+      actor_id: "admin",
       action: "review_reject",
-      entity: "orders",
-      entity_id: data.orderId,
-      meta: { reason: data.reason },
+      target_type: "orders",
+      target_id: data.orderId,
+      after: { reason: data.reason } as never,
     });
     return { ok: true };
   });
@@ -210,8 +206,6 @@ export const adminRequestIdentity = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { requireAdmin } = await import("./admin-session.server");
-    const admin = await requireAdmin();
     await supabaseAdmin
       .from("orders")
       .update({
@@ -220,14 +214,16 @@ export const adminRequestIdentity = createServerFn({ method: "POST" })
       })
       .eq("id", data.orderId);
     await supabaseAdmin.from("audit_log").insert({
-      actor_id: admin.userId ?? null,
+      actor_type: "admin",
+      actor_id: "admin",
       action: "identity_request",
-      entity: "orders",
-      entity_id: data.orderId,
-      meta: {},
+      target_type: "orders",
+      target_id: data.orderId,
+      after: {} as never,
     });
     return { ok: true };
   });
+
 
 // ============ USER: submit identity document ============
 
