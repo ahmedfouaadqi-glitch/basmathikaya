@@ -2494,7 +2494,13 @@ export type Database = {
     }
     Enums: {
       event_status: "success" | "error"
-      order_status: "pending" | "paid" | "delivered" | "cancelled"
+      order_status:
+        | "pending"
+        | "paid"
+        | "delivered"
+        | "cancelled"
+        | "pending_review"
+        | "rejected"
       order_tier: "pdf" | "printed" | "video"
     }
     CompositeTypes: {
@@ -2624,7 +2630,14 @@ export const Constants = {
   public: {
     Enums: {
       event_status: ["success", "error"],
-      order_status: ["pending", "paid", "delivered", "cancelled"],
+      order_status: [
+        "pending",
+        "paid",
+        "delivered",
+        "cancelled",
+        "pending_review",
+        "rejected",
+      ],
       order_tier: ["pdf", "printed", "video"],
     },
   },
