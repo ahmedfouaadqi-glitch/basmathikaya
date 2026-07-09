@@ -28,12 +28,46 @@ async function runScreening(payload: {
   heroAge: number | null;
 }): Promise<ScreeningResult> {
   const { callChat } = await import("./ai-gateway.server");
-  const sys = `أنت مصفّي محتوى لمنصة قصص لجميع الأعمار.
-صنّف الطلب إلى:
-- "A": محتوى ممنوع تلقائياً (عنف صريح ضد الأطفال، تحريض على القتل/الإرهاب، إساءة دينية مباشرة، محتوى جنسي يشمل قاصرين).
-- "B": محتوى شخصي حساس يحتاج مراجعة إدارية (رومانسي/جنسي بين بالغين، محتوى صادم، تعامل مع صدمات، أسماء شخصيات حقيقية).
-- "OK": آمن للجميع.
-أعِد JSON فقط: {"category":"A|B|OK","flags":["..."],"reason":"سطر عربي واحد يوضح السبب"}`;
+  const model = "google/gemini-3.1-flash-lite";
+  const sys = `أنت مصفّي محتوى لمنصة "بصمة حكاية" — منصة تحترم الحرية الشخصية الكاملة للبالغين.
+
+قواعد التصنيف الصارمة:
+
+فئة "A" — رفض تلقائي فوري (خط أحمر مطلق، لا استثناء أبداً):
+1. أي محتوى جنسي أو عنيف أو مثير يشمل قاصرين (تحت 18) — رفض دائم بلا نقاش.
+2. عنف صريح مصوَّر بالتفصيل، تعذيب، إيذاء ذاتي بتعليمات، دم مصوَّر (gore).
+3. محتوى سياسي حزبي، تحريض، دعاية إرهاب أو جماعات مسلحة، تمجيد قتل.
+4. جرائم كراهية، تحريض عنصري/طائفي/ديني مباشر، تعليمات أسلحة/متفجرات/سموم.
+
+فئة "B" — يمر لمراجعة إدارية بشرية (المستخدم البالغ حرّ، الإدارة تقرر):
+- **كل محتوى جنسي / إباحي / تحرري / تعددي / حسّي / شبقي / غرامي بين بالغين** — بأي أسلوب (فصحى راقية، إيحاء أدبي، أو صراحة كاملة، أو لهجة عامية جريئة أو مفردات شعبية صريحة).
+- كل محتوى رومانسي، عشق، حبّ عاطفي بين بالغين.
+- تأمل، شفاء داخلي، مواجهة صدمات، محتوى نفسي عميق.
+- محتوى ديني/ثقافي حساس غير مسيء، أسماء شخصيات حقيقية بلا قصد تشهير.
+
+فئة "OK" — نشر تلقائي: كل ما هو آمن للجميع (أطفال، عائلي، تعليمي، مغامرات، خيال، إلخ).
+
+**قاعدة ذهبية**: لا ترفض تلقائياً محتوى البالغين مهما كان جريئاً أو صريحاً أو باللهجة العامية — مرّره للفئة B. الرفض التلقائي مقتصر حصراً على الخطوط الحمراء في الفئة A.
+
+flags المقترحة (اختر ما ينطبق):
+"sexual_explicit" — محتوى جنسي صريح.
+"erotic" — إباحي/شبقي.
+"libertine" — تحرري.
+"polyamory" — تعددي.
+"romance" — رومانسي.
+"meditation" — تأمل/شفاء.
+"trauma" — يعالج صدمة.
+"colloquial_explicit" — عامية جريئة.
+"real_person" — يذكر شخصية حقيقية.
+"minors_involved" — يشمل قاصرين (يُصنَّف A تلقائياً).
+"gore" — عنف/دم صريح (A).
+"political" — سياسي (A).
+"hate_speech" — تحريض كراهية (A).
+"weapons_instructions" — تعليمات أسلحة (A).
+
+أعِد JSON فقط:
+{"category":"A|B|OK","flags":["..."],"reason":"سطر عربي واحد يوضح السبب باختصار"}`;
+
   const user = `العمر المُعلَن: ${payload.heroAge ?? "غير محدد"}
 الأمزجة: ${payload.moods.join("، ")}
 تعليمات المستخدم: ${payload.instructions || "(لا يوجد)"}
@@ -41,7 +75,7 @@ async function runScreening(payload: {
 
   try {
     const { content } = await callChat({
-      model: "google/gemini-2.5-flash-lite",
+      model,
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user },
@@ -50,15 +84,26 @@ async function runScreening(payload: {
     });
     const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
     const parsed = JSON.parse(cleaned) as { category?: string; flags?: string[]; reason?: string };
-    const category = (parsed.category === "A" || parsed.category === "B" ? parsed.category : "OK") as ScreeningResult["category"];
+    let category = (parsed.category === "A" || parsed.category === "B" ? parsed.category : "OK") as ScreeningResult["category"];
     const flags = Array.isArray(parsed.flags) ? parsed.flags.slice(0, 20).map(String) : [];
     const reason = String(parsed.reason ?? "").slice(0, 500);
-    const isIntimate = flags.some((f) => /intim|sexual|جنسي|حميم/i.test(f));
+
+    // Hard override: minors + sexual/erotic → always A regardless of AI decision.
+    const hasMinors = flags.some((f) => /minor|قاصر|طفل/i.test(f));
+    const hasSexual = flags.some((f) => /sexual|erotic|libertine|polyam|جنسي|إباحي|تحرري/i.test(f));
+    const hasRedLine = flags.some((f) => /gore|political|hate|weapon|terror|عنف|سياسي|كراهية|إرهاب/i.test(f));
+    if (hasMinors && hasSexual) category = "A";
+    if (hasRedLine) category = "A";
+
+    // Adult content requires 18+ verified age. Under-18 with sexual flags → A.
+    if (hasSexual && payload.heroAge !== null && payload.heroAge < 18) category = "A";
+
+    const isIntimate = flags.some((f) => /sexual|erotic|libertine|polyam|جنسي|إباحي|تحرري|شبق/i.test(f));
     return {
       category,
       flags,
       reason,
-      requires_admin_review: category !== "OK",
+      requires_admin_review: category === "B",
       requires_identity: category === "B" && isIntimate,
     };
   } catch (e) {
@@ -72,6 +117,7 @@ async function runScreening(payload: {
     };
   }
 }
+
 
 // Runs screening for an existing order and updates its review fields.
 export const screenOrder = createServerFn({ method: "POST" })
