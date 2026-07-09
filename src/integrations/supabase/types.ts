@@ -1121,6 +1121,7 @@ export type Database = {
           character_dna: Json | null
           character_id: string | null
           content_flags: Json | null
+          content_intent: string | null
           coupon_code: string | null
           coupon_discount_iqd: number
           created_at: string
@@ -1186,6 +1187,7 @@ export type Database = {
           character_dna?: Json | null
           character_id?: string | null
           content_flags?: Json | null
+          content_intent?: string | null
           coupon_code?: string | null
           coupon_discount_iqd?: number
           created_at?: string
@@ -1251,6 +1253,7 @@ export type Database = {
           character_dna?: Json | null
           character_id?: string | null
           content_flags?: Json | null
+          content_intent?: string | null
           coupon_code?: string | null
           coupon_discount_iqd?: number
           created_at?: string
