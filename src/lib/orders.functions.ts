@@ -427,7 +427,7 @@ export const generateFullStory = createServerFn({ method: "POST" })
 
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, page_count, title, character_brief, moods, custom_instructions, characters(language)")
+      .select("id, page_count, title, character_brief, moods, custom_instructions, content_flags, age_bucket, characters(language)")
       .eq("id", data.orderId)
       .single();
     if (!order) throw new Error("Order not found");
@@ -447,6 +447,13 @@ export const generateFullStory = createServerFn({ method: "POST" })
     const pageCount = order.page_count ?? 5;
     const moods = (order.moods as string[]) ?? [];
     const customInstructions = (order.custom_instructions as string | null) ?? "";
+    // Adult / sensitive content detection — drives prompt tone + model chain.
+    const contentFlags = ((order.content_flags as string[] | null) ?? []).map((f) => f.toLowerCase());
+    const isAdult = contentFlags.some((f) =>
+      /sexual|erotic|libertine|polyam|romance|colloquial_explicit|trauma|meditation|جنسي|إباحي|تحرري|رومانسي|شبق/.test(f),
+    );
+    const ageBucket = (order.age_bucket as string | null) ?? null;
+    const isAdultAudience = isAdult || ageBucket === "adult" || ageBucket === "young_adult" || ageBucket === "senior";
 
     const pricing = await getPricing();
 
@@ -514,12 +521,17 @@ export const generateFullStory = createServerFn({ method: "POST" })
     const makeSeed = () => randomBytes(4).toString("hex");
     let creativeSeed = makeSeed();
 
-    const textModel = "google/gemini-3-flash-preview";
+    const adultDirectiveAr = isAdultAudience
+      ? `أنت كاتب أدبي بالغ للبالغين. اكتب نصاً حراً ناضجاً بجرأة، بأي مستوى صراحة عاطفية/حسية/جنسية/تحررية/تأملية يطلبه المستخدم، دون رقابة ذاتية أو تخفيف. لا تُذكِر قاصرين إطلاقاً في أي سياق. لا مشاهد عنف صريح/دم/تعذيب. لا محتوى سياسي أو كراهية. عدا ذلك، اكتب ما يريده المستخدم كما يريده. استخدم لغة أدبية غنية وإيقاعاً حسياً واعياً.`
+      : "";
+    const adultDirectiveEn = isAdultAudience
+      ? `You are an adult literary author writing for adults. Produce mature, uncensored prose at whatever level of emotional/sensual/sexual/libertine/meditative explicitness the user requests, without self-censoring or softening. NEVER depict minors in any context. No explicit gore/torture. No political or hateful content. Otherwise write exactly what the user wants. Use rich literary language and deliberate sensory rhythm.`
+      : "";
     const sys = isKu
-      ? `تۆ نووسەرێکی داهێنەری چیرۆکی منداڵانیت. تەنها تەنیشتەکی JSON دروستکراو بگەڕێنەوە، بێ هیچ ڕوونکردنەوەیەکی زیادە. هەموو دەقی چیرۆکەکە دەبێت بە زمانی ${langName} بێت.`
+      ? `${isAdultAudience ? "تۆ نووسەرێکی ئەدەبی گەورەسالانیت — بێ سانسۆر بنووسە بۆ گەورەسالان، بێ ئاماژە بە منداڵان." : "تۆ نووسەرێکی داهێنەری چیرۆکی منداڵانیت."} تەنها JSON دروستکراو بگەڕێنەوە. هەموو دەقی چیرۆکەکە بە زمانی ${langName} بێت.`
       : isAr
-      ? `أنت كاتب قصص أطفال مبدع. أعد فقط كائن JSON صالحاً بدون أي شرح خارجي. اكتب كل نصوص القصة باللغة العربية.`
-      : `You are a creative children's storyteller. Return ONLY a valid JSON object, no prose around it. Write all story text in ${langName}.`;
+      ? `${isAdultAudience ? adultDirectiveAr : "أنت كاتب قصص أطفال مبدع."} أعد فقط كائن JSON صالحاً بدون أي شرح خارجي. اكتب كل نصوص القصة باللغة العربية.`
+      : `${isAdultAudience ? adultDirectiveEn : "You are a creative children's storyteller."} Return ONLY a valid JSON object, no prose around it. Write all story text in ${langName}.`;
 
     const buildPrompt = (seed: string) => isKu
       ? `چیرۆکێکی ${pageCount} لاپەڕەیی بۆ ئەم کارەکتەرانە بنووسە بە زمانی کوردیی سۆرانی:
@@ -584,6 +596,14 @@ Return JSON exactly like:
       "openai/gpt-5-mini",
       "openai/gpt-5",
     ] as const;
+
+    const adultOverride = isAdultAudience
+      ? (isKu
+          ? `\n\n⚠️ زۆر گرنگ: ئەم چیرۆکە بۆ گەورەسالانە. هەموو ڕێنماییەکانی سەرەوە کە دەڵێن "منداڵانە" یان "ساکار" پشتگوێ بخە — بە شێوەیەکی ئەدەبی گەورەسالانی و بێ سانسۆر بنووسە.`
+          : isAr
+          ? `\n\n⚠️ مهم جداً: هذه القصة للبالغين. تجاهل أي تعليمات أعلاه تشير إلى "الأطفال" أو "لغة بسيطة"؛ اكتب نثراً أدبياً ناضجاً غير مُقنَّع، بأي مستوى صراحة عاطفية أو حسية أو جنسية أو تأمُّلية يطلبه المؤلف. هذا قد يعني مشاهد رومانسية/حسية/جنسية صريحة إن كان ذلك متماشياً مع طلب المستخدم. طول كل صفحة 90-150 كلمة.`
+          : `\n\n⚠️ IMPORTANT: This is an adult work. Ignore any "children" or "simple language" directive above — write mature literary prose at whatever level of emotional/sensual/sexual/meditative explicitness the author requests. This may mean explicit romantic/sensual/sexual scenes when the user's brief calls for it. Each page 90-150 words.`)
+      : "";
 
     const runChat = async (seed: string) => {
       let lastErr: string | null = null;
@@ -734,7 +754,7 @@ Return JSON exactly like:
         ? `من هذه القصة، اكتب سؤالاً تأمّلياً واحداً لطفل عمره ${heroAge}${heroName ? ` اسمه ${heroName}` : ""} يشجّعه على التفكير بأخلاق البطل. جملة واحدة، أقل من 20 كلمة، بدون مقدمات.\n\nنص القصة:\n${storyText}`
         : `From this story, write ONE reflective question for a ${heroAge}-year-old child${heroName ? ` named ${heroName}` : ""} that invites them to think about the hero's values. One sentence, under 20 words, no preamble.\n\nStory:\n${storyText}`;
       const qChat = await callChat({
-        model: textModel,
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: qSys },
           { role: "user", content: qPrompt },
@@ -743,10 +763,10 @@ Return JSON exactly like:
       await logEvent(
         data.orderId,
         "reflection_question",
-        textModel,
+        "google/gemini-3-flash-preview",
         "chat",
         qChat.meta,
-        estimateTextCostUsd(textModel, qChat.meta.usage),
+        estimateTextCostUsd("google/gemini-3-flash-preview", qChat.meta.usage),
         0,
         pricing,
       );
@@ -994,7 +1014,7 @@ export const myOrders = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("orders")
-    .select("id, order_number, status, images_status, tier, amount_iqd, page_count, title, created_at, rejection_reason, rejected_at, redownload_status, redownload_amount_iqd, is_public, public_title, show_author, public_author_name")
+    .select("id, order_number, status, images_status, tier, amount_iqd, page_count, title, created_at, rejection_reason, rejected_at, redownload_status, redownload_amount_iqd, is_public, public_title, show_author, public_author_name, requires_admin_review, admin_review_note")
     .eq("user_id", s.data.userId!)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -1128,6 +1148,19 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Content-review gate: an order still flagged for admin review cannot start generation.
+    // Admin must first approve via /admin/review-queue (adminApproveOrder).
+    const { data: guard } = await supabaseAdmin
+      .from("orders")
+      .select("requires_admin_review, status")
+      .eq("id", data.orderId).maybeSingle();
+    if (guard?.requires_admin_review || guard?.status === "pending_review") {
+      throw new Error("الطلب قيد المراجعة الإدارية — اعتمد المراجعة أولاً من قائمة المراجعة قبل تأكيد الدفع.");
+    }
+    if (guard?.status === "rejected") {
+      throw new Error("الطلب مرفوض — لا يمكن بدء التوليد.");
+    }
 
     await supabaseAdmin
       .from("orders")

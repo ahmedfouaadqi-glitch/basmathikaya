@@ -23,6 +23,7 @@ export const Route = createFileRoute("/my-orders")({
 
 const STATUS_TONE: Record<string, string> = {
   pending: "bg-accent/25 text-accent-foreground",
+  pending_review: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
   paid: "bg-primary/15 text-primary",
   delivered: "bg-primary/25 text-primary",
   cancelled: "bg-destructive/15 text-destructive",
@@ -38,6 +39,8 @@ type Row = {
   public_title?: string | null;
   show_author?: boolean | null;
   public_author_name?: string | null;
+  requires_admin_review?: boolean | null;
+  admin_review_note?: string | null;
 };
 
 function MyOrdersPage() {
@@ -224,6 +227,16 @@ function MyOrdersPage() {
                     <div>
                       <div className="font-semibold">{o.status === "rejected" ? t("order_rejected") : "الطلب ملغى"}</div>
                       <p>{o.rejection_reason}</p>
+                    </div>
+                  </div>
+                )}
+
+                {o.status === "pending_review" && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
+                    <Clock className="size-4 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold">{t("status_pending_review")}</div>
+                      <p>{t("pending_review_note")}</p>
                     </div>
                   </div>
                 )}

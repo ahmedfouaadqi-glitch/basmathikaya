@@ -145,30 +145,47 @@ export const screenOrder = createServerFn({ method: "POST" })
 
     const bucket = deriveAgeBucket(primary?.age ?? null);
 
-    // Content freedom policy: never auto-reject and never gate generation on
-    // review. We record flags/category for admin visibility, but the order
-    // proceeds through the normal flow. Admin retains full manual control.
-    await supabaseAdmin
-      .from("orders")
-      .update({
-        age_bucket: bucket,
-        content_flags: result.flags,
-        requires_admin_review: result.requires_admin_review,
-        admin_review_note: result.requires_admin_review ? `للاطلاع: ${result.reason}` : undefined,
-        identity_verification_status: "not_required",
-      })
-      .eq("id", data.orderId);
+    // Content policy:
+    //  - "A" (hard red lines: minors+sexual, gore, political/hate/weapons) → auto-reject.
+    //  - "B" (adult / erotic / libertine / sensitive) → hold for admin review;
+    //    generation MUST NOT start until adminApproveOrder runs.
+    //  - "OK" → passes through normally.
+    const patch: Record<string, unknown> = {
+      age_bucket: bucket,
+      content_flags: result.flags,
+      admin_review_note: result.reason ? `فحص تلقائي: ${result.reason}` : null,
+    };
+    if (result.category === "A") {
+      patch.status = "rejected";
+      patch.rejection_reason = result.reason || "المحتوى يخالف الخطوط الحمراء (قاصرون/عنف/سياسي/كراهية).";
+      patch.rejected_at = new Date().toISOString();
+      patch.requires_admin_review = false;
+      patch.identity_verification_status = "not_required";
+    } else if (result.category === "B") {
+      patch.status = "pending_review";
+      patch.requires_admin_review = true;
+      patch.identity_verification_status = result.requires_identity ? "requested" : "not_required";
+    } else {
+      patch.requires_admin_review = false;
+      patch.identity_verification_status = "not_required";
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await supabaseAdmin.from("orders").update(patch as any).eq("id", data.orderId);
 
     await supabaseAdmin.from("content_screening_log").insert({
       order_id: data.orderId,
       category: result.category,
       flags: result.flags,
-      decision: "auto_ok",
+      decision: result.category === "A" ? "auto_reject" : result.category === "B" ? "needs_review" : "auto_ok",
       reason: result.reason,
       model_used: "google/gemini-3.1-flash-lite",
     });
 
-    return { ...result, requires_admin_review: false, requires_identity: false };
+    return {
+      ...result,
+      requires_admin_review: result.category === "B",
+      requires_identity: result.category === "B" && result.requires_identity,
+    };
   });
 
 
@@ -207,6 +224,10 @@ export const adminApproveOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ord } = await supabaseAdmin
+      .from("orders")
+      .select("user_id, order_number")
+      .eq("id", data.orderId).maybeSingle();
     await supabaseAdmin
       .from("orders")
       .update({
@@ -216,6 +237,15 @@ export const adminApproveOrder = createServerFn({ method: "POST" })
         admin_reviewed_at: new Date().toISOString(),
       })
       .eq("id", data.orderId);
+    if (ord?.user_id) {
+      await supabaseAdmin.from("notifications").insert({
+        user_id: ord.user_id,
+        order_id: data.orderId,
+        title: "تمت الموافقة على طلبك",
+        body: `طلبك #${ord.order_number} اعتُمد من الإدارة. يمكنك الآن إكمال الدفع لتبدأ عملية التوليد.`,
+        kind: "review_approved",
+      });
+    }
     await supabaseAdmin.from("audit_log").insert({
       actor_type: "admin",
       actor_id: "admin",
@@ -232,15 +262,30 @@ export const adminRejectOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await gate();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ord } = await supabaseAdmin
+      .from("orders")
+      .select("user_id, order_number")
+      .eq("id", data.orderId).maybeSingle();
     await supabaseAdmin
       .from("orders")
       .update({
         status: "rejected",
         requires_admin_review: false,
+        rejection_reason: data.reason,
+        rejected_at: new Date().toISOString(),
         admin_review_note: data.reason,
         admin_reviewed_at: new Date().toISOString(),
       })
       .eq("id", data.orderId);
+    if (ord?.user_id) {
+      await supabaseAdmin.from("notifications").insert({
+        user_id: ord.user_id,
+        order_id: data.orderId,
+        title: "تم رفض الطلب",
+        body: `طلبك #${ord.order_number} رُفض. السبب: ${data.reason}`,
+        kind: "review_rejected",
+      });
+    }
     await supabaseAdmin.from("audit_log").insert({
       actor_type: "admin",
       actor_id: "admin",

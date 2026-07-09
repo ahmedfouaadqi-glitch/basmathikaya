@@ -166,6 +166,11 @@ const D: Dict = {
   status_paid: { ar: "مدفوع", en: "Paid" },
   status_delivered: { ar: "مُسلَّم", en: "Delivered" },
   status_cancelled: { ar: "ملغى", en: "Cancelled" },
+  status_pending_review: { ar: "قيد المراجعة الإدارية", en: "Awaiting admin review" },
+  pending_review_note: {
+    ar: "طلبك مُستلم ويحتوي محتوى يتطلب مراجعة إدارية سريعة قبل بدء التوليد. ستصلك رسالة عند الموافقة.",
+    en: "Your request is received and awaits a quick admin review before generation starts.",
+  },
   col_order: { ar: "الطلب", en: "Order" },
   col_customer: { ar: "العميل", en: "Customer" },
   col_tier: { ar: "الباقة", en: "Tier" },
