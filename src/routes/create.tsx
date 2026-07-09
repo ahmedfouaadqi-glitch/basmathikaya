@@ -270,7 +270,7 @@ function CreatePage() {
           })),
           moods,
           custom_instructions: instructions.trim(),
-          language: lang,
+          language: "ar",
           page_count: pages,
           image_quality_tier: qualityTier,
           tier,
