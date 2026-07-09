@@ -185,13 +185,12 @@ function CreatePage() {
         setQualityTier(p.image_quality_tier);
         setTier(p.tier);
         setPdfOrientation(p.pdf_orientation);
-        setLang(p.language);
         toast.success("تم تعبئة النموذج من قصتك السابقة — عدّل ما تشاء ثم أرسل الطلب");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "تعذّرت التعبئة");
       }
     })();
-  }, [fromOrderId, prefillFn, setLang]);
+  }, [fromOrderId, prefillFn]);
 
 
 
