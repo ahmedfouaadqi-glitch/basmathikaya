@@ -271,10 +271,15 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
   `;
 
   // Landscape → side-by-side spread feel; Portrait → image top (large) + text card bottom.
+  // Use object-fit:contain so any aspect ratio (portrait/landscape/square) fits fully — no cropping.
   const body = isLandscape
     ? `
       <div style="flex:1;display:flex;flex-direction:row;gap:26px;min-height:0;">
-        <div style="width:58%;${imageCard}">${img}</div>
+        <div style="width:58%;${imageCard}display:flex;align-items:center;justify-content:center;">
+          ${opts.imgData
+            ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;" />`
+            : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`}
+        </div>
         <div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;">
           <div style="${textCard}">
             <div style="
@@ -287,7 +292,11 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
       </div>`
     : `
       <div style="flex:1;display:flex;flex-direction:column;gap:22px;min-height:0;">
-        <div style="width:100%;height:${Math.round(PAGE_H * 0.58)}px;${imageCard}">${img}</div>
+        <div style="width:100%;height:${Math.round(PAGE_H * 0.58)}px;${imageCard}display:flex;align-items:center;justify-content:center;">
+          ${opts.imgData
+            ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;" />`
+            : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`}
+        </div>
         <div style="${textCard}flex:1;display:flex;align-items:center;">
           <div style="
             font-size:21px;line-height:2.0;font-weight:500;
@@ -296,6 +305,7 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
           ">${text}</div>
         </div>
       </div>`;
+
 
   // Page number with a hairline separator + tiny brand mark — subtle, book-like.
   const brandMark = `<span style="color:${opts.accent};font-weight:800;letter-spacing:.5px;">${escapeHtml(s.brand)}</span>`;
