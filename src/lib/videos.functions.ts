@@ -65,11 +65,12 @@ export const createVideoOrder = createServerFn({ method: "POST" })
     if (error) throw error;
 
     await supabaseAdmin.from("audit_log").insert({
+      actor_type: "user",
+      actor_id: context.userId,
       action: "video_order_created",
       target_type: "video_order",
       target_id: created.id,
-      user_id: context.userId,
-      meta: { product_id: data.productId, story_order_id: data.storyOrderId },
+      after: { product_id: data.productId, story_order_id: data.storyOrderId } as never,
     });
 
     return { id: created.id };
