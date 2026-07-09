@@ -611,31 +611,6 @@ function CreatePage() {
           </div>
         </div>
 
-        {/* Story language — the whole story (title, pages, question) will be written in this language */}
-        <div>
-          <label className="block text-sm font-bold mb-2">لغة القصة</label>
-          <p className="mb-2 text-[11px] text-muted-foreground">
-            ستُكتب القصة كاملةً (العنوان، النصوص، السؤال الختامي) باللغة التي تختارها.
-          </p>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            {([
-              { v: "ar", label: "العربية" },
-              { v: "en", label: "English" },
-              { v: "ku", label: "کوردی" },
-            ] as const).map((o) => (
-              <button
-                type="button"
-                key={o.v}
-                onClick={() => setLang(o.v)}
-                aria-pressed={lang === o.v}
-                className={`rounded-xl border p-3 transition ${lang === o.v ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30"}`}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
 
         <div>
           <label className="mb-2 block text-sm font-bold">{t("coupon_field")}</label>
