@@ -1270,7 +1270,17 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         "no watermark, no logo, no text, no letters, no captions, no signatures. " +
         "Never render the original uploaded photo or any cropped part of it inside the scene. " +
         "Only the illustrated storybook scene fills the frame. " +
-        "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. ";
+        "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. " +
+        // Anatomy + quality guardrails (2026-07 quality lift)
+        "No deformed hands, no extra fingers, no missing fingers, no fused faces, no melting features, " +
+        "no plastic skin, no dead eyes, no low-resolution artifacts, no muddy shadows, no lazy or empty background. ";
+
+      // Quality master directive — always injected for a consistent, cinematic result.
+      const qualityMaster =
+        "QUALITY MASTER: cinematic lighting, balanced rule-of-thirds composition, coherent color palette across the book, " +
+        "sharp focal subject, expressive but anatomically correct hands and faces, painterly texture, " +
+        "rich depth of field, professional illustration finish, 8K detail, magazine-cover polish.";
+
 
       // Cover
       let coverPath = gen?.cover_image_path as string | null;
