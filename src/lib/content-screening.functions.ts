@@ -276,14 +276,10 @@ export const getMyReviewOrder = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, order_number, status, admin_review_note, identity_verification_status, requires_admin_review, content_flags")
+      .select("id, user_id, order_number, status, admin_review_note, identity_verification_status, requires_admin_review, content_flags")
       .eq("id", data.orderId)
       .maybeSingle();
-    if (!order || (order as { user_id?: string } | null))
-      // Verify ownership via separate call (user_id not selected above)
-      {
-      const { data: check } = await supabaseAdmin.from("orders").select("user_id").eq("id", data.orderId).maybeSingle();
-      if (!check || check.user_id !== userId) throw new Error("Order not found");
-    }
+    if (!order || order.user_id !== userId) throw new Error("Order not found");
     return order;
+
   });
