@@ -508,13 +508,10 @@ function CreatePage() {
             className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
           />
           <div className="mt-1 text-end text-xs text-muted-foreground">{instructions.length}/500</div>
-          {characters[0]?.age && Number(characters[0].age) >= 18 && (
+          {characters[0]?.age && Number(characters[0].age) >= 18 && adultNoticeQ.data?.body_md && (
             <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-900 dark:text-amber-200">
-              <strong>حرية إبداعية للبالغين:</strong> اكتب بأيّ أسلوب أو مستوى صراحة تريده (رومانسي، حسّي،
-              جنسي، تحرري، تأمل، شفاء…) بالفصحى أو باللهجة العامية. المحتوى للبالغين يمرّ بمراجعة إدارية
-              سريعة قبل التوليد. الخطوط الحمراء الوحيدة: لا عنف/تعذيب/دم صريح، لا محتوى سياسي، ولا محتوى
-              يشمل قاصرين تحت أيّ ظرف.{" "}
-              <a href="/content-policy" target="_blank" className="underline">اقرأ السياسة</a>
+              <SiteMarkdown source={adultNoticeQ.data.body_md} className="space-y-2" />
+              <a href="/content-policy" target="_blank" className="mt-1 inline-block underline">اقرأ السياسة</a>
             </div>
           )}
         </div>
