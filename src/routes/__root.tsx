@@ -18,6 +18,8 @@ import { Toaster } from "../components/ui/sonner";
 import { brandLogoUrl } from "../lib/brand";
 import { SiteFooter } from "../components/SiteFooter";
 import { InstallGate } from "../components/InstallGate";
+import { AudioProvider } from "../components/AudioProvider";
+import { MiniMusicPlayer } from "../components/MiniMusicPlayer";
 import { useServerFn } from "@tanstack/react-start";
 import { getCurrentUser } from "../lib/auth.functions";
 import { getActiveTheme } from "../lib/themes.functions";
