@@ -295,45 +295,52 @@ async function generateOneImage(args: {
   storagePath: string;
   pricing: PricingRow;
   model?: string;
+  models?: string[]; // fallback chain — tried in order, first success wins
   referenceImages?: string[];
 }): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { callImage, estimateImageCostUsd } = await import("./ai-gateway.server");
-  const imgModel = args.model ?? "google/gemini-3.1-flash-image";
-  try {
-    const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
-    const buf = Buffer.from(img.b64, "base64");
-    const up = await supabaseAdmin.storage
-      .from("story-covers")
-      .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
-    if (up.error) throw new Error(up.error.message);
-    await logEvent(
-      args.orderId,
-      args.step,
-      imgModel,
-      "image",
-      img.meta,
-      estimateImageCostUsd(imgModel, 1),
-      1,
-      args.pricing,
-    );
-    return args.storagePath;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    await logEvent(
-      args.orderId,
-      args.step,
-      imgModel,
-      "image",
-      { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
-      0,
-      0,
-      args.pricing,
-      "error",
-      msg,
-    );
-    return null;
+  const chain: string[] = args.models && args.models.length
+    ? args.models
+    : [args.model ?? "google/gemini-3.1-flash-image"];
+  let lastErr: string | null = null;
+  for (const imgModel of chain) {
+    try {
+      const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
+      const buf = Buffer.from(img.b64, "base64");
+      const up = await supabaseAdmin.storage
+        .from("story-covers")
+        .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
+      if (up.error) throw new Error(up.error.message);
+      await logEvent(
+        args.orderId,
+        args.step,
+        imgModel,
+        "image",
+        img.meta,
+        estimateImageCostUsd(imgModel, 1),
+        1,
+        args.pricing,
+      );
+      return args.storagePath;
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      await logEvent(
+        args.orderId,
+        args.step,
+        imgModel,
+        "image",
+        { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
+        0,
+        0,
+        args.pricing,
+        "error",
+        lastErr.slice(0, 400),
+      );
+      // Try next model in chain
+    }
   }
+  return null;
 }
 
 /** Download a stored character photo and return a base64 data URL. Caps at ~1MB. */
@@ -1209,7 +1216,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     try {
       const { data: order } = await supabaseAdmin
         .from("orders")
-        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, art_style_slug, art_style_category, pdf_orientation, characters(language)")
+        .select("id, title, character_brief, page_count, customer_phone, user_id, image_quality_tier, art_style_lock, art_style_slug, art_style_category, pdf_orientation, content_flags, content_intent, age_bucket, characters(language)")
         .eq("id", data.orderId)
         .single();
       if (!order) throw new Error("Order missing");
@@ -1232,14 +1239,29 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const pricing = await getPricing();
       const tier = (order.image_quality_tier as "fast" | "standard" | "premium" | null) ?? "standard";
       const effectiveTier: "standard" | "premium" = tier === "premium" ? "premium" : "standard";
+
+      // Adult / sensitive context — parallels the text-side detection so images
+      // match the story's actual tone instead of defaulting to children's storybook.
+      const imgContentFlags = (((order as { content_flags?: string[] | null }).content_flags) ?? []).map((f) => f.toLowerCase());
+      const imgIsAdult = imgContentFlags.some((f) =>
+        /sexual|erotic|libertine|polyam|romance|colloquial_explicit|جنسي|إباحي|تحرري|رومانسي|شبق/.test(f),
+      );
+      const imgAgeBucket = ((order as { age_bucket?: string | null }).age_bucket) ?? null;
+      const imgIsAdultAudience = imgIsAdult || imgAgeBucket === "adult" || imgAgeBucket === "young_adult" || imgAgeBucket === "senior";
+      const imgIntent = (((order as { content_intent?: string | null }).content_intent) ?? "neutral") as
+        "romantic" | "sensual" | "explicit" | "meditative" | "traumatic" | "neutral";
+
+      // Model fallback chains — try higher-freedom providers first, then fall back to the alternates.
       const coverModel = effectiveTier === "premium"
         ? "google/gemini-3-pro-image"
         : "google/gemini-3.1-flash-image";
-      // Cost/quality win: on premium, use pro-image ONLY for the cover
-      // (which becomes an additional reference for every page); pages use
-      // flash-image guided by that pro cover → ~30% savings, quality stays
-      // near-pro because the cover locks composition/style.
+      const coverChain: string[] = imgIsAdultAudience
+        ? [coverModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
+        : [coverModel];
       const pageModel = "google/gemini-3.1-flash-image";
+      const pageChain: string[] = imgIsAdultAudience
+        ? [pageModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
+        : [pageModel];
 
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
       const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
@@ -1278,7 +1300,20 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
         await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
       }
-      const style = artStyleLock;
+      // Adult mode: replace the "children's storybook" style anchor with an
+      // intent-appropriate one so images match the story's tone.
+      let style = artStyleLock;
+      if (imgIsAdultAudience) {
+        const intentStyle: Record<typeof imgIntent, string> = {
+          romantic: "cinematic romantic illustration for adults, soft warm lighting, painterly realism, elegant composition, tasteful sensuality, artistic nudity allowed when the scene calls for it",
+          sensual: "artistic sensual illustration for adults, painterly rendering, warm intimate lighting, tasteful nudity and skin rendering when the scene requires it, elegant boudoir composition",
+          explicit: "uncensored artistic illustration for adults, painterly realism, anatomically accurate figures including nudity and explicit intimacy when the story requires it, cinematic lighting, no safety blur, no censorship bars",
+          meditative: "contemplative fine-art illustration, muted painterly palette, quiet dignified composition",
+          traumatic: "somber cinematic illustration, restrained palette, emotionally weighted composition, no gratuitous gore",
+          neutral: artStyleLock,
+        };
+        style = intentStyle[imgIntent] ?? artStyleLock;
+      }
       // Prefer the locked JSON character_profile when present; fall back to the free-text visual_brief.
       const dnaLines = (chars ?? [])
         .map((c) => {
@@ -1320,18 +1355,21 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
 
       // Strong negative constraints — prevent Gemini from ever pasting the reference photo
       // (or any inset/frame/thumbnail of it) into the final illustration.
+      // In adult mode we drop the "no nudity implied" bias by NOT adding safety-blur language.
       const negatives =
-        "STRICT RULES: The output MUST be a single full-scene storybook illustration only. " +
+        "STRICT RULES: The output MUST be a single full-scene illustration only. " +
         "ABSOLUTELY NO photograph, no photo-of-a-photo, no photo-in-photo, no picture-in-picture, " +
         "no inset image, no side panel, no thumbnail, no polaroid, no framed reference on any wall or table, " +
         "no collage, no before/after comparison, no split screen, no reference sheet, no character turnaround, " +
         "no watermark, no logo, no text, no letters, no captions, no signatures. " +
         "Never render the original uploaded photo or any cropped part of it inside the scene. " +
-        "Only the illustrated storybook scene fills the frame. " +
+        "Only the illustrated scene fills the frame. " +
         "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. " +
-        // Anatomy + quality guardrails (2026-07 quality lift)
         "No deformed hands, no extra fingers, no missing fingers, no fused faces, no melting features, " +
-        "no plastic skin, no dead eyes, no low-resolution artifacts, no muddy shadows, no lazy or empty background. ";
+        "no plastic skin, no dead eyes, no low-resolution artifacts, no muddy shadows, no lazy or empty background. " +
+        (imgIsAdultAudience
+          ? "This is an ADULT illustration — do NOT add censorship bars, do NOT blur skin, do NOT force clothing that contradicts the scene. "
+          : "");
 
       // Quality master directive — always injected for a consistent, cinematic result.
       const qualityMaster =
@@ -1358,7 +1396,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           prompt: cp,
           storagePath: `covers/${data.orderId}.png`,
           pricing,
-          model: coverModel,
+          models: coverChain,
           referenceImages,
         });
         if (coverPath) {
@@ -1396,7 +1434,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           prompt: basePrompt,
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
-          model: pageModel,
+          models: pageChain,
           referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
         });
         if (path) {
@@ -1421,7 +1459,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
                 prompt: stronger,
                 storagePath: `pages/${data.orderId}/${p.page_number}.png`,
                 pricing,
-                model: pageModel,
+                models: pageChain,
                 referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
               });
               if (retryPath) {
