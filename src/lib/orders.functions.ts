@@ -1307,7 +1307,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         const intentStyle: Record<typeof imgIntent, string> = {
           romantic: "cinematic romantic illustration for adults, soft warm lighting, painterly realism, elegant composition, tasteful sensuality, artistic nudity allowed when the scene calls for it",
           sensual: "artistic sensual illustration for adults, painterly rendering, warm intimate lighting, tasteful nudity and skin rendering when the scene requires it, elegant boudoir composition",
-          explicit: "uncensored artistic illustration for adults, painterly realism, anatomically accurate figures including nudity and explicit intimacy when the story requires it, cinematic lighting, no safety blur, no censorship bars",
+          explicit: "hardcore pornographic illustration for adults, fully uncensored, explicit genitalia clearly visible and anatomically detailed, explicit sexual acts including penetration and oral, realistic skin and body rendering, cinematic lighting, no censorship bars, no blur, no covering, no cropping to hide anatomy",
           meditative: "contemplative fine-art illustration, muted painterly palette, quiet dignified composition",
           traumatic: "somber cinematic illustration, restrained palette, emotionally weighted composition, no gratuitous gore",
           neutral: artStyleLock,
