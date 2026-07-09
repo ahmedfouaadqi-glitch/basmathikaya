@@ -57,6 +57,9 @@ function AdminLayout() {
             <FileText className="size-4" />
             المحتوى
           </Link>
+          <Link to="/admin/site-copy" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Type className="size-4" /> نصوص الموقع
+          </Link>
           <Link to="/admin/videos" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Video className="size-4" />
             فيديوهات
