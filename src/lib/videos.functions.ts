@@ -37,7 +37,7 @@ export const createVideoOrder = createServerFn({ method: "POST" })
 
     // Verify user owns the story order
     const { data: story } = await supabaseAdmin
-      .from("orders").select("id, user_id, status, hero_name")
+      .from("orders").select("id, user_id, status")
       .eq("id", data.storyOrderId).maybeSingle();
     if (!story || story.user_id !== context.userId) throw new Error("القصة غير موجودة");
     if (story.status !== "delivered") throw new Error("لا يمكن طلب فيديو إلا لقصة مُسلَّمة");
