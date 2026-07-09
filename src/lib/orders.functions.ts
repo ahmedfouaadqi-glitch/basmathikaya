@@ -1047,7 +1047,7 @@ export const adminGetOrder = createServerFn({ method: "GET" })
       supabaseAdmin.from("generation_events").select("*").eq("order_id", data.orderId).order("created_at", { ascending: true }),
       supabaseAdmin.from("generations").select("*").eq("order_id", data.orderId).maybeSingle(),
       supabaseAdmin.from("order_costs_v").select("*").eq("order_id", data.orderId).maybeSingle(),
-      supabaseAdmin.from("story_pages").select("page_number, text, image_path").eq("order_id", data.orderId).order("page_number"),
+      supabaseAdmin.from("story_pages").select("page_number, text, image_path, image_prompt").eq("order_id", data.orderId).order("page_number"),
       supabaseAdmin.from("order_characters").select("name, age, role, description, is_primary, position, photo_path").eq("order_id", data.orderId).order("position"),
     ]);
     const { data: user } = order?.user_id
