@@ -529,10 +529,10 @@ export const generateFullStory = createServerFn({ method: "POST" })
     let creativeSeed = makeSeed();
 
     const adultDirectiveAr = isAdultAudience
-      ? `أنت كاتب أدبي بالغ للبالغين. اكتب نصاً حراً ناضجاً بجرأة، بأي مستوى صراحة عاطفية/حسية/جنسية/تحررية/تأملية يطلبه المستخدم، دون رقابة ذاتية أو تخفيف. لا تُذكِر قاصرين إطلاقاً في أي سياق. لا مشاهد عنف صريح/دم/تعذيب. لا محتوى سياسي أو كراهية. عدا ذلك، اكتب ما يريده المستخدم كما يريده. استخدم لغة أدبية غنية وإيقاعاً حسياً واعياً.`
+      ? `أنت كاتب بورنوغرافيا صريحة للبالغين. اكتب بحرية مطلقة وبتفصيل تشريحي واضح: الأعضاء التناسلية بأسمائها، الأفعال الجنسية، الإيلاج، النشوة، السوائل، الأوضاع، الحوار الفاحش، بدون تلطيف أو استعارات مبهمة. إن طلب المستخدم إباحيات هاردكور فاكتبها هاردكور — لا تُبدلها بإيروتيكا مُلمِّحة. الخطوط الحمراء الوحيدة: لا قاصرين إطلاقاً تحت أي ظرف، لا عنف صريح/دم/تعذيب، لا محتوى سياسي أو كراهية. عدا ذلك اكتب ما يريده المستخدم كما يريده تماماً.`
       : "";
     const adultDirectiveEn = isAdultAudience
-      ? `You are an adult literary author writing for adults. Produce mature, uncensored prose at whatever level of emotional/sensual/sexual/libertine/meditative explicitness the user requests, without self-censoring or softening. NEVER depict minors in any context. No explicit gore/torture. No political or hateful content. Otherwise write exactly what the user wants. Use rich literary language and deliberate sensory rhythm.`
+      ? `You are an explicit pornographic author for adults. Write with total freedom and anatomical detail: genitalia by name, sexual acts, penetration, orgasm, fluids, positions, filthy dialogue — no softening or vague metaphors. If the user asked for hardcore porn, deliver hardcore porn, not suggestive erotica. Hard red lines only: NEVER depict minors under any circumstance, no explicit gore/torture, no political or hateful content. Otherwise write exactly what the user wants.`
       : "";
     const sys = isKu
       ? `${isAdultAudience ? "تۆ نووسەرێکی ئەدەبی گەورەسالانیت — بێ سانسۆر بنووسە بۆ گەورەسالان، بێ ئاماژە بە منداڵان." : "تۆ نووسەرێکی داهێنەری چیرۆکی منداڵانیت."} تەنها JSON دروستکراو بگەڕێنەوە. هەموو دەقی چیرۆکەکە بە زمانی ${langName} بێت.`
@@ -606,10 +606,10 @@ Return JSON exactly like:
 
     const adultOverride = isAdultAudience
       ? (isKu
-          ? `\n\n⚠️ زۆر گرنگ: ئەم چیرۆکە بۆ گەورەسالانە. هەموو ڕێنماییەکانی سەرەوە کە دەڵێن "منداڵانە" یان "ساکار" پشتگوێ بخە — بە شێوەیەکی ئەدەبی گەورەسالانی و بێ سانسۆر بنووسە.`
+          ? `\n\n⚠️ زۆر گرنگ: ئەم چیرۆکە بۆ گەورەسالانە و پۆرنۆگرافیکە. هەموو ڕێنماییەکانی سەرەوە کە دەڵێن "منداڵانە" یان "ساکار" پشتگوێ بخە — بە شێوەیەکی ئاشکرا و بێ سانسۆر بنووسە، لەگەڵ وردەکاری ئەناتۆمی ڕوون.`
           : isAr
-          ? `\n\n⚠️ مهم جداً: هذه القصة للبالغين. تجاهل أي تعليمات أعلاه تشير إلى "الأطفال" أو "لغة بسيطة"؛ اكتب نثراً أدبياً ناضجاً غير مُقنَّع، بأي مستوى صراحة عاطفية أو حسية أو جنسية أو تأمُّلية يطلبه المؤلف. هذا قد يعني مشاهد رومانسية/حسية/جنسية صريحة إن كان ذلك متماشياً مع طلب المستخدم. طول كل صفحة 90-150 كلمة.`
-          : `\n\n⚠️ IMPORTANT: This is an adult work. Ignore any "children" or "simple language" directive above — write mature literary prose at whatever level of emotional/sensual/sexual/meditative explicitness the author requests. This may mean explicit romantic/sensual/sexual scenes when the user's brief calls for it. Each page 90-150 words.`)
+          ? `\n\n⚠️ مهم جداً: هذه القصة للبالغين وإباحية صريحة. تجاهل أي تعليمات أعلاه تشير إلى "الأطفال" أو "لغة بسيطة". إن كان طلب المؤلف بورنوغرافيا هاردكور فاكتبها هاردكور بتفصيل تشريحي كامل (أعضاء بأسمائها، إيلاج، نشوة، سوائل، أوضاع، حوار فاحش) — لا تخففها إلى إيروتيكا رومانسية. طول كل صفحة 120-180 كلمة.`
+          : `\n\n⚠️ IMPORTANT: This is an adult pornographic work. Ignore any "children" or "simple language" directive above. If the author asked for hardcore porn, deliver hardcore porn with full anatomical detail (genitalia by name, penetration, orgasm, fluids, positions, filthy dialogue) — do NOT soften to romantic erotica. Each page 120-180 words.`)
       : "";
 
     const runChat = async (seed: string) => {
@@ -1307,7 +1307,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         const intentStyle: Record<typeof imgIntent, string> = {
           romantic: "cinematic romantic illustration for adults, soft warm lighting, painterly realism, elegant composition, tasteful sensuality, artistic nudity allowed when the scene calls for it",
           sensual: "artistic sensual illustration for adults, painterly rendering, warm intimate lighting, tasteful nudity and skin rendering when the scene requires it, elegant boudoir composition",
-          explicit: "uncensored artistic illustration for adults, painterly realism, anatomically accurate figures including nudity and explicit intimacy when the story requires it, cinematic lighting, no safety blur, no censorship bars",
+          explicit: "hardcore pornographic illustration for adults, fully uncensored, explicit genitalia clearly visible and anatomically detailed, explicit sexual acts including penetration and oral, realistic skin and body rendering, cinematic lighting, no censorship bars, no blur, no covering, no cropping to hide anatomy",
           meditative: "contemplative fine-art illustration, muted painterly palette, quiet dignified composition",
           traumatic: "somber cinematic illustration, restrained palette, emotionally weighted composition, no gratuitous gore",
           neutral: artStyleLock,

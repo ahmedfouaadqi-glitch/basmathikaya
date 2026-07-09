@@ -185,13 +185,12 @@ function CreatePage() {
         setQualityTier(p.image_quality_tier);
         setTier(p.tier);
         setPdfOrientation(p.pdf_orientation);
-        setLang(p.language);
         toast.success("تم تعبئة النموذج من قصتك السابقة — عدّل ما تشاء ثم أرسل الطلب");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "تعذّرت التعبئة");
       }
     })();
-  }, [fromOrderId, prefillFn, setLang]);
+  }, [fromOrderId, prefillFn]);
 
 
 
@@ -271,7 +270,7 @@ function CreatePage() {
           })),
           moods,
           custom_instructions: instructions.trim(),
-          language: lang,
+          language: "ar",
           page_count: pages,
           image_quality_tier: qualityTier,
           tier,
@@ -607,31 +606,6 @@ function CreatePage() {
                   <div>{o.label}</div>
                   <div className="text-[10px] text-muted-foreground">{o.hint}</div>
                 </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Story language — the whole story (title, pages, question) will be written in this language */}
-        <div>
-          <label className="block text-sm font-bold mb-2">لغة القصة</label>
-          <p className="mb-2 text-[11px] text-muted-foreground">
-            ستُكتب القصة كاملةً (العنوان، النصوص، السؤال الختامي) باللغة التي تختارها.
-          </p>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            {([
-              { v: "ar", label: "العربية" },
-              { v: "en", label: "English" },
-              { v: "ku", label: "کوردی" },
-            ] as const).map((o) => (
-              <button
-                type="button"
-                key={o.v}
-                onClick={() => setLang(o.v)}
-                aria-pressed={lang === o.v}
-                className={`rounded-xl border p-3 transition ${lang === o.v ? "border-primary bg-primary/10 font-bold" : "border-muted bg-secondary/30"}`}
-              >
-                {o.label}
               </button>
             ))}
           </div>
