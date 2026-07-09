@@ -171,7 +171,7 @@ export const adminGenerateStoryboard = createServerFn({ method: "POST" })
 
     await s.from("video_orders").update({ storyboard: storyboard as never }).eq("id", data.id);
     await auditAdmin("video_storyboard_generated", data.id);
-    return { storyboard };
+    return { ok: true, storyboard: JSON.stringify(storyboard) };
   });
 
 // -------- Daily stats --------
