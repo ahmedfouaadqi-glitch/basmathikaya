@@ -36,6 +36,7 @@ import { Route as AdminTestimonialsRouteImport } from './routes/admin.testimonia
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminShareEventsRouteImport } from './routes/admin.share-events'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminReviewQueueRouteImport } from './routes/admin.review-queue'
 import { Route as AdminReferralsRouteImport } from './routes/admin.referrals'
 import { Route as AdminRedownloadsRouteImport } from './routes/admin.redownloads'
 import { Route as AdminPhoneBansRouteImport } from './routes/admin.phone-bans'
@@ -194,6 +195,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReviewQueueRoute = AdminReviewQueueRouteImport.update({
+  id: '/review-queue',
+  path: '/review-queue',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminReferralsRoute = AdminReferralsRouteImport.update({
   id: '/referrals',
   path: '/referrals',
@@ -344,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/referrals': typeof AdminReferralsRoute
+  '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -394,6 +401,7 @@ export interface FileRoutesByTo {
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/referrals': typeof AdminReferralsRoute
+  '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -446,6 +454,7 @@ export interface FileRoutesById {
   '/admin/phone-bans': typeof AdminPhoneBansRoute
   '/admin/redownloads': typeof AdminRedownloadsRoute
   '/admin/referrals': typeof AdminReferralsRoute
+  '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
   '/admin/templates': typeof AdminTemplatesRoute
@@ -499,6 +508,7 @@ export interface FileRouteTypes {
     | '/admin/phone-bans'
     | '/admin/redownloads'
     | '/admin/referrals'
+    | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -549,6 +559,7 @@ export interface FileRouteTypes {
     | '/admin/phone-bans'
     | '/admin/redownloads'
     | '/admin/referrals'
+    | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -600,6 +611,7 @@ export interface FileRouteTypes {
     | '/admin/phone-bans'
     | '/admin/redownloads'
     | '/admin/referrals'
+    | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
     | '/admin/templates'
@@ -835,6 +847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/review-queue': {
+      id: '/admin/review-queue'
+      path: '/review-queue'
+      fullPath: '/admin/review-queue'
+      preLoaderRoute: typeof AdminReviewQueueRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/referrals': {
       id: '/admin/referrals'
       path: '/referrals'
@@ -1009,6 +1028,7 @@ interface AdminRouteChildren {
   AdminPhoneBansRoute: typeof AdminPhoneBansRoute
   AdminRedownloadsRoute: typeof AdminRedownloadsRoute
   AdminReferralsRoute: typeof AdminReferralsRoute
+  AdminReviewQueueRoute: typeof AdminReviewQueueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShareEventsRoute: typeof AdminShareEventsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
@@ -1037,6 +1057,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPhoneBansRoute: AdminPhoneBansRoute,
   AdminRedownloadsRoute: AdminRedownloadsRoute,
   AdminReferralsRoute: AdminReferralsRoute,
+  AdminReviewQueueRoute: AdminReviewQueueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminShareEventsRoute: AdminShareEventsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
