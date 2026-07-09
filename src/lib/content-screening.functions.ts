@@ -165,6 +165,7 @@ export const screenOrder = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = {
       age_bucket: bucket,
       content_flags: result.flags,
+      content_intent: result.intent,
       admin_review_note: result.reason ? `فحص تلقائي: ${result.reason}` : null,
     };
     if (result.category === "A") {
