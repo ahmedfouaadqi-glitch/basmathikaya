@@ -606,10 +606,10 @@ Return JSON exactly like:
 
     const adultOverride = isAdultAudience
       ? (isKu
-          ? `\n\n⚠️ زۆر گرنگ: ئەم چیرۆکە بۆ گەورەسالانە. هەموو ڕێنماییەکانی سەرەوە کە دەڵێن "منداڵانە" یان "ساکار" پشتگوێ بخە — بە شێوەیەکی ئەدەبی گەورەسالانی و بێ سانسۆر بنووسە.`
+          ? `\n\n⚠️ زۆر گرنگ: ئەم چیرۆکە بۆ گەورەسالانە و پۆرنۆگرافیکە. هەموو ڕێنماییەکانی سەرەوە کە دەڵێن "منداڵانە" یان "ساکار" پشتگوێ بخە — بە شێوەیەکی ئاشکرا و بێ سانسۆر بنووسە، لەگەڵ وردەکاری ئەناتۆمی ڕوون.`
           : isAr
-          ? `\n\n⚠️ مهم جداً: هذه القصة للبالغين. تجاهل أي تعليمات أعلاه تشير إلى "الأطفال" أو "لغة بسيطة"؛ اكتب نثراً أدبياً ناضجاً غير مُقنَّع، بأي مستوى صراحة عاطفية أو حسية أو جنسية أو تأمُّلية يطلبه المؤلف. هذا قد يعني مشاهد رومانسية/حسية/جنسية صريحة إن كان ذلك متماشياً مع طلب المستخدم. طول كل صفحة 90-150 كلمة.`
-          : `\n\n⚠️ IMPORTANT: This is an adult work. Ignore any "children" or "simple language" directive above — write mature literary prose at whatever level of emotional/sensual/sexual/meditative explicitness the author requests. This may mean explicit romantic/sensual/sexual scenes when the user's brief calls for it. Each page 90-150 words.`)
+          ? `\n\n⚠️ مهم جداً: هذه القصة للبالغين وإباحية صريحة. تجاهل أي تعليمات أعلاه تشير إلى "الأطفال" أو "لغة بسيطة". إن كان طلب المؤلف بورنوغرافيا هاردكور فاكتبها هاردكور بتفصيل تشريحي كامل (أعضاء بأسمائها، إيلاج، نشوة، سوائل، أوضاع، حوار فاحش) — لا تخففها إلى إيروتيكا رومانسية. طول كل صفحة 120-180 كلمة.`
+          : `\n\n⚠️ IMPORTANT: This is an adult pornographic work. Ignore any "children" or "simple language" directive above. If the author asked for hardcore porn, deliver hardcore porn with full anatomical detail (genitalia by name, penetration, orgasm, fluids, positions, filthy dialogue) — do NOT soften to romantic erotica. Each page 120-180 words.`)
       : "";
 
     const runChat = async (seed: string) => {
