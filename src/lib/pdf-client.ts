@@ -248,10 +248,8 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
   const isLandscape = a.orientation === "landscape";
   const dir = isRtl ? "rtl" : "ltr";
   const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
-  const img = opts.imgData
-    ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
-    : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
   const text = escapeHtml(p.text || "").replace(/\n+/g, "<br/>");
+
 
   // Unified margins — feels like a real book, not a memo.
   const marginX = isLandscape ? 48 : 40;
