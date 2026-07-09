@@ -22,6 +22,7 @@ import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FamilyRouteImport } from './routes/family'
 import { Route as CreateRouteImport } from './routes/create'
+import { Route as ContentPolicyRouteImport } from './routes/content-policy'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -124,6 +125,11 @@ const FamilyRoute = FamilyRouteImport.update({
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContentPolicyRoute = ContentPolicyRouteImport.update({
+  id: '/content-policy',
+  path: '/content-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -325,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/content-policy': typeof ContentPolicyRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
   '/faq': typeof FaqRoute
@@ -377,6 +384,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/content-policy': typeof ContentPolicyRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
   '/faq': typeof FaqRoute
@@ -431,6 +439,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/content-policy': typeof ContentPolicyRoute
   '/create': typeof CreateRoute
   '/family': typeof FamilyRoute
   '/faq': typeof FaqRoute
@@ -486,6 +495,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/content-policy'
     | '/create'
     | '/family'
     | '/faq'
@@ -538,6 +548,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/content-policy'
     | '/create'
     | '/family'
     | '/faq'
@@ -591,6 +602,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/content-policy'
     | '/create'
     | '/family'
     | '/faq'
@@ -645,6 +657,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ContentPolicyRoute: typeof ContentPolicyRoute
   CreateRoute: typeof CreateRoute
   FamilyRoute: typeof FamilyRoute
   FaqRoute: typeof FaqRoute
@@ -760,6 +773,13 @@ declare module '@tanstack/react-router' {
       path: '/create'
       fullPath: '/create'
       preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content-policy': {
+      id: '/content-policy'
+      path: '/content-policy'
+      fullPath: '/content-policy'
+      preLoaderRoute: typeof ContentPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -1095,6 +1115,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
+  ContentPolicyRoute: ContentPolicyRoute,
   CreateRoute: CreateRoute,
   FamilyRoute: FamilyRoute,
   FaqRoute: FaqRoute,
