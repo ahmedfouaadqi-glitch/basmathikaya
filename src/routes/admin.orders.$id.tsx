@@ -570,7 +570,7 @@ function MiniStat({ label, value, sub, tone }: { label: string; value: string; s
   );
 }
 
-type PageRow = { page_number: number; text: string; image_url: string | null; image_prompt?: string | null };
+type PageRow = { page_number: number; text: string | null; image_url: string | null; image_prompt?: string | null };
 
 function AdminPageEditor({ orderId, page, onChanged, imagesReady, regening, onRegen, orderNumber }: {
   orderId: string;
