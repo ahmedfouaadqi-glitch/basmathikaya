@@ -1300,7 +1300,20 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
         await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
       }
-      const style = artStyleLock;
+      // Adult mode: replace the "children's storybook" style anchor with an
+      // intent-appropriate one so images match the story's tone.
+      let style = artStyleLock;
+      if (imgIsAdultAudience) {
+        const intentStyle: Record<typeof imgIntent, string> = {
+          romantic: "cinematic romantic illustration for adults, soft warm lighting, painterly realism, elegant composition, tasteful sensuality, artistic nudity allowed when the scene calls for it",
+          sensual: "artistic sensual illustration for adults, painterly rendering, warm intimate lighting, tasteful nudity and skin rendering when the scene requires it, elegant boudoir composition",
+          explicit: "uncensored artistic illustration for adults, painterly realism, anatomically accurate figures including nudity and explicit intimacy when the story requires it, cinematic lighting, no safety blur, no censorship bars",
+          meditative: "contemplative fine-art illustration, muted painterly palette, quiet dignified composition",
+          traumatic: "somber cinematic illustration, restrained palette, emotionally weighted composition, no gratuitous gore",
+          neutral: artStyleLock,
+        };
+        style = intentStyle[imgIntent] ?? artStyleLock;
+      }
       // Prefer the locked JSON character_profile when present; fall back to the free-text visual_brief.
       const dnaLines = (chars ?? [])
         .map((c) => {
