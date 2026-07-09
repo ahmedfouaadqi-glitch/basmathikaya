@@ -578,26 +578,51 @@ Return JSON exactly like:
   "pages": [ { "text": "page text in English", "image_prompt": "scene description in English" }, ... ${pageCount} items ]
 }`;
 
+    const modelChain = [
+      "google/gemini-3-flash-preview",
+      "google/gemini-2.5-flash",
+      "openai/gpt-5-mini",
+      "openai/gpt-5",
+    ] as const;
+
     const runChat = async (seed: string) => {
-      const chat = await callChat({
-        model: textModel,
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: buildPrompt(seed) },
-        ],
-        response_format: { type: "json_object" },
-      });
-      await logEvent(
-        data.orderId,
-        "story_plan",
-        textModel,
-        "chat",
-        chat.meta,
-        estimateTextCostUsd(textModel, chat.meta.usage),
-        0,
-        pricing,
-      );
-      return safeParseJson(chat.content);
+      let lastErr: string | null = null;
+      for (const model of modelChain) {
+        try {
+          const chat = await callChat({
+            model,
+            messages: [
+              { role: "system", content: sys },
+              { role: "user", content: buildPrompt(seed) },
+            ],
+            response_format: { type: "json_object" },
+          });
+          const parsed = safeParseJson(chat.content);
+          const ok = !!(parsed && parsed.pages && parsed.pages.length > 0);
+          await logEvent(
+            data.orderId,
+            "story_plan",
+            model,
+            "chat",
+            chat.meta,
+            estimateTextCostUsd(model, chat.meta.usage),
+            0,
+            pricing,
+            ok ? "success" : "error",
+            ok ? null : `parse_failed finish=${chat.meta.finish_reason ?? "n/a"} chars=${chat.content.length}`,
+          );
+          if (ok) return parsed;
+          lastErr = `parse_failed:${model}:${chat.meta.finish_reason ?? "unknown"}`;
+        } catch (e) {
+          lastErr = `${model}:${e instanceof Error ? e.message : String(e)}`;
+          await logEvent(
+            data.orderId, "story_plan", model, "chat",
+            { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
+            0, 0, pricing, "error", lastErr.slice(0, 400),
+          );
+        }
+      }
+      throw new Error(`Failed to parse story plan (all models). Last: ${lastErr}`);
     };
 
     let plan = await runChat(creativeSeed);
@@ -1022,7 +1047,7 @@ export const adminGetOrder = createServerFn({ method: "GET" })
       supabaseAdmin.from("generation_events").select("*").eq("order_id", data.orderId).order("created_at", { ascending: true }),
       supabaseAdmin.from("generations").select("*").eq("order_id", data.orderId).maybeSingle(),
       supabaseAdmin.from("order_costs_v").select("*").eq("order_id", data.orderId).maybeSingle(),
-      supabaseAdmin.from("story_pages").select("page_number, text, image_path").eq("order_id", data.orderId).order("page_number"),
+      supabaseAdmin.from("story_pages").select("page_number, text, image_path, image_prompt").eq("order_id", data.orderId).order("page_number"),
       supabaseAdmin.from("order_characters").select("name, age, role, description, is_primary, position, photo_path").eq("order_id", data.orderId).order("position"),
     ]);
     const { data: user } = order?.user_id

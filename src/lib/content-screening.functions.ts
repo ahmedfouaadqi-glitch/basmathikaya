@@ -144,20 +144,18 @@ export const screenOrder = createServerFn({ method: "POST" })
     });
 
     const bucket = deriveAgeBucket(primary?.age ?? null);
-    const isCategoryA = result.category === "A";
 
+    // Content freedom policy: never auto-reject and never gate generation on
+    // review. We record flags/category for admin visibility, but the order
+    // proceeds through the normal flow. Admin retains full manual control.
     await supabaseAdmin
       .from("orders")
       .update({
         age_bucket: bucket,
         content_flags: result.flags,
         requires_admin_review: result.requires_admin_review,
-        status: isCategoryA
-          ? "rejected"
-          : (result.requires_admin_review ? "pending_review" : undefined),
-        admin_review_note: isCategoryA ? `رفض تلقائي: ${result.reason}` : undefined,
-        admin_reviewed_at: isCategoryA ? new Date().toISOString() : undefined,
-        identity_verification_status: result.requires_identity ? "requested" : "not_required",
+        admin_review_note: result.requires_admin_review ? `للاطلاع: ${result.reason}` : undefined,
+        identity_verification_status: "not_required",
       })
       .eq("id", data.orderId);
 
@@ -165,12 +163,12 @@ export const screenOrder = createServerFn({ method: "POST" })
       order_id: data.orderId,
       category: result.category,
       flags: result.flags,
-      decision: isCategoryA ? "auto_reject" : (result.requires_admin_review ? "review" : "auto_ok"),
+      decision: "auto_ok",
       reason: result.reason,
       model_used: "google/gemini-3.1-flash-lite",
     });
 
-    return result;
+    return { ...result, requires_admin_review: false, requires_identity: false };
   });
 
 
