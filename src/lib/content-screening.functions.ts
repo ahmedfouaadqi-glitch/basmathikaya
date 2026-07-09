@@ -86,10 +86,14 @@ flags المقترحة (اختر ما ينطبق):
       response_format: { type: "json_object" },
     });
     const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-    const parsed = JSON.parse(cleaned) as { category?: string; flags?: string[]; reason?: string };
+    const parsed = JSON.parse(cleaned) as { category?: string; flags?: string[]; reason?: string; intent?: string };
     let category = (parsed.category === "A" || parsed.category === "B" ? parsed.category : "OK") as ScreeningResult["category"];
     const flags = Array.isArray(parsed.flags) ? parsed.flags.slice(0, 20).map(String) : [];
     const reason = String(parsed.reason ?? "").slice(0, 500);
+    const allowedIntents: ContentIntent[] = ["romantic", "sensual", "explicit", "meditative", "traumatic", "neutral"];
+    let intent: ContentIntent = (allowedIntents as string[]).includes(String(parsed.intent))
+      ? (parsed.intent as ContentIntent)
+      : "neutral";
 
     // Hard override: minors + sexual/erotic → always A regardless of AI decision.
     const hasMinors = flags.some((f) => /minor|قاصر|طفل/i.test(f));
@@ -101,11 +105,15 @@ flags المقترحة (اختر ما ينطبق):
     // Adult content requires 18+ verified age. Under-18 with sexual flags → A.
     if (hasSexual && payload.heroAge !== null && payload.heroAge < 18) category = "A";
 
+    // Cross-check intent against flags — flags win.
+    if (hasSexual && intent === "neutral") intent = "sensual";
+
     const isIntimate = flags.some((f) => /sexual|erotic|libertine|polyam|جنسي|إباحي|تحرري|شبق/i.test(f));
     return {
       category,
       flags,
       reason,
+      intent,
       requires_admin_review: category === "B",
       requires_identity: category === "B" && isIntimate,
     };
@@ -115,6 +123,7 @@ flags المقترحة (اختر ما ينطبق):
       category: "B",
       flags: ["screening_error"],
       reason: `تعذّر فحص المحتوى تلقائياً: ${(e as Error).message}`.slice(0, 500),
+      intent: "neutral",
       requires_admin_review: true,
       requires_identity: false,
     };
