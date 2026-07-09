@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, redirect, useNavigate } from "@tanstack/
 import { useServerFn } from "@tanstack/react-start";
 import { adminCheck, adminLogout } from "../lib/admin.functions";
 import { useT } from "../lib/i18n";
-import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate, Flag, ListTree, Cpu, AlertTriangle, ScrollText, PhoneOff, Download, Database, Share2, Gift, Image as ImageIcon, MessageSquareQuote, Brush, ShieldAlert } from "lucide-react";
+import { LogOut, BarChart3, Settings, ListOrdered, Users, Palette, FileText, Video, Ticket, LayoutTemplate, Flag, ListTree, Cpu, AlertTriangle, ScrollText, PhoneOff, Download, Database, Share2, Gift, Image as ImageIcon, MessageSquareQuote, Brush, ShieldAlert, Type } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ location }) => {
@@ -56,6 +56,9 @@ function AdminLayout() {
           <Link to="/admin/content" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <FileText className="size-4" />
             المحتوى
+          </Link>
+          <Link to="/admin/site-copy" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
+            <Type className="size-4" /> نصوص الموقع
           </Link>
           <Link to="/admin/videos" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "bg-primary/10 text-primary font-semibold" }}>
             <Video className="size-4" />

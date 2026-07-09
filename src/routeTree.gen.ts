@@ -36,6 +36,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminThemesRouteImport } from './routes/admin.themes'
 import { Route as AdminTestimonialsRouteImport } from './routes/admin.testimonials'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
+import { Route as AdminSiteCopyRouteImport } from './routes/admin.site-copy'
 import { Route as AdminShareEventsRouteImport } from './routes/admin.share-events'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminReviewQueueRouteImport } from './routes/admin.review-queue'
@@ -195,6 +196,11 @@ const AdminTestimonialsRoute = AdminTestimonialsRouteImport.update({
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSiteCopyRoute = AdminSiteCopyRouteImport.update({
+  id: '/site-copy',
+  path: '/site-copy',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminShareEventsRoute = AdminShareEventsRouteImport.update({
@@ -366,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
+  '/admin/site-copy': typeof AdminSiteCopyRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
@@ -419,6 +426,7 @@ export interface FileRoutesByTo {
   '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
+  '/admin/site-copy': typeof AdminSiteCopyRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
@@ -474,6 +482,7 @@ export interface FileRoutesById {
   '/admin/review-queue': typeof AdminReviewQueueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/share-events': typeof AdminShareEventsRoute
+  '/admin/site-copy': typeof AdminSiteCopyRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/testimonials': typeof AdminTestimonialsRoute
   '/admin/themes': typeof AdminThemesRoute
@@ -530,6 +539,7 @@ export interface FileRouteTypes {
     | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
+    | '/admin/site-copy'
     | '/admin/templates'
     | '/admin/testimonials'
     | '/admin/themes'
@@ -583,6 +593,7 @@ export interface FileRouteTypes {
     | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
+    | '/admin/site-copy'
     | '/admin/templates'
     | '/admin/testimonials'
     | '/admin/themes'
@@ -637,6 +648,7 @@ export interface FileRouteTypes {
     | '/admin/review-queue'
     | '/admin/settings'
     | '/admin/share-events'
+    | '/admin/site-copy'
     | '/admin/templates'
     | '/admin/testimonials'
     | '/admin/themes'
@@ -873,6 +885,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTemplatesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/site-copy': {
+      id: '/admin/site-copy'
+      path: '/site-copy'
+      fullPath: '/admin/site-copy'
+      preLoaderRoute: typeof AdminSiteCopyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/share-events': {
       id: '/admin/share-events'
       path: '/share-events'
@@ -1071,6 +1090,7 @@ interface AdminRouteChildren {
   AdminReviewQueueRoute: typeof AdminReviewQueueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminShareEventsRoute: typeof AdminShareEventsRoute
+  AdminSiteCopyRoute: typeof AdminSiteCopyRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminTestimonialsRoute: typeof AdminTestimonialsRoute
   AdminThemesRoute: typeof AdminThemesRoute
@@ -1100,6 +1120,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminReviewQueueRoute: AdminReviewQueueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminShareEventsRoute: AdminShareEventsRoute,
+  AdminSiteCopyRoute: AdminSiteCopyRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminTestimonialsRoute: AdminTestimonialsRoute,
   AdminThemesRoute: AdminThemesRoute,

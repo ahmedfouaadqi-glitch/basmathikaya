@@ -12,6 +12,8 @@ import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
 import { buildSampleStory } from "../lib/sample-story";
 import { listPublicPreviewTemplates, type PreviewTemplate } from "../lib/preview-templates.functions";
+import { getSiteCopy } from "../lib/site-copy.functions";
+import { SiteMarkdown } from "../components/SiteMarkdown";
 import { z } from "zod";
 
 
@@ -109,6 +111,13 @@ function CreatePage() {
   const artStyles = (artStylesQ.data ?? []) as ArtStyle[];
   const cartoonStyles = artStyles.filter((s) => s.category === "cartoon");
   const realisticStyle = artStyles.find((s) => s.category === "realistic") ?? null;
+
+  const siteCopyFn = useServerFn(getSiteCopy);
+  const adultNoticeQ = useQuery({
+    queryKey: ["site-copy", "create.adult_notice"],
+    queryFn: () => siteCopyFn({ data: { key: "create.adult_notice" } }),
+    staleTime: 5 * 60_000,
+  });
 
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
   const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
@@ -499,13 +508,10 @@ function CreatePage() {
             className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
           />
           <div className="mt-1 text-end text-xs text-muted-foreground">{instructions.length}/500</div>
-          {characters[0]?.age && Number(characters[0].age) >= 18 && (
+          {characters[0]?.age && Number(characters[0].age) >= 18 && adultNoticeQ.data?.body_md && (
             <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-900 dark:text-amber-200">
-              <strong>حرية إبداعية للبالغين:</strong> اكتب بأيّ أسلوب أو مستوى صراحة تريده (رومانسي، حسّي،
-              جنسي، تحرري، تأمل، شفاء…) بالفصحى أو باللهجة العامية. المحتوى للبالغين يمرّ بمراجعة إدارية
-              سريعة قبل التوليد. الخطوط الحمراء الوحيدة: لا عنف/تعذيب/دم صريح، لا محتوى سياسي، ولا محتوى
-              يشمل قاصرين تحت أيّ ظرف.{" "}
-              <a href="/content-policy" target="_blank" className="underline">اقرأ السياسة</a>
+              <SiteMarkdown source={adultNoticeQ.data.body_md} className="space-y-2" />
+              <a href="/content-policy" target="_blank" className="mt-1 inline-block underline">اقرأ السياسة</a>
             </div>
           )}
         </div>

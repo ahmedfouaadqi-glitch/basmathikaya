@@ -2055,6 +2055,30 @@ export type Database = {
         }
         Relationships: []
       }
+      site_copy: {
+        Row: {
+          body_md: string
+          key: string
+          title: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body_md?: string
+          key: string
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body_md?: string
+          key?: string
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       story_fingerprints: {
         Row: {
           created_at: string
