@@ -41,6 +41,7 @@ export type GatewayMeta = {
   run_id: string | null;
   usage: Usage;
   duration_ms: number;
+  finish_reason?: string | null;
 };
 
 type TextContent = { type: "text"; text: string };
@@ -75,10 +76,12 @@ export async function callChat(args: {
     throw new Error(`AI Gateway chat error ${res.status}: ${txt.slice(0, 200)}`);
   }
   const body = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{ message?: { content?: string }; finish_reason?: string; native_finish_reason?: string }>;
     usage?: Usage;
   };
-  const content = body.choices?.[0]?.message?.content ?? "";
+  const choice = body.choices?.[0];
+  const content = choice?.message?.content ?? "";
+  const finish_reason = choice?.native_finish_reason ?? choice?.finish_reason ?? null;
   return {
     content,
     meta: {
@@ -86,6 +89,7 @@ export async function callChat(args: {
       run_id: res.headers.get("X-Lovable-AIG-Run-ID"),
       usage: body.usage ?? {},
       duration_ms,
+      finish_reason,
     },
   };
 }
