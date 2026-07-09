@@ -112,6 +112,13 @@ function CreatePage() {
   const cartoonStyles = artStyles.filter((s) => s.category === "cartoon");
   const realisticStyle = artStyles.find((s) => s.category === "realistic") ?? null;
 
+  const siteCopyFn = useServerFn(getSiteCopy);
+  const adultNoticeQ = useQuery({
+    queryKey: ["site-copy", "create.adult_notice"],
+    queryFn: () => siteCopyFn({ data: { key: "create.adult_notice" } }),
+    staleTime: 5 * 60_000,
+  });
+
   const pricing = pricingQ.data ?? DEFAULT_PRICING;
   const maxChars = Number(pricingQ.data?.max_characters ?? MAX_CHARACTERS);
   const videoEnabled = Boolean((pricingQ.data as { video_tier_enabled?: boolean } | undefined)?.video_tier_enabled ?? false);
