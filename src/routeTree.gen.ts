@@ -14,6 +14,7 @@ import { Route as TestimonialsRouteImport } from './routes/testimonials'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as MyVideosRouteImport } from './routes/my-videos'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
@@ -80,6 +81,11 @@ const ReferralsRoute = ReferralsRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyVideosRoute = MyVideosRouteImport.update({
+  id: '/my-videos',
+  path: '/my-videos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MyOrdersRoute = MyOrdersRouteImport.update({
@@ -308,6 +314,7 @@ export interface FileRoutesByFullPath {
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -356,6 +363,7 @@ export interface FileRoutesByTo {
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -406,6 +414,7 @@ export interface FileRoutesById {
   '/how-it-works': typeof HowItWorksRoute
   '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
+  '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
   '/referrals': typeof ReferralsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -457,6 +466,7 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/my-videos'
     | '/pricing'
     | '/referrals'
     | '/sitemap.xml'
@@ -505,6 +515,7 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/my-videos'
     | '/pricing'
     | '/referrals'
     | '/sitemap.xml'
@@ -554,6 +565,7 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/mcp'
     | '/my-orders'
+    | '/my-videos'
     | '/pricing'
     | '/referrals'
     | '/sitemap.xml'
@@ -604,6 +616,7 @@ export interface RootRouteChildren {
   HowItWorksRoute: typeof HowItWorksRoute
   McpRoute: typeof McpRoute
   MyOrdersRoute: typeof MyOrdersRoute
+  MyVideosRoute: typeof MyVideosRoute
   PricingRoute: typeof PricingRoute
   ReferralsRoute: typeof ReferralsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -653,6 +666,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-videos': {
+      id: '/my-videos'
+      path: '/my-videos'
+      fullPath: '/my-videos'
+      preLoaderRoute: typeof MyVideosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-orders': {
@@ -1021,6 +1041,7 @@ const rootRouteChildren: RootRouteChildren = {
   HowItWorksRoute: HowItWorksRoute,
   McpRoute: McpRoute,
   MyOrdersRoute: MyOrdersRoute,
+  MyVideosRoute: MyVideosRoute,
   PricingRoute: PricingRoute,
   ReferralsRoute: ReferralsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
