@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck, X, Trash2, RotateCcw } from "lucide-react";
 import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload, adminRetryImageGeneration } from "../lib/orders.functions";
+import { adminUpdatePageText, adminUploadPageImage, adminUpdatePagePrompt } from "../lib/admin-ops.functions";
 import { getActiveTheme } from "../lib/themes.functions";
 import { getHomeContent } from "../lib/site-content.functions";
 import { buildAndDownloadStoryPdf, type StoryPdfAssets } from "../lib/pdf-client";
