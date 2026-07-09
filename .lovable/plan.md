@@ -1,93 +1,191 @@
-## المرحلة 1 — قفل الموقع على العربية وإخفاء (EN/KU) دون حذف
 
-**السبب:** بعد فحص الكود:
-- ملف `src/lib/i18n.tsx` يحتوي ~150 مفتاح مترجم، بينما هناك **20+ صفحة** فيها نصوص عربية مكتوبة مباشرة (hardcoded) بدون `t()` — من ضمنها: `faq.tsx`, `how-it-works.tsx`, `pricing.tsx`, `gallery.tsx`, `testimonials.tsx`, `referrals.tsx`, `s.$token.tsx`, `my-orders.tsx`, `preview.$orderId.tsx`, وكل صفحات `admin.*`.
-- الكوردية (ku) في أغلب المفاتيح غير مترجمة وتقع على fallback عربي — فتظهر بالعربية داخل واجهة "كوردية"، وهذا غير احترافي.
+# خطة موحدة: مشغّل موسيقى + أصوات واجهة + توليد فيديو (Beta) + تكلفة للأدمن
 
-**الحل:** إخفاء كامل للغتين الإنجليزية والكوردية من الواجهة، **مع الإبقاء على كل الكود والمفاتيح والبنية التحتية كما هي** لتفعيلها لاحقاً بترجمة كاملة.
+---
 
-**التغييرات:**
-1. `src/routes/__root.tsx`: إخفاء `<LangSwitch>` بالكامل (desktop + mobile) — تعليق أو إزالة الاستدعاء فقط. المكوّن نفسه يبقى موجوداً في الملف.
-2. `src/lib/i18n.tsx`:
-   - `setLang()` تصبح no-op (تتجاهل أي محاولة تغيير لغة) — لكن التوقيع يبقى.
-   - القيمة الأولية دائماً `"ar"`، وتنظيف صامت لأي قيمة قديمة `en`/`ku` في `localStorage`.
-   - كل المفاتيح والترجمات تبقى في الملف بدون حذف.
-3. `<html lang="ar" dir="rtl">` مقفل.
+## الجزء الأول: مشغّل الموسيقى + أصوات الواجهة
 
-## المرحلة 2 — تحسين PWA شامل
+### أ. جدول `audio_library` — يديره الأدمن
+```
+id | kind ('music' | 'sfx') | slot -- للـ sfx: click/success/error/notify/nav
+| title_ar | file_path (storage) | duration_sec | volume_default (0-1)
+| is_active | display_order | created_at | updated_at
+```
+- Storage bucket جديد: `audio-library` (public read).
+- GRANT: `SELECT` لـ `anon` + `authenticated`، كتابة للأدمن فقط.
 
-الفحص الحالي: `manifest.webmanifest` صحيح + أيقونات + `InstallGate`. لا يوجد service worker (متوافق مع توجيهات Lovable للـ manifest-only).
+### ب. `audio_settings` (feature flags)
+- `music_player_enabled` (bool, default true)
+- `ui_sfx_enabled` (bool, default true)
+- `music_source` ('library' | 'promo_video_audio', default 'library')
 
-**التحسينات:**
+### ج. الخادم
+- `src/lib/audio.functions.ts`:
+  - `listActiveMusic()` — قائمة عامة (anon).
+  - `listActiveSfx()` — قائمة عامة، تُخزّن في localStorage بعد أول جلب.
+- `src/lib/audio-admin.functions.ts`:
+  - `crudAudioItem(...)` — رفع/حذف/تفعيل، مع رفع الملف إلى Storage.
+  - `reorderAudio(...)`.
 
-1. **`public/manifest.webmanifest`:**
-   - إضافة `screenshots` (form_factor: `wide` + `narrow`) لتحسين مربّع تثبيت Chrome/Edge.
-   - إضافة `shortcuts`: "ابدأ حكاية جديدة" → `/create`، "طلباتي" → `/my-orders`.
-   - `prefer_related_applications: false`, `handle_links: "preferred"`.
+### د. الواجهة
+- **`src/components/MiniMusicPlayer.tsx`**:
+  - عائم في زاوية أسفل يمين كل الصفحات (behind sonner toaster).
+  - أيقونة موسيقى → يفتح لوحة صغيرة (Play/Pause، Next/Prev، Volume، اسم المقطع).
+  - **مكتوم افتراضياً**؛ يحفظ التفضيل في `localStorage['bh_music']`.
+  - إذا `music_source='promo_video_audio'` → يعيد استخدام مسارات `brandIntroVideos` كصوت.
+- **`src/lib/sfx.ts`** (مكتبة عميل خفيفة):
+  - `preloadSfx()` عند البدء.
+  - `playSfx(slot)` — يشغّل الصوت المناسب، محكوم بـ `bh_sfx_muted` في localStorage.
+  - Hook `useSfxOnClick()` يُلحق تلقائياً بأزرار `data-sfx` أو تُستدعى يدوياً.
+- **إدماج نقاط الأصوات**:
+  - `click` — أزرار CTA رئيسية (create, submit, publish).
+  - `success` — Toast success + إتمام طلب.
+  - `error` — Toast error + رفض طلب.
+  - `notify` — عند وصول إشعار جديد.
+  - `nav` — التنقّل بين الصفحات (اختياري، خفيف).
+- **زر Mute موحّد** في الهيدر بجانب أيقونة المستخدم.
 
-2. **`src/routes/__root.tsx` (head):**
-   - `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style: black-translucent`, `apple-mobile-web-app-title`, `mobile-web-app-capable`.
-   - `theme-color` بلونين (light/dark عبر `media`) لتحسين شريط الحالة على Android.
-   - `viewport` مع `viewport-fit=cover` لدعم safe-area (النوتش).
-   - `<link rel="apple-touch-startup-image">` (splash) لأجهزة iOS الشائعة (2-3 مقاسات).
+### هـ. الأدمن
+- **`/admin/audio`** — صفحة واحدة:
+  - تبويب "موسيقى الخلفية" — رفع MP3، عنوان، ترتيب، مدة، تفعيل.
+  - تبويب "أصوات الواجهة" — 5 خانات ثابتة (click/success/error/notify/nav)، رفع/استبدال.
+  - تبويب "الإعدادات" — تبديل `music_source`، تفعيل/تعطيل الميزة كاملة.
+- إضافة الرابط في `src/routes/admin.tsx`.
 
-3. **`src/components/InstallGate.tsx`:**
-   - عدم العرض داخل iframe (`window.top !== window.self`) ولا في `id-preview--*`, `preview--*`, `beta.lovable.dev`, `*.lovableproject.com`.
-   - تحسين تعليمات iOS (Share → Add to Home Screen).
-   - زر "لاحقاً" مع تذكير بعد N أيام (localStorage timestamp).
+---
 
-4. **CSS safe-area** في `src/styles.css`:
-   - `padding-top: env(safe-area-inset-top)` للـ header، و`padding-bottom: env(safe-area-inset-bottom)` للأسفل.
-   - `@media (display-mode: standalone)` لإخفاء `InstallGate` في التطبيق المثبت.
+## الجزء الثاني: نظام توليد الفيديوهات (Beta) + عرض التكلفة للأدمن
 
-**لن نضيف service worker** (طلبك لم يذكر offline، والتوجيهات تمنعه بدون حاجة صريحة).
+### 1) قاعدة البيانات
 
-## المرحلة 3 — تحسين التجاوب (Responsive) شامل
+#### `video_products` — أنواع الفيديو (يديره الأدمن)
+```
+id | slug | name_ar | description_ar
+| duration_sec | segments_count | resolution
+| includes_tts | includes_music
+| price_iqd | price_credits_estimate | is_active | display_order
+```
+يُبذر بستة أنواع: Teaser 10s، Story Reel 30s، Cartoon 60s، Anime 60s، Manga 60s، Music Video 45s.
 
-**المشاكل المكتشفة:**
-- `flex flex-wrap` في headers متعددة العناصر → ينكسر على الجوال.
-- جداول `admin.*` و`my-orders.tsx` بدون scroll أفقي على الجوال.
-- عناوين بحجم ثابت `text-2xl+` بدون scale متجاوب.
-- بعض الشبكات تقفز من 1 عمود إلى 3 دون خطوة `sm:grid-cols-2`.
+#### `video_orders`
+```
+id | order_number | user_id | source_order_id (FK → orders, اختياري)
+| product_id | status
+  ('pending_review','approved','rejected','generating','ready','delivered','failed')
+| storyboard_json | prompt_config_json | segments_json
+| final_playlist_path | preview_thumb_path | duration_sec_actual
+| price_iqd_paid
+| ai_credits_used  -- إجمالي الكريدت المستهلك (يظهر للأدمن)
+| ai_cost_breakdown_json  -- تفصيل الكلفة لكل مقطع/tts/music
+| admin_note | rejection_reason | reviewed_by | reviewed_at
+| is_public | public_title | show_author | public_author_name
+| created_at | updated_at
+```
 
-**التغييرات:**
+#### `video_daily_stats`
+```
+day | videos_generated | credits_used | cost_estimate_iqd
+```
 
-1. **Headers نص + ويدجت:** تحويلها إلى النمط المعتمد في `responsive-layout-patterns`:
-   ```
-   grid grid-cols-[minmax(0,1fr)_auto] sm:flex sm:justify-between
-   + min-w-0 على النص + shrink-0 على الأيقونات + truncate على العناوين
-   ```
-   الملفات: `__root.tsx`, `admin.orders.$id.tsx`, `admin.index.tsx`, `admin.users.tsx`, `my-orders.tsx`, `preview.$orderId.tsx`.
+- RLS: `video_orders` مقيّد بـ `auth.uid() = user_id` + سياسة أدمن عبر `has_role`.
+- `video_products` قراءة عامة، كتابة أدمن.
+- بذر `feature_flags`: `video_generation_enabled=false`, `video_daily_cap=20`.
 
-2. **الجداول:** لفّ كل `<table>` في `<div className="overflow-x-auto -mx-4 sm:mx-0"><table className="min-w-full">…` في صفحات الإدارة.
+### 2) توليد الصوت والموسيقى للفيديو
+- **TTS للراوي**: `openai/gpt-4o-mini-tts` عبر Lovable AI Gateway.
+- **موسيقى خلفية**: عبر **ElevenLabs Music** (`standard_connectors--connect elevenlabs`) بمقدار 30-60 ثانية حسب طول الفيديو.
+- **مؤثرات صوتية اختيارية للفيديو**: ElevenLabs Sound Effects.
 
-3. **العناوين المتجاوبة:** `text-2xl sm:text-3xl md:text-4xl` في `index.tsx`, `pricing.tsx`, `how-it-works.tsx`, `faq.tsx`.
+### 3) توليد الفيديو
+- `videogen` (Lovable) لكل مشهد: 5-10 ثوانٍ، بـ `starting_frame` = صورة صفحة القصة، مع تثبيت `art_style_lock` من نمط القصة.
+- **قيد Cloudflare Workers**: لا `ffmpeg` — نُخزّن المقاطع منفصلة + track صوتي + subtitles JSON، ويعرضها **مشغّل مخصص** (`VideoPlayer.tsx`) كـ playlist متتابعة.
 
-4. **الشبكات:** `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` + `gap-3 sm:gap-4 md:gap-6`.
+### 4) الخادم
+- `src/lib/videos.functions.ts` (المستخدم):
+  - `listVideoProducts()`, `createVideoOrder(...)`, `getMyVideoOrders()`, `getVideoOrder(id)`, `publishVideoToGallery(...)`.
+  - تحقق العلم + السقف اليومي + ملكية `source_order_id` + حالته `delivered`.
+- `src/lib/videos-admin.functions.ts` (أدمن):
+  - `listAllVideoOrders(filter)`, `reviewVideoOrder({id, action, note})`, `crudVideoProduct(...)`, `getVideoStats(range)`, `adminRetryVideoGeneration(id)`.
+- `src/lib/videos/generator.server.ts` (خلفي):
+  - `buildStoryboard(orderPages)` — مشهد لكل صفحة.
+  - `generateVideoForOrder(id)` — يستدعي `videogen` + TTS + ElevenLabs Music، يجمّع playlist، يحدّث `ai_credits_used` و `ai_cost_breakdown_json`، يحدّث الحالة، يرسل إشعاراً.
+- تعديل `src/lib/jobs/runners.server.ts` لإضافة runner `video_generation`.
 
-5. **`create.tsx`:** فحص خاص — نموذج طويل:
-   - حقول full-width على الجوال.
-   - أزرار Wizard steps عمود واحد أسفل `sm:`.
-   - Character cards grid: `grid-cols-2 sm:grid-cols-3 md:grid-cols-4`.
-   - Art style picker: يبقى مربعات، لكن `grid-cols-2 sm:grid-cols-3`.
+### 5) الواجهة — المستخدم
+- **`/videos`** — كتالوج الأنواع الستة.
+- **`/videos/order/$sourceOrderId`** — نموذج طلب فيديو من قصة مُسلَّمة (عرض storyboard مقترح + تأكيد).
+- **`/videos/my`** — طلباتي، مع الحالة.
+- **`/videos/watch/$id`** — المشغّل (مالك الطلب فقط).
+- **`/v/$token`** — صفحة المشاركة العامة (بعد النشر).
+- تحديث `/my-orders` — زر "🎬 حوّلها إلى فيديو".
+- تحديث `/gallery` — تبويب "فيديوهات".
 
-6. **PDF preview:** تأكيد أن iframe/canvas لا يتخطى `100vw`.
+### 6) الواجهة — الأدمن (مع عرض التكلفة)
+- **`/admin/videos`** — قائمة الطلبات مع أعمدة:
+  - رقم الطلب، المستخدم، النوع، الحالة، **`ai_credits_used`**، **الكلفة التقديرية بالدينار**، **السعر المدفوع**، **الهامش الصافي**.
+  - أزرار: معاينة storyboard، موافقة/رفض، مشاهدة الفيديو النهائي، إعادة توليد.
+- **`/admin/video-products`** — CRUD للأنواع والأسعار.
+- **`/admin/video-stats`** — لوحة إحصائيات:
+  - إجمالي الكريدت اليومي/الأسبوعي/الشهري.
+  - الكلفة الإجمالية بالدينار.
+  - إيرادات vs كلفة (الهامش الصافي).
+  - عدد الطلبات بحالة (pending/generating/ready).
+  - رسم بياني بالاستخدام اليومي vs السقف.
 
-7. **`src/styles.css`:** قاعدة safety net عامة `img, video, iframe { max-width: 100%; height: auto }`.
+### 7) عرض التكلفة للأدمن على القصص أيضاً
+- تحديث جدول `orders`: إضافة عمود `ai_credits_used` + `ai_cost_breakdown_json` (لو غير موجود).
+- تحديث `runImageGenerationForOrder` و `runStoryGeneration` لتراكم استهلاك الكريدت.
+- تحديث `/admin/orders.$id` لعرض:
+  - كلفة توليد النص + عدد الصور × كلفتها + إجمالي.
+  - السعر المدفوع.
+  - الهامش الصافي.
+- تحديث `/admin/analytics` لعرض الهامش الإجمالي.
 
-8. **تحقق بصري:** Playwright بثلاث viewports (375, 768, 1280) على الصفحات الرئيسية بعد التنفيذ.
+### 8) الحماية
+- علم kill switch (`video_generation_enabled`).
+- سقف يومي عام يُفحص في `createVideoOrder` وفي الـ runner.
+- **موافقة الأدمن إلزامية** قبل استهلاك أي كريدت.
+- رفض تلقائي + استرداد إن فشل التوليد 3 مرات.
+- `audit_log` لكل create/approve/reject/generate/publish.
+- معالجة خطأ 402 → إيقاف الميزة + إشعار أدمن.
 
-## الملفات المتأثرة
+---
 
-- `src/lib/i18n.tsx` — قفل اللغة (بدون حذف)
-- `src/routes/__root.tsx` — إخفاء LangSwitch + head PWA metadata + safe-area
-- `public/manifest.webmanifest` — shortcuts + screenshots
-- `src/components/InstallGate.tsx` — guards + تحسينات iOS
-- `src/styles.css` — safe-area + responsive safety net
-- ~10 صفحات (admin + public) — إصلاحات header/table/grid
+## الملفات (تلخيص)
 
-## ما لن نغيره
+**Migrations:**
+1. `audio_library` + storage bucket + GRANTs + policies + feature flags.
+2. `video_products` + `video_orders` + `video_daily_stats` + GRANTs + policies + بذر + إضافة `ai_credits_used`/`ai_cost_breakdown_json` لجدول `orders`.
 
-- منطق العمل، قاعدة البيانات، RLS.
-- بنية `i18n` أو المفاتيح — كلها محفوظة للمستقبل.
-- لن نضيف Service Worker.
+**جديد:**
+- `src/components/MiniMusicPlayer.tsx`, `src/components/VideoPlayer.tsx`, `src/components/SfxProvider.tsx`
+- `src/lib/sfx.ts`
+- `src/lib/audio.functions.ts`, `src/lib/audio-admin.functions.ts`
+- `src/lib/videos.functions.ts`, `src/lib/videos-admin.functions.ts`
+- `src/lib/videos/generator.server.ts`, `src/lib/videos/storyboard.ts`, `src/lib/videos/playlist.ts`
+- `src/lib/elevenlabs.server.ts` (بعد ربط الموصل)
+- `src/routes/videos.tsx`, `videos.order.$sourceOrderId.tsx`, `videos.my.tsx`, `videos.watch.$id.tsx`, `v.$token.tsx`
+- `src/routes/admin.audio.tsx`, `admin.videos.tsx` (استبدال الفارغ)، `admin.video-products.tsx`, `admin.video-stats.tsx`
+
+**تعديل:**
+- `src/routes/__root.tsx` (إدماج `MiniMusicPlayer` + `SfxProvider` + زر mute في الهيدر)
+- `src/routes/admin.tsx` (روابط: صوت، فيديوهات، أنواع فيديو، إحصائيات فيديو)
+- `src/routes/my-orders.tsx` (زر التحويل إلى فيديو)
+- `src/routes/gallery.tsx` (تبويب فيديوهات)
+- `src/routes/admin.orders.$id.tsx` (عرض الكلفة والهامش)
+- `src/routes/admin.analytics.tsx` (الهامش الإجمالي)
+- `src/lib/jobs/runners.server.ts` (runner + تراكم الكريدت)
+- `src/lib/ai/orchestrator.server.ts` (إرجاع credits_used مع كل استدعاء)
+
+---
+
+## قبل الموافقة — خطوات إعداد ستُطلب منك بعد الموافقة
+1. ربط موصل **ElevenLabs** (لإنتاج الموسيقى الأصلية للفيديو) — سأطلب الموافقة ثم أستدعي `standard_connectors--connect`.
+2. رفع ملفات صوتية بدائية للأصوات الأربعة (click/success/error/notify) — أو سأولّدها عبر ElevenLabs SFX عند التنفيذ.
+
+## ترتيب التنفيذ المقترح
+- **Sprint A**: مشغّل الموسيقى + أصوات الواجهة + `/admin/audio` (سريع، أثر مباشر).
+- **Sprint B**: عرض تكلفة القصص للأدمن + الهامش الصافي.
+- **Sprint C**: نظام الفيديو الكامل (Beta، مطفأ افتراضياً).
+
+هل أبدأ بالسبرنت A، أم تريدني أُنفّذ الثلاثة تباعاً في هذه الجلسة؟

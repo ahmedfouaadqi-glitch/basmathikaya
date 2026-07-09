@@ -290,6 +290,51 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_library: {
+        Row: {
+          created_at: string
+          display_order: number
+          duration_sec: number | null
+          file_path: string
+          id: string
+          is_active: boolean
+          kind: string
+          mime_type: string | null
+          slot: string | null
+          title_ar: string
+          updated_at: string
+          volume_default: number
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          duration_sec?: number | null
+          file_path: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          mime_type?: string | null
+          slot?: string | null
+          title_ar: string
+          updated_at?: string
+          volume_default?: number
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          duration_sec?: number | null
+          file_path?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          mime_type?: string | null
+          slot?: string | null
+          title_ar?: string
+          updated_at?: string
+          volume_default?: number
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
