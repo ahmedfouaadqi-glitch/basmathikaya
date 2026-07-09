@@ -613,7 +613,7 @@ Return JSON exactly like:
             model,
             messages: [
               { role: "system", content: sys },
-              { role: "user", content: buildPrompt(seed) },
+              { role: "user", content: buildPrompt(seed) + adultOverride },
             ],
             response_format: { type: "json_object" },
           });
