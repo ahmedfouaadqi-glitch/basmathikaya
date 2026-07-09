@@ -548,7 +548,8 @@ export const adminUploadPageImage = createServerFn({ method: "POST" })
     });
     if (upErr) throw new Error(upErr.message);
     if (isCover) {
-      await s.from("orders").update({ cover_path: path }).eq("id", data.orderId);
+      await s.from("generations")
+        .upsert({ order_id: data.orderId, cover_image_path: path } as never, { onConflict: "order_id" });
     } else {
       await s.from("story_pages")
         .update({ image_path: path })
