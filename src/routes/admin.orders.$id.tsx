@@ -375,45 +375,10 @@ function OrderDetail() {
 
           {pages.length > 0 && (
             <div className="rounded-2xl border bg-card p-4">
-              <div className="mb-3 text-sm font-semibold">{t("story_pages")}</div>
+              <div className="mb-3 text-sm font-semibold">{t("story_pages")} · تحرير كامل</div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {pages.map((p) => (
-                  <div key={p.page_number} className="rounded-xl border bg-background overflow-hidden">
-                    {p.image_url ? (
-                      <img src={p.image_url} alt={`page-${p.page_number}`} className="aspect-square w-full object-cover" />
-                    ) : (
-                      <div className="aspect-square w-full flex items-center justify-center bg-secondary/30 text-muted-foreground text-xs">
-                        {imagesReady ? "—" : "بانتظار الدفع"}
-                      </div>
-                    )}
-                    <div className="p-3">
-                      <div className="flex items-center justify-between mb-1 gap-1">
-                        <div className="text-xs font-bold text-primary">{t("page_n")} {p.page_number}</div>
-                        <div className="inline-flex gap-1">
-                          {p.image_url && (
-                            <a
-                              href={p.image_url}
-                              download={`order-${order.order_number}-page-${p.page_number}.png`}
-                              className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-secondary"
-                            >
-                              <Download className="size-3" />
-                            </a>
-                          )}
-                          {imagesReady && (
-                            <button
-                              onClick={() => regen(p.page_number)}
-                              disabled={regening === p.page_number}
-                              className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] hover:bg-secondary disabled:opacity-60"
-                            >
-                              {regening === p.page_number ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
-                              {t("regenerate_image")}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">{p.text}</p>
-                    </div>
-                  </div>
+                  <AdminPageEditor key={p.page_number} orderId={id} page={p} onChanged={() => qc.invalidateQueries({ queryKey: ["admin-order", id] })} imagesReady={imagesReady} regening={regening === p.page_number} onRegen={() => regen(p.page_number)} orderNumber={order.order_number} />
                 ))}
               </div>
             </div>
