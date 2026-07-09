@@ -1355,18 +1355,21 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
 
       // Strong negative constraints — prevent Gemini from ever pasting the reference photo
       // (or any inset/frame/thumbnail of it) into the final illustration.
+      // In adult mode we drop the "no nudity implied" bias by NOT adding safety-blur language.
       const negatives =
-        "STRICT RULES: The output MUST be a single full-scene storybook illustration only. " +
+        "STRICT RULES: The output MUST be a single full-scene illustration only. " +
         "ABSOLUTELY NO photograph, no photo-of-a-photo, no photo-in-photo, no picture-in-picture, " +
         "no inset image, no side panel, no thumbnail, no polaroid, no framed reference on any wall or table, " +
         "no collage, no before/after comparison, no split screen, no reference sheet, no character turnaround, " +
         "no watermark, no logo, no text, no letters, no captions, no signatures. " +
         "Never render the original uploaded photo or any cropped part of it inside the scene. " +
-        "Only the illustrated storybook scene fills the frame. " +
+        "Only the illustrated scene fills the frame. " +
         "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. " +
-        // Anatomy + quality guardrails (2026-07 quality lift)
         "No deformed hands, no extra fingers, no missing fingers, no fused faces, no melting features, " +
-        "no plastic skin, no dead eyes, no low-resolution artifacts, no muddy shadows, no lazy or empty background. ";
+        "no plastic skin, no dead eyes, no low-resolution artifacts, no muddy shadows, no lazy or empty background. " +
+        (imgIsAdultAudience
+          ? "This is an ADULT illustration — do NOT add censorship bars, do NOT blur skin, do NOT force clothing that contradicts the scene. "
+          : "");
 
       // Quality master directive — always injected for a consistent, cinematic result.
       const qualityMaster =
