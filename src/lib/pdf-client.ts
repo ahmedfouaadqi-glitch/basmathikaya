@@ -248,10 +248,8 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
   const isLandscape = a.orientation === "landscape";
   const dir = isRtl ? "rtl" : "ltr";
   const s = STRINGS[a.language as PdfLang] ?? STRINGS.ar;
-  const img = opts.imgData
-    ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="width:100%;height:100%;object-fit:cover;display:block;" />`
-    : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`;
   const text = escapeHtml(p.text || "").replace(/\n+/g, "<br/>");
+
 
   // Unified margins — feels like a real book, not a memo.
   const marginX = isLandscape ? 48 : 40;
@@ -271,10 +269,15 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
   `;
 
   // Landscape → side-by-side spread feel; Portrait → image top (large) + text card bottom.
+  // Use object-fit:contain so any aspect ratio (portrait/landscape/square) fits fully — no cropping.
   const body = isLandscape
     ? `
       <div style="flex:1;display:flex;flex-direction:row;gap:26px;min-height:0;">
-        <div style="width:58%;${imageCard}">${img}</div>
+        <div style="width:58%;${imageCard}display:flex;align-items:center;justify-content:center;">
+          ${opts.imgData
+            ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;" />`
+            : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`}
+        </div>
         <div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0;">
           <div style="${textCard}">
             <div style="
@@ -287,7 +290,11 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
       </div>`
     : `
       <div style="flex:1;display:flex;flex-direction:column;gap:22px;min-height:0;">
-        <div style="width:100%;height:${Math.round(PAGE_H * 0.58)}px;${imageCard}">${img}</div>
+        <div style="width:100%;height:${Math.round(PAGE_H * 0.58)}px;${imageCard}display:flex;align-items:center;justify-content:center;">
+          ${opts.imgData
+            ? `<img src="${opts.imgData}" alt="" crossorigin="anonymous" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;" />`
+            : `<div style="width:100%;height:100%;background:#F0E6D2;"></div>`}
+        </div>
         <div style="${textCard}flex:1;display:flex;align-items:center;">
           <div style="
             font-size:21px;line-height:2.0;font-weight:500;
@@ -296,6 +303,7 @@ function buildPageHtml(p: { number: number; text: string; imageUrl: string | nul
           ">${text}</div>
         </div>
       </div>`;
+
 
   // Page number with a hairline separator + tiny brand mark — subtle, book-like.
   const brandMark = `<span style="color:${opts.accent};font-weight:800;letter-spacing:.5px;">${escapeHtml(s.brand)}</span>`;
@@ -494,42 +502,68 @@ export async function buildAndDownloadStoryPdf(a: StoryPdfAssets): Promise<void>
       });
     }));
 
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    const [{ default: jsPDF }, htmlToImage] = await Promise.all([
       import("jspdf"),
-      import("html2canvas-pro"),
+      import("html-to-image"),
     ]);
+    // Lazy fallback loader (only if html-to-image fails on some page).
+    let html2canvasMod: typeof import("html2canvas-pro") | null = null;
+    const getHtml2Canvas = async () => {
+      if (!html2canvasMod) html2canvasMod = await import("html2canvas-pro");
+      return html2canvasMod.default;
+    };
 
     const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: isLandscape ? "landscape" : "portrait" });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = pdf.internal.pageSize.getHeight();
 
     const pageEls = Array.from(host.querySelectorAll<HTMLElement>("[data-pdf-page]"));
-    // Adaptive raster scale per device. iOS Safari has a hard ~16MP/canvas cap.
     const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1;
-    const scale = isIOS ? 1.4 : isMobile ? Math.min(1.6, dpr) : 2;
+    const pixelRatio = isIOS ? 1.5 : isMobile ? Math.min(1.75, dpr) : 2;
     const jpegQuality = isIOS ? 0.82 : 0.9;
 
     for (let i = 0; i < pageEls.length; i++) {
       const el = pageEls[i];
-      const canvas = await html2canvas(el, {
-        scale,
-        useCORS: true,
-        backgroundColor: "#FFFBF5",
-        logging: false,
-        width: PAGE_W,
-        height: PAGE_H,
-        windowWidth: PAGE_W,
-        windowHeight: PAGE_H,
-        imageTimeout: 15000,
-      });
-      const dataUrl = canvas.toDataURL("image/jpeg", jpegQuality);
-      // Free canvas memory immediately (matters on iOS for ≥5 pages).
-      canvas.width = 0; canvas.height = 0;
+      let dataUrl: string | null = null;
+      // Primary path: html-to-image (uses SVG foreignObject → preserves Arabic
+      // glyph shaping and RTL bidi exactly as the browser renders them).
+      try {
+        dataUrl = await htmlToImage.toJpeg(el, {
+          quality: jpegQuality,
+          pixelRatio,
+          cacheBust: false,
+          width: PAGE_W,
+          height: PAGE_H,
+          backgroundColor: "#FFFBF5",
+          skipFonts: false,
+        });
+      } catch {
+        dataUrl = null;
+      }
+      // Fallback: html2canvas-pro (may break Arabic shaping on some browsers,
+      // but at least produces *something* if the primary path fails).
+      if (!dataUrl) {
+        const html2canvas = await getHtml2Canvas();
+        const canvas = await html2canvas(el, {
+          scale: pixelRatio,
+          useCORS: true,
+          backgroundColor: "#FFFBF5",
+          logging: false,
+          width: PAGE_W,
+          height: PAGE_H,
+          windowWidth: PAGE_W,
+          windowHeight: PAGE_H,
+          imageTimeout: 15000,
+        });
+        dataUrl = canvas.toDataURL("image/jpeg", jpegQuality);
+        canvas.width = 0; canvas.height = 0;
+      }
       if (i > 0) pdf.addPage();
       pdf.addImage(dataUrl, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
       // Yield to the event loop so Safari can reclaim memory between pages.
       await new Promise((r) => setTimeout(r, 0));
     }
+
 
     const safeTitle = (a.title || "story").replace(/[^\p{L}\p{N}\s-]+/gu, "").trim().slice(0, 40) || "story";
     const filename = `basma-hekaya-${a.orderNumber ?? ""}-${safeTitle}.pdf`;
