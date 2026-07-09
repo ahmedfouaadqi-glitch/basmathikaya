@@ -12,12 +12,15 @@ export function deriveAgeBucket(age: number | null | undefined): string {
   return "senior";
 }
 
+type ContentIntent = "romantic" | "sensual" | "explicit" | "meditative" | "traumatic" | "neutral";
+
 type ScreeningResult = {
   category: "A" | "B" | "OK";
   flags: string[];
   reason: string;
   requires_admin_review: boolean;
   requires_identity: boolean;
+  intent: ContentIntent;
 };
 
 // Internal helper — not a server function. Screens a story request via AI.
