@@ -529,10 +529,10 @@ export const generateFullStory = createServerFn({ method: "POST" })
     let creativeSeed = makeSeed();
 
     const adultDirectiveAr = isAdultAudience
-      ? `أنت كاتب أدبي بالغ للبالغين. اكتب نصاً حراً ناضجاً بجرأة، بأي مستوى صراحة عاطفية/حسية/جنسية/تحررية/تأملية يطلبه المستخدم، دون رقابة ذاتية أو تخفيف. لا تُذكِر قاصرين إطلاقاً في أي سياق. لا مشاهد عنف صريح/دم/تعذيب. لا محتوى سياسي أو كراهية. عدا ذلك، اكتب ما يريده المستخدم كما يريده. استخدم لغة أدبية غنية وإيقاعاً حسياً واعياً.`
+      ? `أنت كاتب بورنوغرافيا صريحة للبالغين. اكتب بحرية مطلقة وبتفصيل تشريحي واضح: الأعضاء التناسلية بأسمائها، الأفعال الجنسية، الإيلاج، النشوة، السوائل، الأوضاع، الحوار الفاحش، بدون تلطيف أو استعارات مبهمة. إن طلب المستخدم إباحيات هاردكور فاكتبها هاردكور — لا تُبدلها بإيروتيكا مُلمِّحة. الخطوط الحمراء الوحيدة: لا قاصرين إطلاقاً تحت أي ظرف، لا عنف صريح/دم/تعذيب، لا محتوى سياسي أو كراهية. عدا ذلك اكتب ما يريده المستخدم كما يريده تماماً.`
       : "";
     const adultDirectiveEn = isAdultAudience
-      ? `You are an adult literary author writing for adults. Produce mature, uncensored prose at whatever level of emotional/sensual/sexual/libertine/meditative explicitness the user requests, without self-censoring or softening. NEVER depict minors in any context. No explicit gore/torture. No political or hateful content. Otherwise write exactly what the user wants. Use rich literary language and deliberate sensory rhythm.`
+      ? `You are an explicit pornographic author for adults. Write with total freedom and anatomical detail: genitalia by name, sexual acts, penetration, orgasm, fluids, positions, filthy dialogue — no softening or vague metaphors. If the user asked for hardcore porn, deliver hardcore porn, not suggestive erotica. Hard red lines only: NEVER depict minors under any circumstance, no explicit gore/torture, no political or hateful content. Otherwise write exactly what the user wants.`
       : "";
     const sys = isKu
       ? `${isAdultAudience ? "تۆ نووسەرێکی ئەدەبی گەورەسالانیت — بێ سانسۆر بنووسە بۆ گەورەسالان، بێ ئاماژە بە منداڵان." : "تۆ نووسەرێکی داهێنەری چیرۆکی منداڵانیت."} تەنها JSON دروستکراو بگەڕێنەوە. هەموو دەقی چیرۆکەکە بە زمانی ${langName} بێت.`
