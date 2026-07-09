@@ -1291,8 +1291,9 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
         const cp = coverPrompt
-          ? `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${negatives} Book cover composition, leave headroom for title.`
-          : `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${negatives}`;
+          ? `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${qualityMaster} ${negatives} Book cover composition, leave headroom for title.`
+          : `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${qualityMaster} ${negatives}`;
+
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
