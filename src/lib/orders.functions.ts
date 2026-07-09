@@ -1396,7 +1396,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           prompt: cp,
           storagePath: `covers/${data.orderId}.png`,
           pricing,
-          model: coverModel,
+          models: coverChain,
           referenceImages,
         });
         if (coverPath) {
@@ -1434,7 +1434,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           prompt: basePrompt,
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
-          model: pageModel,
+          models: pageChain,
           referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
         });
         if (path) {
@@ -1459,7 +1459,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
                 prompt: stronger,
                 storagePath: `pages/${data.orderId}/${p.page_number}.png`,
                 pricing,
-                model: pageModel,
+                models: pageChain,
                 referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
               });
               if (retryPath) {
