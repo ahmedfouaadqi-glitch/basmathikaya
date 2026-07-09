@@ -12,6 +12,8 @@ import { getCurrentUser } from "../lib/auth.functions";
 import { computeTierAmount, DEFAULT_PRICING, MAX_PAGES, MIN_PAGES, MAX_CHARACTERS } from "../lib/pricing";
 import { buildSampleStory } from "../lib/sample-story";
 import { listPublicPreviewTemplates, type PreviewTemplate } from "../lib/preview-templates.functions";
+import { getSiteCopy } from "../lib/site-copy.functions";
+import { SiteMarkdown } from "../components/SiteMarkdown";
 import { z } from "zod";
 
 
