@@ -144,13 +144,19 @@ export const screenOrder = createServerFn({ method: "POST" })
     });
 
     const bucket = deriveAgeBucket(primary?.age ?? null);
+    const isCategoryA = result.category === "A";
+
     await supabaseAdmin
       .from("orders")
       .update({
         age_bucket: bucket,
         content_flags: result.flags,
         requires_admin_review: result.requires_admin_review,
-        status: result.requires_admin_review ? "pending_review" : undefined,
+        status: isCategoryA
+          ? "rejected"
+          : (result.requires_admin_review ? "pending_review" : undefined),
+        admin_review_note: isCategoryA ? `رفض تلقائي: ${result.reason}` : undefined,
+        admin_reviewed_at: isCategoryA ? new Date().toISOString() : undefined,
         identity_verification_status: result.requires_identity ? "requested" : "not_required",
       })
       .eq("id", data.orderId);
@@ -159,13 +165,14 @@ export const screenOrder = createServerFn({ method: "POST" })
       order_id: data.orderId,
       category: result.category,
       flags: result.flags,
-      decision: result.requires_admin_review ? "review" : "auto_ok",
+      decision: isCategoryA ? "auto_reject" : (result.requires_admin_review ? "review" : "auto_ok"),
       reason: result.reason,
-      model_used: "google/gemini-2.5-flash-lite",
+      model_used: "google/gemini-3.1-flash-lite",
     });
 
     return result;
   });
+
 
 // ============ ADMIN ============
 
