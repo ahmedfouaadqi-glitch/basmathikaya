@@ -16,8 +16,8 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
       { name: "description", content: "ارفع صورتك، اختر جوّك، واحصل على حكاية فريدة بملامحك. PDF فوري أو نسخة مطبوعة." },
-      { property: "og:title", content: "بصمة حكاية" },
-      { property: "og:description", content: "حكاية مرسومة بملامحك أنت. فريدة كبصمتك." },
+      { property: "og:title", content: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
+      { property: "og:description", content: "ارفع صورتك، اختر جوّك، واحصل على حكاية فريدة بملامحك. PDF فوري أو نسخة مطبوعة." },
     ],
   }),
   component: Home,
