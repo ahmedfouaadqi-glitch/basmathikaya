@@ -119,6 +119,9 @@ export const redeemReferralCode = createServerFn({ method: "POST" })
 export const completeReferralForOrder = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ orderId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
+    // Admin-only: this grants real IQD credit. Must never be publicly callable.
+    const { requireAdmin } = await import("./admin-session.server");
+    await requireAdmin();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const reward = Number(process.env.REFERRAL_REWARD_IQD ?? 5000);
 
@@ -128,6 +131,13 @@ export const completeReferralForOrder = createServerFn({ method: "POST" })
       .eq("id", data.orderId)
       .maybeSingle();
     if (!order || !order.user_id) return { ok: false as const, reason: "no_order" };
+
+    // Only reward once the order has actually been paid/delivered.
+    const paidStatuses = new Set(["paid", "delivered", "completed", "shipped"]);
+    if (!order.status || !paidStatuses.has(String(order.status))) {
+      return { ok: false as const, reason: "order_not_paid" };
+    }
+
 
     const { data: ref } = await supabaseAdmin
       .from("referrals")
