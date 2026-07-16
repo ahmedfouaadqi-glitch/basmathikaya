@@ -429,8 +429,12 @@ async function runWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
 export const generateFullStory = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => OrderIdInput.parse(d))
   .handler(async ({ data }) => {
+    // Admin-only: this triggers costly AI generation and mutates order content.
+    const { requireAdmin } = await import("./admin-session.server");
+    await requireAdmin();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { callChat, estimateTextCostUsd } = await import("./ai-gateway.server");
+
 
     const { data: order } = await supabaseAdmin
       .from("orders")

@@ -138,10 +138,23 @@ export const screenOrder = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, moods, custom_instructions")
+      .select("id, user_id, moods, custom_instructions")
       .eq("id", data.orderId)
       .maybeSingle();
     if (!order) throw new Error("Order not found");
+
+    // AuthZ: only the order owner or an admin may (re)run screening.
+    const { readAdminSession } = await import("./admin-session.server");
+    const adminSession = await readAdminSession();
+    const isAdmin = !!adminSession.data.authenticated;
+    if (!isAdmin) {
+      const { requireUserSession } = await import("./user-session.server");
+      const userSession = await requireUserSession();
+      if (!order.user_id || order.user_id !== userSession.data.userId) {
+        throw new Error("Forbidden");
+      }
+    }
+
     const { data: chars } = await supabaseAdmin
       .from("order_characters")
       .select("age, description, is_primary")
