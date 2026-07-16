@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_login_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          ip: string | null
+          phone: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          phone: string
+          success?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          phone?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
       admin_login_tokens: {
         Row: {
           created_at: string
