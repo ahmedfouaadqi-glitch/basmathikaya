@@ -205,26 +205,10 @@ export const adminVerifyOtp = createServerFn({ method: "POST" })
   });
 
 /**
- * Legacy (temporary) admin login: phone whitelist + static code.
- * Kept simple by request. The code can be overridden via ADMIN_CODE env.
+ * Legacy static-code login was removed. Admin login is OTP-only via
+ * adminRequestOtp / adminVerifyOtp.
  */
-const LegacyInput = z.object({
-  phone: z.string().trim().min(1).max(40),
-  code: z.string().trim().min(1).max(20),
-});
 
-export const adminLegacyLogin = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => LegacyInput.parse(d))
-  .handler(async ({ data }) => {
-    const phone = normalizePhone(data.phone);
-    if (!isAdminPhone(phone)) return { ok: false as const };
-    const expected = (process.env.ADMIN_CODE || "7979").trim();
-    if (!eq(data.code.trim(), expected)) return { ok: false as const };
-    const { readAdminSession } = await import("./admin-session.server");
-    const s = await readAdminSession();
-    await s.update({ authenticated: true });
-    return { ok: true as const };
-  });
 
 export const adminLogout = createServerFn({ method: "POST" }).handler(async () => {
   const { readAdminSession } = await import("./admin-session.server");
