@@ -1528,7 +1528,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
                 storagePath: `pages/${data.orderId}/${p.page_number}.png`,
                 pricing,
                 models: pageChain,
-                referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
+                referenceImages: pageRefs.length ? pageRefs : undefined,
               });
               if (retryPath) {
                 path = retryPath;
