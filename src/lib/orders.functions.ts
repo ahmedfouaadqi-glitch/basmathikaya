@@ -1379,30 +1379,33 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         ? "Frame the illustration in a WIDE 4:3 landscape composition, characters centered, plenty of horizontal scene around them. "
         : "Frame the illustration in a 3:4 portrait composition, characters centered, room above and below. ";
 
-      // Strong negative constraints — prevent Gemini from ever pasting the reference photo
-      // (or any inset/frame/thumbnail of it) into the final illustration.
-      // In adult mode we drop the "no nudity implied" bias by NOT adding safety-blur language.
+      // Short, high-impact constraints. Kept brief on purpose: long rule walls get
+      // ignored by the models, and the "no text" rule is placed FIRST so it survives.
       const negatives =
-        "STRICT RULES: The output MUST be a single full-scene illustration only. " +
-        "ABSOLUTELY NO photograph, no photo-of-a-photo, no photo-in-photo, no picture-in-picture, " +
-        "no inset image, no side panel, no thumbnail, no polaroid, no framed reference on any wall or table, " +
-        "no collage, no before/after comparison, no split screen, no reference sheet, no character turnaround, " +
-        "no watermark, no logo, no text, no letters, no captions, no signatures. " +
-        "Never render the original uploaded photo or any cropped part of it inside the scene. " +
-        "Only the illustrated scene fills the frame. " +
-        "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. " +
-        "No deformed hands, no extra fingers, no missing fingers, no fused faces, no melting features, " +
-        "no plastic skin, no dead eyes, no low-resolution artifacts, no muddy shadows, no lazy or empty background. " +
+        "HARD RULES: no text, no letters, no words, no captions, no watermark, no logo, no signature anywhere in the image. " +
+        "One single full-frame illustrated scene — no photo inset, no picture-in-picture, no collage, no split screen, no reference sheet, no framed photo inside the scene. " +
+        "Never copy the uploaded photo into the image; use it only for likeness. " +
+        "Correct anatomy: no deformed or extra hands/fingers, no fused faces. " +
         (imgIsAdultAudience
-          ? "This is an ADULT illustration — do NOT add censorship bars, do NOT blur skin, do NOT force clothing that contradicts the scene. "
+          ? "Adult illustration: no censorship bars, no blur, no added clothing that contradicts the scene."
           : "");
 
-      // Quality master directive — always injected for a consistent, cinematic result.
       const qualityMaster =
-        "QUALITY MASTER: cinematic lighting, balanced rule-of-thirds composition, coherent color palette across the book, " +
-        "sharp focal subject, expressive but anatomically correct hands and faces, painterly texture, " +
-        "rich depth of field, professional illustration finish, 8K detail, magazine-cover polish.";
+        "QUALITY: cinematic lighting, sharp focal subject, coherent palette across the book, professional finish, high detail.";
 
+      // Prompt builder — scene first (highest weight), then style, then likeness, then rules.
+      const buildImagePrompt = (scene: string, extra = "") =>
+        [
+          `SCENE (most important, render exactly this): ${scene}`,
+          `ART STYLE (mandatory, identical on every page): ${style}`,
+          dnaTag ? dnaTag.trim() : "",
+          consistencyTag.trim(),
+          likenessTag.trim(),
+          aspectTag.trim(),
+          extra,
+          qualityMaster,
+          negatives,
+        ].filter(Boolean).join("\n");
 
       // Cover
       let coverPath = gen?.cover_image_path as string | null;
@@ -1412,25 +1415,49 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           const parsed = gen?.full_story ? JSON.parse(gen.full_story as string) as { cover_prompt?: string } : null;
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
-        const cp = coverPrompt
-          ? `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${qualityMaster} ${negatives} Book cover composition, leave headroom for title.`
-          : `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${qualityMaster} ${negatives}`;
+        const coverScene = coverPrompt || `Book cover illustration for "${order.title ?? "Story"}".`;
+        const cp = buildImagePrompt(coverScene, "Book cover composition, leave headroom for the title.");
+        // Simplified, non-explicit cover prompt — used as 2nd attempt on each model and
+        // as a last resort, so a book is never left without a cover.
+        const cpSafe = [
+          `SCENE: portrait book cover of the main character, calm expression, evocative background matching the story mood.`,
+          `ART STYLE (mandatory): ${artStyleLock}`,
+          dnaTag ? dnaTag.trim() : "",
+          aspectTag.trim(),
+          "Book cover composition, leave headroom for the title.",
+          qualityMaster,
+          "HARD RULES: no text, no letters, no watermark, no photo inset, single full-frame illustration.",
+        ].filter(Boolean).join("\n");
 
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
           prompt: cp,
+          fallbackPrompt: cpSafe,
           storagePath: `covers/${data.orderId}.png`,
           pricing,
           models: coverChain,
           referenceImages,
         });
+        if (!coverPath) {
+          // Last resort: a clean, non-explicit character portrait cover.
+          coverPath = await generateOneImage({
+            orderId: data.orderId,
+            step: "cover_image_safe_retry",
+            prompt: cpSafe,
+            storagePath: `covers/${data.orderId}.png`,
+            pricing,
+            models: coverChain,
+            referenceImages,
+          });
+        }
         if (coverPath) {
           await supabaseAdmin
             .from("generations")
             .upsert({ order_id: data.orderId, cover_image_path: coverPath }, { onConflict: "order_id" });
         }
       }
+
 
       // Add the cover itself as an extra reference for every page — this
       // locks composition, color palette and character look across the book.
