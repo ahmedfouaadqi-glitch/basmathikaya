@@ -1477,19 +1477,34 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const { runImageQA } = await import("./image-qa.server");
       const characterDna = dnaLines || brief;
       const langForQa = ((order.characters as { language?: string } | null)?.language ?? "ar") as "ar" | "en" | "ku";
+      const firstPagePaths: string[] = [];
       await runWithConcurrency(todo, 3, async (p) => {
         const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
         const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
-        const basePrompt = `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${qualityMaster} ${negatives}`;
+        const basePrompt = buildImagePrompt(
+          p.image_prompt ?? "",
+          `Lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover.`,
+        );
+        // 2nd attempt on the same model: shorter prompt, same style anchor.
+        const simplePrompt = [
+          `SCENE: ${p.image_prompt ?? ""}`,
+          `ART STYLE (mandatory): ${artStyleLock}`,
+          dnaTag ? dnaTag.trim() : "",
+          aspectTag.trim(),
+          "HARD RULES: no text, no letters, no watermark, single full-frame illustration.",
+        ].filter(Boolean).join("\n");
         let path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
           prompt: basePrompt,
+          fallbackPrompt: simplePrompt,
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
           models: pageChain,
-          referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
+          referenceImages: pageRefs.length ? pageRefs : undefined,
         });
+        if (path) firstPagePaths.push(path);
+
         if (path) {
           // Image QA — one retry max, fail-open on QA errors.
           try {
