@@ -32,8 +32,11 @@ function OrderDetail() {
   const deleteFn = useServerFn(adminDeleteOrder);
   const redownloadFn = useServerFn(adminConfirmRedownload);
   const retryImagesFn = useServerFn(adminRetryImageGeneration);
+  const regenCoverFn = useServerFn(adminRegenerateCover);
   const [regening, setRegening] = useState<number | null>(null);
   const [retryingImages, setRetryingImages] = useState(false);
+  const [regeningCover, setRegeningCover] = useState(false);
+
   const [buildingPdf, setBuildingPdf] = useState(false);
   const [confirmingPay, setConfirmingPay] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
