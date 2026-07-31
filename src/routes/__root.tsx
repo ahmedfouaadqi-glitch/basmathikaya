@@ -20,6 +20,7 @@ import { SiteFooter } from "../components/SiteFooter";
 import { InstallGate } from "../components/InstallGate";
 import { AudioProvider } from "../components/AudioProvider";
 import { MiniMusicPlayer } from "../components/MiniMusicPlayer";
+import { GalaxyBackground } from "../components/GalaxyBackground";
 import { useServerFn } from "@tanstack/react-start";
 import { getCurrentUser } from "../lib/auth.functions";
 import { getActiveTheme } from "../lib/themes.functions";
@@ -247,6 +248,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AudioProvider>
+          <GalaxyBackground />
           <InstallGate>
             <ThemeBanner />
             <Header />
