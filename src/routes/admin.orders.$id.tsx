@@ -242,6 +242,15 @@ function OrderDetail() {
                 </button>
               </div>
             )}
+            <button
+              onClick={regenCover}
+              disabled={regeningCover}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border py-2 text-xs font-bold hover:bg-secondary disabled:opacity-60"
+            >
+              {regeningCover ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+              إعادة توليد الغلاف فقط
+            </button>
+
             {imagesReady && (
               <>
                 <button
