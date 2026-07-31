@@ -1564,6 +1564,30 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         }
       });
 
+      // Never ship a book without a cover: reuse the first successful page image.
+      if (!coverPath) {
+        const { data: anyPage } = await supabaseAdmin
+          .from("story_pages")
+          .select("image_path")
+          .eq("order_id", data.orderId)
+          .not("image_path", "is", null)
+          .order("page_number", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        const fallbackCover = (anyPage as { image_path?: string | null } | null)?.image_path ?? firstPagePaths[0] ?? null;
+        if (fallbackCover) {
+          coverPath = fallbackCover;
+          await supabaseAdmin
+            .from("generations")
+            .upsert({ order_id: data.orderId, cover_image_path: fallbackCover }, { onConflict: "order_id" });
+          await logEvent(data.orderId, "cover_image_fallback_from_page", "n/a", "image",
+            { log_id: null, run_id: null, usage: {}, duration_ms: 0 }, 0, 0, pricing,
+            "success", "cover generation failed — first page image used as cover");
+        }
+      }
+
+
+
       // PDF is built in the browser (pdf-client.ts) on demand to avoid Worker bundler
       // interop issues with @pdf-lib/fontkit; once all page images exist the story is "ready".
       await supabaseAdmin
