@@ -763,6 +763,39 @@ export type Database = {
           },
         ]
       }
+      email_otp_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          ip: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          ip?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+        }
+        Relationships: []
+      }
       emergency_controls: {
         Row: {
           ai_all_paused: boolean
@@ -2247,12 +2280,13 @@ export type Database = {
       users: {
         Row: {
           created_at: string
+          email: string | null
           full_name: string
           id: string
           last_login_at: string | null
           marketing_consent: boolean
           notes: string | null
-          phone: string
+          phone: string | null
           referral_code: string | null
           referral_credit_iqd: number
           referred_by_user_id: string | null
@@ -2261,12 +2295,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string | null
           full_name: string
           id?: string
           last_login_at?: string | null
           marketing_consent?: boolean
           notes?: string | null
-          phone: string
+          phone?: string | null
           referral_code?: string | null
           referral_credit_iqd?: number
           referred_by_user_id?: string | null
@@ -2275,12 +2310,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string | null
           full_name?: string
           id?: string
           last_login_at?: string | null
           marketing_consent?: boolean
           notes?: string | null
-          phone?: string
+          phone?: string | null
           referral_code?: string | null
           referral_credit_iqd?: number
           referred_by_user_id?: string | null
