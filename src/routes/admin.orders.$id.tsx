@@ -167,6 +167,20 @@ function OrderDetail() {
     }
   }
 
+  async function regenCover() {
+    setRegeningCover(true);
+    try {
+      await regenCoverFn({ data: { orderId: id } });
+      toast.success("بدأت إعادة توليد الغلاف");
+      qc.invalidateQueries({ queryKey: ["admin-order", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    } finally {
+      setRegeningCover(false);
+    }
+  }
+
+
   const imagesReady = order.images_status === "ready";
 
   return (
