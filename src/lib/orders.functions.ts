@@ -2121,6 +2121,27 @@ export const adminRetryImageGeneration = createServerFn({ method: "POST" })
     );
   });
 
+/** Regenerate ONLY the cover; existing page images are kept as-is. */
+export const adminRegenerateCover = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("generations")
+      .update({ cover_image_path: null })
+      .eq("order_id", data.orderId);
+    await supabaseAdmin
+      .from("orders")
+      .update({ images_error: null, images_status: "generating" })
+      .eq("id", data.orderId);
+    return await (adminConfirmPaymentAndGenerate as unknown as (a: { data: { orderId: string } }) => Promise<{ ok: true }>)(
+      { data: { orderId: data.orderId } },
+    );
+  });
+
+
+
 // ============= User: prefill data for "recreate with new options" =============
 
 export type OrderPrefill = {
