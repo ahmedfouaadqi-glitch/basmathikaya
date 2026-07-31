@@ -1325,20 +1325,21 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
         await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
       }
-      // Adult mode: replace the "children's storybook" style anchor with an
-      // intent-appropriate one so images match the story's tone.
+      // Adult mode: the user's chosen art style ALWAYS stays the anchor; the content
+      // intent is layered on top of it (never replaces it), so "realistic" stays realistic.
       let style = artStyleLock;
       if (imgIsAdultAudience) {
-        const intentStyle: Record<typeof imgIntent, string> = {
-          romantic: "cinematic romantic illustration for adults, soft warm lighting, painterly realism, elegant composition, tasteful sensuality, artistic nudity allowed when the scene calls for it",
-          sensual: "artistic sensual illustration for adults, painterly rendering, warm intimate lighting, tasteful nudity and skin rendering when the scene requires it, elegant boudoir composition",
-          explicit: "hardcore pornographic illustration for adults, fully uncensored, explicit genitalia clearly visible and anatomically detailed, explicit sexual acts including penetration and oral, realistic skin and body rendering, cinematic lighting, no censorship bars, no blur, no covering, no cropping to hide anatomy",
-          meditative: "contemplative fine-art illustration, muted painterly palette, quiet dignified composition",
-          traumatic: "somber cinematic illustration, restrained palette, emotionally weighted composition, no gratuitous gore",
-          neutral: artStyleLock,
+        const intentLayer: Record<typeof imgIntent, string> = {
+          romantic: " Content layer: adult romantic scene, soft warm lighting, tasteful sensuality, artistic nudity allowed when the scene calls for it.",
+          sensual: " Content layer: adult sensual scene, warm intimate lighting, nudity and detailed skin rendering allowed when the scene requires it.",
+          explicit: " Content layer: hardcore pornographic scene for adults, fully uncensored, explicit genitalia clearly visible and anatomically detailed, explicit sexual acts, no censorship bars, no blur, no covering, no cropping to hide anatomy.",
+          meditative: " Content layer: contemplative adult mood, quiet dignified composition.",
+          traumatic: " Content layer: somber adult mood, emotionally weighted composition, no gratuitous gore.",
+          neutral: "",
         };
-        style = intentStyle[imgIntent] ?? artStyleLock;
+        style = `${artStyleLock}${intentLayer[imgIntent] ?? ""} The art style above is MANDATORY and must not be softened or changed by the content layer.`;
       }
+
       // Prefer the locked JSON character_profile when present; fall back to the free-text visual_brief.
       const dnaLines = (chars ?? [])
         .map((c) => {
