@@ -1268,25 +1268,33 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const imgIntent = (((order as { content_intent?: string | null }).content_intent) ?? "neutral") as
         "romantic" | "sensual" | "explicit" | "meditative" | "traumatic" | "neutral";
 
-      // Model fallback chains — try higher-freedom providers first, then fall back to the alternates.
-      const coverModel = effectiveTier === "premium"
-        ? "google/gemini-3-pro-image"
-        : "google/gemini-3.1-flash-image";
-      const coverChain: string[] = imgIsAdultAudience
-        ? [coverModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
-        : [coverModel];
-      const pageModel = "google/gemini-3.1-flash-image";
-      const pageChain: string[] = imgIsAdultAudience
-        ? [pageModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
-        : [pageModel];
-
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
       const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
       const referenceImages: string[] = [];
-      if (primary?.photo_path && coverModel.startsWith("google/")) {
+      if (primary?.photo_path) {
         const url = await photoToDataUrl(primary.photo_path);
         if (url) referenceImages.push(url);
       }
+      const hasRefs = referenceImages.length > 0;
+
+      // Model fallback chains. Keep the whole book inside the same model family so a
+      // transient refusal never flips the art style mid-book. gpt-image-2 cannot receive
+      // reference images here, so it is excluded whenever we have a character photo
+      // (it would silently drop the likeness).
+      const coverModel = effectiveTier === "premium"
+        ? "google/gemini-3-pro-image"
+        : "google/gemini-3.1-flash-image";
+      const geminiFallbacks = ["google/gemini-3.1-flash-image", "google/gemini-2.5-flash-image"];
+      const dedupe = (arr: string[]) => Array.from(new Set(arr));
+      const coverChain: string[] = imgIsAdultAudience
+        ? dedupe([coverModel, ...geminiFallbacks, ...(hasRefs ? [] : ["openai/gpt-image-2"])])
+        : dedupe([coverModel, "google/gemini-3.1-flash-image"]);
+      const pageModel = "google/gemini-3.1-flash-image";
+      const pageChain: string[] = imgIsAdultAudience
+        ? dedupe([pageModel, "google/gemini-2.5-flash-image", ...(hasRefs ? [] : ["openai/gpt-image-2"])])
+        : dedupe([pageModel, "google/gemini-2.5-flash-image"]);
+
+
 
       const brief = (order.character_brief as string | null) ?? "";
       // Persistent art style lock — same style repeated across cover + every page,
