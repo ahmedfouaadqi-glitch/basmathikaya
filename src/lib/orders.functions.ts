@@ -292,6 +292,8 @@ async function generateOneImage(args: {
   orderId: string;
   step: string;
   prompt: string;
+  /** Simplified prompt used for the 2nd attempt on the SAME model (transient refusals / 5xx). */
+  fallbackPrompt?: string;
   storagePath: string;
   pricing: PricingRow;
   model?: string;
@@ -305,43 +307,54 @@ async function generateOneImage(args: {
     : [args.model ?? "google/gemini-3.1-flash-image"];
   let lastErr: string | null = null;
   for (const imgModel of chain) {
-    try {
-      const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
-      const buf = Buffer.from(img.b64, "base64");
-      const up = await supabaseAdmin.storage
-        .from("story-covers")
-        .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
-      if (up.error) throw new Error(up.error.message);
-      await logEvent(
-        args.orderId,
-        args.step,
-        imgModel,
-        "image",
-        img.meta,
-        estimateImageCostUsd(imgModel, 1),
-        1,
-        args.pricing,
-      );
-      return args.storagePath;
-    } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
-      await logEvent(
-        args.orderId,
-        args.step,
-        imgModel,
-        "image",
-        { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
-        0,
-        0,
-        args.pricing,
-        "error",
-        lastErr.slice(0, 400),
-      );
-      // Try next model in chain
+    // Two attempts on the same model before switching — a 503 or a one-off empty
+    // response must NOT push the book onto a different model (and a different style).
+    const attempts = [args.prompt, args.fallbackPrompt ?? args.prompt];
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        const img = await callImage({
+          model: imgModel,
+          prompt: attempts[i],
+          referenceImages: args.referenceImages,
+        });
+        const buf = Buffer.from(img.b64, "base64");
+        const up = await supabaseAdmin.storage
+          .from("story-covers")
+          .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
+        if (up.error) throw new Error(up.error.message);
+        await logEvent(
+          args.orderId,
+          i === 0 ? args.step : `${args.step}_attempt2`,
+          imgModel,
+          "image",
+          img.meta,
+          estimateImageCostUsd(imgModel, 1),
+          1,
+          args.pricing,
+        );
+        return args.storagePath;
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : String(e);
+        await logEvent(
+          args.orderId,
+          i === 0 ? args.step : `${args.step}_attempt2`,
+          imgModel,
+          "image",
+          { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
+          0,
+          0,
+          args.pricing,
+          "error",
+          lastErr.slice(0, 400),
+        );
+        if (i === 0) await new Promise((r) => setTimeout(r, 1200));
+      }
     }
+    // Try next model in chain
   }
   return null;
 }
+
 
 /** Download a stored character photo and return a base64 data URL. Caps at ~1MB. */
 async function photoToDataUrl(path: string): Promise<string | null> {
@@ -1255,25 +1268,33 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const imgIntent = (((order as { content_intent?: string | null }).content_intent) ?? "neutral") as
         "romantic" | "sensual" | "explicit" | "meditative" | "traumatic" | "neutral";
 
-      // Model fallback chains — try higher-freedom providers first, then fall back to the alternates.
-      const coverModel = effectiveTier === "premium"
-        ? "google/gemini-3-pro-image"
-        : "google/gemini-3.1-flash-image";
-      const coverChain: string[] = imgIsAdultAudience
-        ? [coverModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
-        : [coverModel];
-      const pageModel = "google/gemini-3.1-flash-image";
-      const pageChain: string[] = imgIsAdultAudience
-        ? [pageModel, "google/gemini-2.5-flash-image", "openai/gpt-image-2"]
-        : [pageModel];
-
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
       const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
       const referenceImages: string[] = [];
-      if (primary?.photo_path && coverModel.startsWith("google/")) {
+      if (primary?.photo_path) {
         const url = await photoToDataUrl(primary.photo_path);
         if (url) referenceImages.push(url);
       }
+      const hasRefs = referenceImages.length > 0;
+
+      // Model fallback chains. Keep the whole book inside the same model family so a
+      // transient refusal never flips the art style mid-book. gpt-image-2 cannot receive
+      // reference images here, so it is excluded whenever we have a character photo
+      // (it would silently drop the likeness).
+      const coverModel = effectiveTier === "premium"
+        ? "google/gemini-3-pro-image"
+        : "google/gemini-3.1-flash-image";
+      const geminiFallbacks = ["google/gemini-3.1-flash-image", "google/gemini-2.5-flash-image"];
+      const dedupe = (arr: string[]) => Array.from(new Set(arr));
+      const coverChain: string[] = imgIsAdultAudience
+        ? dedupe([coverModel, ...geminiFallbacks, ...(hasRefs ? [] : ["openai/gpt-image-2"])])
+        : dedupe([coverModel, "google/gemini-3.1-flash-image"]);
+      const pageModel = "google/gemini-3.1-flash-image";
+      const pageChain: string[] = imgIsAdultAudience
+        ? dedupe([pageModel, "google/gemini-2.5-flash-image", ...(hasRefs ? [] : ["openai/gpt-image-2"])])
+        : dedupe([pageModel, "google/gemini-2.5-flash-image"]);
+
+
 
       const brief = (order.character_brief as string | null) ?? "";
       // Persistent art style lock — same style repeated across cover + every page,
@@ -1304,20 +1325,21 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           "warm children's storybook illustration, soft watercolor washes, gentle gouache textures, consistent thick outlines, saturated but harmonious palette, cinematic depth, clean composition centered on the subject, no letters or text in the illustration";
         await supabaseAdmin.from("orders").update({ art_style_lock: artStyleLock }).eq("id", data.orderId);
       }
-      // Adult mode: replace the "children's storybook" style anchor with an
-      // intent-appropriate one so images match the story's tone.
+      // Adult mode: the user's chosen art style ALWAYS stays the anchor; the content
+      // intent is layered on top of it (never replaces it), so "realistic" stays realistic.
       let style = artStyleLock;
       if (imgIsAdultAudience) {
-        const intentStyle: Record<typeof imgIntent, string> = {
-          romantic: "cinematic romantic illustration for adults, soft warm lighting, painterly realism, elegant composition, tasteful sensuality, artistic nudity allowed when the scene calls for it",
-          sensual: "artistic sensual illustration for adults, painterly rendering, warm intimate lighting, tasteful nudity and skin rendering when the scene requires it, elegant boudoir composition",
-          explicit: "hardcore pornographic illustration for adults, fully uncensored, explicit genitalia clearly visible and anatomically detailed, explicit sexual acts including penetration and oral, realistic skin and body rendering, cinematic lighting, no censorship bars, no blur, no covering, no cropping to hide anatomy",
-          meditative: "contemplative fine-art illustration, muted painterly palette, quiet dignified composition",
-          traumatic: "somber cinematic illustration, restrained palette, emotionally weighted composition, no gratuitous gore",
-          neutral: artStyleLock,
+        const intentLayer: Record<typeof imgIntent, string> = {
+          romantic: " Content layer: adult romantic scene, soft warm lighting, tasteful sensuality, artistic nudity allowed when the scene calls for it.",
+          sensual: " Content layer: adult sensual scene, warm intimate lighting, nudity and detailed skin rendering allowed when the scene requires it.",
+          explicit: " Content layer: hardcore pornographic scene for adults, fully uncensored, explicit genitalia clearly visible and anatomically detailed, explicit sexual acts, no censorship bars, no blur, no covering, no cropping to hide anatomy.",
+          meditative: " Content layer: contemplative adult mood, quiet dignified composition.",
+          traumatic: " Content layer: somber adult mood, emotionally weighted composition, no gratuitous gore.",
+          neutral: "",
         };
-        style = intentStyle[imgIntent] ?? artStyleLock;
+        style = `${artStyleLock}${intentLayer[imgIntent] ?? ""} The art style above is MANDATORY and must not be softened or changed by the content layer.`;
       }
+
       // Prefer the locked JSON character_profile when present; fall back to the free-text visual_brief.
       const dnaLines = (chars ?? [])
         .map((c) => {
@@ -1357,30 +1379,33 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         ? "Frame the illustration in a WIDE 4:3 landscape composition, characters centered, plenty of horizontal scene around them. "
         : "Frame the illustration in a 3:4 portrait composition, characters centered, room above and below. ";
 
-      // Strong negative constraints — prevent Gemini from ever pasting the reference photo
-      // (or any inset/frame/thumbnail of it) into the final illustration.
-      // In adult mode we drop the "no nudity implied" bias by NOT adding safety-blur language.
+      // Short, high-impact constraints. Kept brief on purpose: long rule walls get
+      // ignored by the models, and the "no text" rule is placed FIRST so it survives.
       const negatives =
-        "STRICT RULES: The output MUST be a single full-scene illustration only. " +
-        "ABSOLUTELY NO photograph, no photo-of-a-photo, no photo-in-photo, no picture-in-picture, " +
-        "no inset image, no side panel, no thumbnail, no polaroid, no framed reference on any wall or table, " +
-        "no collage, no before/after comparison, no split screen, no reference sheet, no character turnaround, " +
-        "no watermark, no logo, no text, no letters, no captions, no signatures. " +
-        "Never render the original uploaded photo or any cropped part of it inside the scene. " +
-        "Only the illustrated scene fills the frame. " +
-        "Preserve gender, age group, hair, skin tone, body build from the character DNA exactly. " +
-        "No deformed hands, no extra fingers, no missing fingers, no fused faces, no melting features, " +
-        "no plastic skin, no dead eyes, no low-resolution artifacts, no muddy shadows, no lazy or empty background. " +
+        "HARD RULES: no text, no letters, no words, no captions, no watermark, no logo, no signature anywhere in the image. " +
+        "One single full-frame illustrated scene — no photo inset, no picture-in-picture, no collage, no split screen, no reference sheet, no framed photo inside the scene. " +
+        "Never copy the uploaded photo into the image; use it only for likeness. " +
+        "Correct anatomy: no deformed or extra hands/fingers, no fused faces. " +
         (imgIsAdultAudience
-          ? "This is an ADULT illustration — do NOT add censorship bars, do NOT blur skin, do NOT force clothing that contradicts the scene. "
+          ? "Adult illustration: no censorship bars, no blur, no added clothing that contradicts the scene."
           : "");
 
-      // Quality master directive — always injected for a consistent, cinematic result.
       const qualityMaster =
-        "QUALITY MASTER: cinematic lighting, balanced rule-of-thirds composition, coherent color palette across the book, " +
-        "sharp focal subject, expressive but anatomically correct hands and faces, painterly texture, " +
-        "rich depth of field, professional illustration finish, 8K detail, magazine-cover polish.";
+        "QUALITY: cinematic lighting, sharp focal subject, coherent palette across the book, professional finish, high detail.";
 
+      // Prompt builder — scene first (highest weight), then style, then likeness, then rules.
+      const buildImagePrompt = (scene: string, extra = "") =>
+        [
+          `SCENE (most important, render exactly this): ${scene}`,
+          `ART STYLE (mandatory, identical on every page): ${style}`,
+          dnaTag ? dnaTag.trim() : "",
+          consistencyTag.trim(),
+          likenessTag.trim(),
+          aspectTag.trim(),
+          extra,
+          qualityMaster,
+          negatives,
+        ].filter(Boolean).join("\n");
 
       // Cover
       let coverPath = gen?.cover_image_path as string | null;
@@ -1390,25 +1415,49 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           const parsed = gen?.full_story ? JSON.parse(gen.full_story as string) as { cover_prompt?: string } : null;
           coverPrompt = parsed?.cover_prompt ?? "";
         } catch { /* ignore */ }
-        const cp = coverPrompt
-          ? `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}${coverPrompt}. ${style}. ${qualityMaster} ${negatives} Book cover composition, leave headroom for title.`
-          : `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Book cover for "${order.title ?? "Story"}". ${style}. ${qualityMaster} ${negatives}`;
+        const coverScene = coverPrompt || `Book cover illustration for "${order.title ?? "Story"}".`;
+        const cp = buildImagePrompt(coverScene, "Book cover composition, leave headroom for the title.");
+        // Simplified, non-explicit cover prompt — used as 2nd attempt on each model and
+        // as a last resort, so a book is never left without a cover.
+        const cpSafe = [
+          `SCENE: portrait book cover of the main character, calm expression, evocative background matching the story mood.`,
+          `ART STYLE (mandatory): ${artStyleLock}`,
+          dnaTag ? dnaTag.trim() : "",
+          aspectTag.trim(),
+          "Book cover composition, leave headroom for the title.",
+          qualityMaster,
+          "HARD RULES: no text, no letters, no watermark, no photo inset, single full-frame illustration.",
+        ].filter(Boolean).join("\n");
 
         coverPath = await generateOneImage({
           orderId: data.orderId,
           step: "cover_image",
           prompt: cp,
+          fallbackPrompt: cpSafe,
           storagePath: `covers/${data.orderId}.png`,
           pricing,
           models: coverChain,
           referenceImages,
         });
+        if (!coverPath) {
+          // Last resort: a clean, non-explicit character portrait cover.
+          coverPath = await generateOneImage({
+            orderId: data.orderId,
+            step: "cover_image_safe_retry",
+            prompt: cpSafe,
+            storagePath: `covers/${data.orderId}.png`,
+            pricing,
+            models: coverChain,
+            referenceImages,
+          });
+        }
         if (coverPath) {
           await supabaseAdmin
             .from("generations")
             .upsert({ order_id: data.orderId, cover_image_path: coverPath }, { onConflict: "order_id" });
         }
       }
+
 
       // Add the cover itself as an extra reference for every page — this
       // locks composition, color palette and character look across the book.
@@ -1428,19 +1477,34 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       const { runImageQA } = await import("./image-qa.server");
       const characterDna = dnaLines || brief;
       const langForQa = ((order.characters as { language?: string } | null)?.language ?? "ar") as "ar" | "en" | "ku";
+      const firstPagePaths: string[] = [];
       await runWithConcurrency(todo, 3, async (p) => {
         const lights = ["soft morning light", "warm golden hour", "gentle dusk", "cool overcast noon", "candle-lit dusk", "bright noon sun"];
         const lighting = lights[((p.page_number ?? 1) - 1) % lights.length];
-        const basePrompt = `${aspectTag}${likenessTag}${dnaTag}${consistencyTag}Scene: ${p.image_prompt ?? ""}. ${style}, lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover. ${qualityMaster} ${negatives}`;
+        const basePrompt = buildImagePrompt(
+          p.image_prompt ?? "",
+          `Lighting: ${lighting}. Keep the same character faces, outfits and art style as the cover.`,
+        );
+        // 2nd attempt on the same model: shorter prompt, same style anchor.
+        const simplePrompt = [
+          `SCENE: ${p.image_prompt ?? ""}`,
+          `ART STYLE (mandatory): ${artStyleLock}`,
+          dnaTag ? dnaTag.trim() : "",
+          aspectTag.trim(),
+          "HARD RULES: no text, no letters, no watermark, single full-frame illustration.",
+        ].filter(Boolean).join("\n");
         let path = await generateOneImage({
           orderId: data.orderId,
           step: `page_${p.page_number}_image`,
           prompt: basePrompt,
+          fallbackPrompt: simplePrompt,
           storagePath: `pages/${data.orderId}/${p.page_number}.png`,
           pricing,
           models: pageChain,
-          referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
+          referenceImages: pageRefs.length ? pageRefs : undefined,
         });
+        if (path) firstPagePaths.push(path);
+
         if (path) {
           // Image QA — one retry max, fail-open on QA errors.
           try {
@@ -1464,7 +1528,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
                 storagePath: `pages/${data.orderId}/${p.page_number}.png`,
                 pricing,
                 models: pageChain,
-                referenceImages: pageModel.startsWith("google/") ? pageRefs : undefined,
+                referenceImages: pageRefs.length ? pageRefs : undefined,
               });
               if (retryPath) {
                 path = retryPath;
@@ -1499,6 +1563,30 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
           }
         }
       });
+
+      // Never ship a book without a cover: reuse the first successful page image.
+      if (!coverPath) {
+        const { data: anyPage } = await supabaseAdmin
+          .from("story_pages")
+          .select("image_path")
+          .eq("order_id", data.orderId)
+          .not("image_path", "is", null)
+          .order("page_number", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        const fallbackCover = (anyPage as { image_path?: string | null } | null)?.image_path ?? firstPagePaths[0] ?? null;
+        if (fallbackCover) {
+          coverPath = fallbackCover;
+          await supabaseAdmin
+            .from("generations")
+            .upsert({ order_id: data.orderId, cover_image_path: fallbackCover }, { onConflict: "order_id" });
+          await logEvent(data.orderId, "cover_image_fallback_from_page", "n/a", "image",
+            { log_id: null, run_id: null, usage: {}, duration_ms: 0 }, 0, 0, pricing,
+            "success", "cover generation failed — first page image used as cover");
+        }
+      }
+
+
 
       // PDF is built in the browser (pdf-client.ts) on demand to avoid Worker bundler
       // interop issues with @pdf-lib/fontkit; once all page images exist the story is "ready".
@@ -2032,6 +2120,27 @@ export const adminRetryImageGeneration = createServerFn({ method: "POST" })
       { data: { orderId: data.orderId } },
     );
   });
+
+/** Regenerate ONLY the cover; existing page images are kept as-is. */
+export const adminRegenerateCover = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => OrderIdInput.parse(d))
+  .handler(async ({ data }) => {
+    await gate();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("generations")
+      .update({ cover_image_path: null })
+      .eq("order_id", data.orderId);
+    await supabaseAdmin
+      .from("orders")
+      .update({ images_error: null, images_status: "generating" })
+      .eq("id", data.orderId);
+    return await (adminConfirmPaymentAndGenerate as unknown as (a: { data: { orderId: string } }) => Promise<{ ok: true }>)(
+      { data: { orderId: data.orderId } },
+    );
+  });
+
+
 
 // ============= User: prefill data for "recreate with new options" =============
 

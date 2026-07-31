@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Download, RefreshCw, Loader2, Sparkles, Truck, X, Trash2, RotateCcw } from "lucide-react";
-import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload, adminRetryImageGeneration } from "../lib/orders.functions";
+import { adminGetOrder, adminRegeneratePage, adminConfirmPaymentAndGenerate, adminUpdateStatus, getStoryProgress, adminRejectOrder, adminDeleteOrder, adminConfirmRedownload, adminRetryImageGeneration, adminRegenerateCover } from "../lib/orders.functions";
 import { adminUpdatePageText, adminUploadPageImage, adminUpdatePagePrompt } from "../lib/admin-ops.functions";
 import { getActiveTheme } from "../lib/themes.functions";
 import { getHomeContent } from "../lib/site-content.functions";
@@ -32,8 +32,11 @@ function OrderDetail() {
   const deleteFn = useServerFn(adminDeleteOrder);
   const redownloadFn = useServerFn(adminConfirmRedownload);
   const retryImagesFn = useServerFn(adminRetryImageGeneration);
+  const regenCoverFn = useServerFn(adminRegenerateCover);
   const [regening, setRegening] = useState<number | null>(null);
   const [retryingImages, setRetryingImages] = useState(false);
+  const [regeningCover, setRegeningCover] = useState(false);
+
   const [buildingPdf, setBuildingPdf] = useState(false);
   const [confirmingPay, setConfirmingPay] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -167,6 +170,20 @@ function OrderDetail() {
     }
   }
 
+  async function regenCover() {
+    setRegeningCover(true);
+    try {
+      await regenCoverFn({ data: { orderId: id } });
+      toast.success("بدأت إعادة توليد الغلاف");
+      qc.invalidateQueries({ queryKey: ["admin-order", id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "خطأ");
+    } finally {
+      setRegeningCover(false);
+    }
+  }
+
+
   const imagesReady = order.images_status === "ready";
 
   return (
@@ -242,6 +259,15 @@ function OrderDetail() {
                 </button>
               </div>
             )}
+            <button
+              onClick={regenCover}
+              disabled={regeningCover}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border py-2 text-xs font-bold hover:bg-secondary disabled:opacity-60"
+            >
+              {regeningCover ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+              إعادة توليد الغلاف فقط
+            </button>
+
             {imagesReady && (
               <>
                 <button

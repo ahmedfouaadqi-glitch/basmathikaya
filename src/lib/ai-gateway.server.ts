@@ -143,9 +143,22 @@ export async function callImage(args: {
   const j = (await res.json()) as {
     data?: Array<{ b64_json?: string }>;
     usage?: Usage;
+    choices?: Array<{ message?: { content?: string }; finish_reason?: string; native_finish_reason?: string }>;
   };
   const b64 = j.data?.[0]?.b64_json ?? "";
-  if (!b64) throw new Error("AI Gateway returned empty image");
+  if (!b64) {
+    // Silent safety refusals come back as a text-only completion — surface the
+    // model's own wording so the admin sees WHY the image was not produced.
+    const why =
+      j.choices?.[0]?.message?.content?.trim() ||
+      j.choices?.[0]?.native_finish_reason ||
+      j.choices?.[0]?.finish_reason ||
+      "";
+    throw new Error(
+      `AI Gateway returned empty image${why ? ` (model said: ${String(why).slice(0, 220)})` : " (likely a provider safety refusal)"}`,
+    );
+  }
+
   return {
     b64,
     meta: {
