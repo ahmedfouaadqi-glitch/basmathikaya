@@ -2,9 +2,9 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Phone, KeyRound } from "lucide-react";
+import { Loader2, Phone, KeyRound, Mail } from "lucide-react";
 import { useT } from "../lib/i18n";
-import { requestOtp, verifyOtp, getCurrentUser } from "../lib/auth.functions";
+import { requestOtp, verifyOtp, requestEmailOtp, verifyEmailOtp, getCurrentUser } from "../lib/auth.functions";
 import { redeemReferralCode } from "../lib/referrals.functions";
 
 export const Route = createFileRoute("/auth")({
@@ -23,12 +23,16 @@ function AuthPage() {
   const { redirect, ref } = Route.useSearch();
   const reqFn = useServerFn(requestOtp);
   const verFn = useServerFn(verifyOtp);
+  const reqEmailFn = useServerFn(requestEmailOtp);
+  const verEmailFn = useServerFn(verifyEmailOtp);
   const meFn = useServerFn(getCurrentUser);
   const redeemFn = useServerFn(redeemReferralCode);
 
   const [step, setStep] = useState<"request" | "verify">("request");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [mode, setMode] = useState<"phone" | "email">("phone");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -45,10 +49,15 @@ function AuthPage() {
 
   async function onRequest(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) return toast.error("املأ الاسم ورقم الهاتف");
+    if (!name.trim()) return toast.error("اكتب اسمك");
+    if (mode === "phone" && !phone.trim()) return toast.error("اكتب رقم الهاتف");
+    if (mode === "email" && !email.trim()) return toast.error("اكتب البريد الإلكتروني");
     setLoading(true);
     try {
-      const r = await reqFn({ data: { full_name: name.trim(), phone: phone.trim() } });
+      const r =
+        mode === "phone"
+          ? await reqFn({ data: { full_name: name.trim(), phone: phone.trim() } })
+          : await reqEmailFn({ data: { full_name: name.trim(), email: email.trim() } });
       if (r.dev_code) {
         setDevCode(r.dev_code);
         toast.success(`(وضع التطوير) رمزك: ${r.dev_code}`);
@@ -68,7 +77,11 @@ function AuthPage() {
     if (code.trim().length !== 6) return toast.error("الرمز 6 أرقام");
     setLoading(true);
     try {
-      await verFn({ data: { phone: phone.trim(), code: code.trim(), full_name: name.trim() } });
+      if (mode === "phone") {
+        await verFn({ data: { phone: phone.trim(), code: code.trim(), full_name: name.trim() } });
+      } else {
+        await verEmailFn({ data: { email: email.trim(), code: code.trim(), full_name: name.trim() } });
+      }
       // Confirm the session cookie was actually stored (some preview iframes
       // block cross-site cookies even with SameSite=None; Partitioned).
       const me = await meFn();
@@ -128,6 +141,22 @@ function AuthPage() {
           </div>
         ) : step === "request" ? (
           <form onSubmit={onRequest} className="mt-6 space-y-4">
+            <div className="grid grid-cols-2 gap-1 rounded-xl border bg-secondary/40 p-1 text-sm">
+              <button
+                type="button"
+                onClick={() => setMode("phone")}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 font-medium transition ${mode === "phone" ? "bg-background shadow-sm text-primary" : "text-muted-foreground"}`}
+              >
+                <Phone className="size-4" /> رقم الهاتف
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("email")}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 font-medium transition ${mode === "email" ? "bg-background shadow-sm text-primary" : "text-muted-foreground"}`}
+              >
+                <Mail className="size-4" /> البريد الإلكتروني
+              </button>
+            </div>
             <div>
               <label className="block text-sm font-medium mb-1.5">{t("auth_full_name")}</label>
               <input
@@ -138,21 +167,39 @@ function AuthPage() {
                 required
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">{t("auth_phone")}</label>
-              <div className="relative">
-                <Phone className="size-4 absolute top-3 start-3 text-muted-foreground" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder={t("auth_phone_placeholder")}
-                  className="w-full rounded-lg border bg-background ps-9 pe-3 py-2.5 outline-none focus:ring-2 focus:ring-primary"
-                  dir="ltr"
-                  required
-                />
+            {mode === "phone" ? (
+              <div>
+                <label className="block text-sm font-medium mb-1.5">{t("auth_phone")}</label>
+                <div className="relative">
+                  <Phone className="size-4 absolute top-3 start-3 text-muted-foreground" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder={t("auth_phone_placeholder")}
+                    className="w-full rounded-lg border bg-background ps-9 pe-3 py-2.5 outline-none focus:ring-2 focus:ring-primary"
+                    dir="ltr"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium mb-1.5">البريد الإلكتروني</label>
+                <div className="relative">
+                  <Mail className="size-4 absolute top-3 start-3 text-muted-foreground" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full rounded-lg border bg-background ps-9 pe-3 py-2.5 outline-none focus:ring-2 focus:ring-primary"
+                    dir="ltr"
+                    required
+                  />
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-1.5">كود إحالة (اختياري)</label>
               <input
@@ -175,7 +222,8 @@ function AuthPage() {
         ) : (
           <form onSubmit={onVerify} className="mt-6 space-y-4">
             <div className="text-center text-sm text-muted-foreground">
-              {t("auth_phone")}: <span dir="ltr" className="font-mono">{phone}</span>
+              {mode === "phone" ? t("auth_phone") : "البريد الإلكتروني"}:{" "}
+              <span dir="ltr" className="font-mono">{mode === "phone" ? phone : email}</span>
             </div>
             {devCode && (
               <div className="rounded-lg border border-accent/40 bg-accent/10 p-3 text-center text-sm">
@@ -207,7 +255,7 @@ function AuthPage() {
             </button>
             <div className="flex justify-between text-xs">
               <button type="button" onClick={() => { setStep("request"); setCode(""); setDevCode(null); }} className="text-muted-foreground hover:text-foreground">
-                {t("auth_change_phone")}
+                {mode === "phone" ? t("auth_change_phone") : "تغيير البريد"}
               </button>
               <button
                 type="button"
@@ -215,7 +263,10 @@ function AuthPage() {
                 onClick={async () => {
                   setLoading(true);
                   try {
-                    const r = await reqFn({ data: { full_name: name.trim(), phone: phone.trim() } });
+                    const r =
+                      mode === "phone"
+                        ? await reqFn({ data: { full_name: name.trim(), phone: phone.trim() } })
+                        : await reqEmailFn({ data: { full_name: name.trim(), email: email.trim() } });
                     if (r.dev_code) setDevCode(r.dev_code);
                     toast.success("تم الإرسال مجدداً");
                   } catch (e) {
