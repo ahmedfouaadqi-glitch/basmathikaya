@@ -60,6 +60,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin.orders.$id'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicShareCardsTokenRouteImport } from './routes/api/public/share-cards/$token'
 import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/hooks/jobs-tick'
 
@@ -321,6 +322,12 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicShareCardsTokenRoute =
   ApiPublicShareCardsTokenRouteImport.update({
     id: '/api/public/share-cards/$token',
@@ -387,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
   '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -441,6 +449,7 @@ export interface FileRoutesByTo {
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
   '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -497,6 +506,7 @@ export interface FileRoutesById {
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
   '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -554,6 +564,7 @@ export interface FileRouteTypes {
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
     | '/api/public/share-cards/$token'
+    | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -608,6 +619,7 @@ export interface FileRouteTypes {
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
     | '/api/public/share-cards/$token'
+    | '/lovable/email/queue/process'
   id:
     | '__root__'
     | '/'
@@ -663,6 +675,7 @@ export interface FileRouteTypes {
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
     | '/api/public/share-cards/$token'
+    | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -692,6 +705,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksJobsTickRoute: typeof ApiPublicHooksJobsTickRoute
   ApiPublicShareCardsTokenRoute: typeof ApiPublicShareCardsTokenRoute
+  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1053,6 +1067,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/share-cards/$token': {
       id: '/api/public/share-cards/$token'
       path: '/api/public/share-cards/$token'
@@ -1160,6 +1181,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksJobsTickRoute: ApiPublicHooksJobsTickRoute,
   ApiPublicShareCardsTokenRoute: ApiPublicShareCardsTokenRoute,
+  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
