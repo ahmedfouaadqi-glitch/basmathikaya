@@ -16,7 +16,6 @@ import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MyVideosRouteImport } from './routes/my-videos'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
-import { Route as McpRouteImport } from './routes/mcp'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -56,10 +55,7 @@ import { Route as AdminAudioRouteImport } from './routes/admin.audio'
 import { Route as AdminArtStylesRouteImport } from './routes/admin.art-styles'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminAiModelsRouteImport } from './routes/admin.ai-models'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
-import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin.orders.$id'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicShareCardsTokenRouteImport } from './routes/api/public/share-cards/$token'
 import { Route as ApiPublicHooksJobsTickRouteImport } from './routes/api/public/hooks/jobs-tick'
@@ -97,11 +93,6 @@ const MyVideosRoute = MyVideosRouteImport.update({
 const MyOrdersRoute = MyOrdersRouteImport.update({
   id: '/my-orders',
   path: '/my-orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HowItWorksRoute = HowItWorksRouteImport.update({
@@ -299,29 +290,11 @@ const AdminAiModelsRoute = AdminAiModelsRouteImport.update({
   path: '/ai-models',
   getParentRoute: () => AdminRoute,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AdminOrdersIdRoute = AdminOrdersIdRouteImport.update({
   id: '/orders/$id',
   path: '/orders/$id',
   getParentRoute: () => AdminRoute,
 } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -350,7 +323,6 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/how-it-works': typeof HowItWorksRoute
-  '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
@@ -358,8 +330,6 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
@@ -390,7 +360,6 @@ export interface FileRoutesByFullPath {
   '/v/$token': typeof VTokenRoute
   '/verify-identity/$id': typeof VerifyIdentityIdRoute
   '/admin/': typeof AdminIndexRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
   '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
@@ -405,7 +374,6 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/how-it-works': typeof HowItWorksRoute
-  '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
@@ -413,8 +381,6 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
@@ -445,7 +411,6 @@ export interface FileRoutesByTo {
   '/v/$token': typeof VTokenRoute
   '/verify-identity/$id': typeof VerifyIdentityIdRoute
   '/admin': typeof AdminIndexRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
   '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
@@ -462,7 +427,6 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/gallery': typeof GalleryRoute
   '/how-it-works': typeof HowItWorksRoute
-  '/mcp': typeof McpRoute
   '/my-orders': typeof MyOrdersRoute
   '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
@@ -470,8 +434,6 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
-  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
-  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
@@ -502,7 +464,6 @@ export interface FileRoutesById {
   '/v/$token': typeof VTokenRoute
   '/verify-identity/$id': typeof VerifyIdentityIdRoute
   '/admin/': typeof AdminIndexRoute
-  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/api/public/hooks/jobs-tick': typeof ApiPublicHooksJobsTickRoute
   '/api/public/share-cards/$token': typeof ApiPublicShareCardsTokenRoute
@@ -520,7 +481,6 @@ export interface FileRouteTypes {
     | '/faq'
     | '/gallery'
     | '/how-it-works'
-    | '/mcp'
     | '/my-orders'
     | '/my-videos'
     | '/pricing'
@@ -528,8 +488,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
@@ -560,7 +518,6 @@ export interface FileRouteTypes {
     | '/v/$token'
     | '/verify-identity/$id'
     | '/admin/'
-    | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
     | '/api/public/share-cards/$token'
@@ -575,7 +532,6 @@ export interface FileRouteTypes {
     | '/faq'
     | '/gallery'
     | '/how-it-works'
-    | '/mcp'
     | '/my-orders'
     | '/my-videos'
     | '/pricing'
@@ -583,8 +539,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
@@ -615,7 +569,6 @@ export interface FileRouteTypes {
     | '/v/$token'
     | '/verify-identity/$id'
     | '/admin'
-    | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
     | '/api/public/share-cards/$token'
@@ -631,7 +584,6 @@ export interface FileRouteTypes {
     | '/faq'
     | '/gallery'
     | '/how-it-works'
-    | '/mcp'
     | '/my-orders'
     | '/my-videos'
     | '/pricing'
@@ -639,8 +591,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
-    | '/.mcp/list-tools'
-    | '/.well-known/oauth-protected-resource'
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
@@ -671,7 +621,6 @@ export interface FileRouteTypes {
     | '/v/$token'
     | '/verify-identity/$id'
     | '/admin/'
-    | '/.mcp/invoke-tool/$tool'
     | '/admin/orders/$id'
     | '/api/public/hooks/jobs-tick'
     | '/api/public/share-cards/$token'
@@ -688,7 +637,6 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   GalleryRoute: typeof GalleryRoute
   HowItWorksRoute: typeof HowItWorksRoute
-  McpRoute: typeof McpRoute
   MyOrdersRoute: typeof MyOrdersRoute
   MyVideosRoute: typeof MyVideosRoute
   PricingRoute: typeof PricingRoute
@@ -696,13 +644,10 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TestimonialsRoute: typeof TestimonialsRoute
   VideosRoute: typeof VideosRoute
-  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
-  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
   STokenRoute: typeof STokenRoute
   VTokenRoute: typeof VTokenRoute
   VerifyIdentityIdRoute: typeof VerifyIdentityIdRoute
-  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicHooksJobsTickRoute: typeof ApiPublicHooksJobsTickRoute
   ApiPublicShareCardsTokenRoute: typeof ApiPublicShareCardsTokenRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -757,13 +702,6 @@ declare module '@tanstack/react-router' {
       path: '/my-orders'
       fullPath: '/my-orders'
       preLoaderRoute: typeof MyOrdersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/how-it-works': {
@@ -1039,33 +977,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiModelsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin/orders/$id': {
       id: '/admin/orders/$id'
       path: '/orders/$id'
       fullPath: '/admin/orders/$id'
       preLoaderRoute: typeof AdminOrdersIdRouteImport
       parentRoute: typeof AdminRoute
-    }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
@@ -1163,7 +1080,6 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   GalleryRoute: GalleryRoute,
   HowItWorksRoute: HowItWorksRoute,
-  McpRoute: McpRoute,
   MyOrdersRoute: MyOrdersRoute,
   MyVideosRoute: MyVideosRoute,
   PricingRoute: PricingRoute,
@@ -1171,14 +1087,10 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TestimonialsRoute: TestimonialsRoute,
   VideosRoute: VideosRoute,
-  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
-  Char91DotwellKnownChar93OauthProtectedResourceRoute:
-    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   PreviewOrderIdRoute: PreviewOrderIdRoute,
   STokenRoute: STokenRoute,
   VTokenRoute: VTokenRoute,
   VerifyIdentityIdRoute: VerifyIdentityIdRoute,
-  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicHooksJobsTickRoute: ApiPublicHooksJobsTickRoute,
   ApiPublicShareCardsTokenRoute: ApiPublicShareCardsTokenRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
