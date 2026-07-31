@@ -292,6 +292,8 @@ async function generateOneImage(args: {
   orderId: string;
   step: string;
   prompt: string;
+  /** Simplified prompt used for the 2nd attempt on the SAME model (transient refusals / 5xx). */
+  fallbackPrompt?: string;
   storagePath: string;
   pricing: PricingRow;
   model?: string;
@@ -305,43 +307,54 @@ async function generateOneImage(args: {
     : [args.model ?? "google/gemini-3.1-flash-image"];
   let lastErr: string | null = null;
   for (const imgModel of chain) {
-    try {
-      const img = await callImage({ model: imgModel, prompt: args.prompt, referenceImages: args.referenceImages });
-      const buf = Buffer.from(img.b64, "base64");
-      const up = await supabaseAdmin.storage
-        .from("story-covers")
-        .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
-      if (up.error) throw new Error(up.error.message);
-      await logEvent(
-        args.orderId,
-        args.step,
-        imgModel,
-        "image",
-        img.meta,
-        estimateImageCostUsd(imgModel, 1),
-        1,
-        args.pricing,
-      );
-      return args.storagePath;
-    } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
-      await logEvent(
-        args.orderId,
-        args.step,
-        imgModel,
-        "image",
-        { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
-        0,
-        0,
-        args.pricing,
-        "error",
-        lastErr.slice(0, 400),
-      );
-      // Try next model in chain
+    // Two attempts on the same model before switching — a 503 or a one-off empty
+    // response must NOT push the book onto a different model (and a different style).
+    const attempts = [args.prompt, args.fallbackPrompt ?? args.prompt];
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        const img = await callImage({
+          model: imgModel,
+          prompt: attempts[i],
+          referenceImages: args.referenceImages,
+        });
+        const buf = Buffer.from(img.b64, "base64");
+        const up = await supabaseAdmin.storage
+          .from("story-covers")
+          .upload(args.storagePath, buf, { contentType: "image/png", upsert: true });
+        if (up.error) throw new Error(up.error.message);
+        await logEvent(
+          args.orderId,
+          i === 0 ? args.step : `${args.step}_attempt2`,
+          imgModel,
+          "image",
+          img.meta,
+          estimateImageCostUsd(imgModel, 1),
+          1,
+          args.pricing,
+        );
+        return args.storagePath;
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : String(e);
+        await logEvent(
+          args.orderId,
+          i === 0 ? args.step : `${args.step}_attempt2`,
+          imgModel,
+          "image",
+          { log_id: null, run_id: null, usage: {}, duration_ms: 0 },
+          0,
+          0,
+          args.pricing,
+          "error",
+          lastErr.slice(0, 400),
+        );
+        if (i === 0) await new Promise((r) => setTimeout(r, 1200));
+      }
     }
+    // Try next model in chain
   }
   return null;
 }
+
 
 /** Download a stored character photo and return a base64 data URL. Caps at ~1MB. */
 async function photoToDataUrl(path: string): Promise<string | null> {
