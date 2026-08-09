@@ -8,10 +8,11 @@ import { requestOtp, verifyOtp, requestEmailOtp, verifyEmailOtp, getCurrentUser 
 import { redeemReferralCode } from "../lib/referrals.functions";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>) => ({
-    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
-    ref: typeof s.ref === "string" ? s.ref : undefined,
+  validateSearch: (s: Record<string, unknown>): { redirect?: string; ref?: string } => ({
+    ...(typeof s.redirect === "string" ? { redirect: s.redirect } : {}),
+    ...(typeof s.ref === "string" ? { ref: s.ref } : {}),
   }),
+
   head: () => ({ meta: [{ title: "تسجيل دخول — بصمة حكاية" }] }),
   component: AuthPage,
 });

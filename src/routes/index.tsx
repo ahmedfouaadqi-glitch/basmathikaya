@@ -9,9 +9,9 @@ import { BrandIntroCarousel } from "../components/BrandIntroCarousel";
 import { getHomeContent, DEFAULT_HOME_CONTENT } from "../lib/site-content.functions";
 
 export const Route = createFileRoute("/")({
-  validateSearch: (s: Record<string, unknown>) => ({
-    ref: typeof s.ref === "string" ? s.ref : undefined,
-  }),
+  validateSearch: (s: Record<string, unknown>): { ref?: string } =>
+    typeof s.ref === "string" ? { ref: s.ref } : {},
+
   head: () => ({
     meta: [
       { title: "بصمة حكاية — حكايتك أنت، لا تشبه أحداً" },
