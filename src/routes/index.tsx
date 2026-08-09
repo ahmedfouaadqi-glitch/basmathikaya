@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useHydrated } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -31,9 +31,12 @@ function pick<T extends string>(ar: T, en: T, lang: "ar" | "en" | "ku"): T {
 function Home() {
   const { t, lang } = useT();
   const { ref } = Route.useSearch();
+  const hydrated = useHydrated();
   const homeFn = useServerFn(getHomeContent);
   const q = useQuery({ queryKey: ["site-home"], queryFn: () => homeFn(), staleTime: 60_000 });
-  const c = q.data ?? DEFAULT_HOME_CONTENT;
+  // Keep the first client render identical to the SSR output to avoid hydration mismatches.
+  const c = (hydrated ? q.data : undefined) ?? DEFAULT_HOME_CONTENT;
+
 
   useEffect(() => {
     if (ref && typeof window !== "undefined") {
