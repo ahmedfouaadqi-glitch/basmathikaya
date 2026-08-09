@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useT } from "../lib/i18n";
 import { brandLogoUrl } from "../lib/brand";
+import { isNativeApp } from "../lib/platform";
 import { Share2, Plus, Smartphone, Sparkles, Zap, Home } from "lucide-react";
+
 
 type BIPEvent = Event & {
   prompt: () => Promise<void>;
@@ -45,7 +47,11 @@ function detectEnv() {
   const params = new URLSearchParams(window.location.search);
   const swOff = params.get("sw") === "off" || params.get("install") === "off";
 
-  const gateAllowed = isMobile && !isStandalone && !inIframe && !isPreviewHost(window.location.hostname) && !swOff;
+  const native = isNativeApp();
+
+  const gateAllowed =
+    isMobile && !isStandalone && !inIframe && !native && !isPreviewHost(window.location.hostname) && !swOff;
+
 
   return { gateAllowed, isMobile, isIOS, isStandalone };
 }
