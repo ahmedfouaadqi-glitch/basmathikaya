@@ -55,6 +55,7 @@ import { Route as AdminAudioRouteImport } from './routes/admin.audio'
 import { Route as AdminArtStylesRouteImport } from './routes/admin.art-styles'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminAiModelsRouteImport } from './routes/admin.ai-models'
+import { Route as DotwellKnownAssetlinksDotjsonRouteImport } from './routes/[.]well-known.assetlinks[.]json'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin.orders.$id'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicShareCardsTokenRouteImport } from './routes/api/public/share-cards/$token'
@@ -290,6 +291,12 @@ const AdminAiModelsRoute = AdminAiModelsRouteImport.update({
   path: '/ai-models',
   getParentRoute: () => AdminRoute,
 } as any)
+const DotwellKnownAssetlinksDotjsonRoute =
+  DotwellKnownAssetlinksDotjsonRouteImport.update({
+    id: '/.well-known/assetlinks.json',
+    path: '/.well-known/assetlinks.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminOrdersIdRoute = AdminOrdersIdRouteImport.update({
   id: '/orders/$id',
   path: '/orders/$id',
@@ -330,6 +337,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/.well-known/assetlinks.json': typeof DotwellKnownAssetlinksDotjsonRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
@@ -381,6 +389,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/.well-known/assetlinks.json': typeof DotwellKnownAssetlinksDotjsonRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
@@ -434,6 +443,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
   '/videos': typeof VideosRoute
+  '/.well-known/assetlinks.json': typeof DotwellKnownAssetlinksDotjsonRoute
   '/admin/ai-models': typeof AdminAiModelsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/art-styles': typeof AdminArtStylesRoute
@@ -488,6 +498,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/.well-known/assetlinks.json'
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
@@ -539,6 +550,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/.well-known/assetlinks.json'
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
@@ -591,6 +603,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/testimonials'
     | '/videos'
+    | '/.well-known/assetlinks.json'
     | '/admin/ai-models'
     | '/admin/analytics'
     | '/admin/art-styles'
@@ -644,6 +657,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TestimonialsRoute: typeof TestimonialsRoute
   VideosRoute: typeof VideosRoute
+  DotwellKnownAssetlinksDotjsonRoute: typeof DotwellKnownAssetlinksDotjsonRoute
   PreviewOrderIdRoute: typeof PreviewOrderIdRoute
   STokenRoute: typeof STokenRoute
   VTokenRoute: typeof VTokenRoute
@@ -977,6 +991,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiModelsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/.well-known/assetlinks.json': {
+      id: '/.well-known/assetlinks.json'
+      path: '/.well-known/assetlinks.json'
+      fullPath: '/.well-known/assetlinks.json'
+      preLoaderRoute: typeof DotwellKnownAssetlinksDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/orders/$id': {
       id: '/admin/orders/$id'
       path: '/orders/$id'
@@ -1087,6 +1108,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TestimonialsRoute: TestimonialsRoute,
   VideosRoute: VideosRoute,
+  DotwellKnownAssetlinksDotjsonRoute: DotwellKnownAssetlinksDotjsonRoute,
   PreviewOrderIdRoute: PreviewOrderIdRoute,
   STokenRoute: STokenRoute,
   VTokenRoute: VTokenRoute,
