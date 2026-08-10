@@ -13,6 +13,7 @@ import { Route as VideosRouteImport } from './routes/videos'
 import { Route as TestimonialsRouteImport } from './routes/testimonials'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ReferralsRouteImport } from './routes/referrals'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MyVideosRouteImport } from './routes/my-videos'
 import { Route as MyOrdersRouteImport } from './routes/my-orders'
@@ -79,6 +80,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const ReferralsRoute = ReferralsRouteImport.update({
   id: '/referrals',
   path: '/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -333,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/my-orders': typeof MyOrdersRoute
   '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/referrals': typeof ReferralsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
@@ -385,6 +392,7 @@ export interface FileRoutesByTo {
   '/my-orders': typeof MyOrdersRoute
   '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/referrals': typeof ReferralsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
@@ -439,6 +447,7 @@ export interface FileRoutesById {
   '/my-orders': typeof MyOrdersRoute
   '/my-videos': typeof MyVideosRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/referrals': typeof ReferralsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/testimonials': typeof TestimonialsRoute
@@ -494,6 +503,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/my-videos'
     | '/pricing'
+    | '/privacy'
     | '/referrals'
     | '/sitemap.xml'
     | '/testimonials'
@@ -546,6 +556,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/my-videos'
     | '/pricing'
+    | '/privacy'
     | '/referrals'
     | '/sitemap.xml'
     | '/testimonials'
@@ -599,6 +610,7 @@ export interface FileRouteTypes {
     | '/my-orders'
     | '/my-videos'
     | '/pricing'
+    | '/privacy'
     | '/referrals'
     | '/sitemap.xml'
     | '/testimonials'
@@ -653,6 +665,7 @@ export interface RootRouteChildren {
   MyOrdersRoute: typeof MyOrdersRoute
   MyVideosRoute: typeof MyVideosRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ReferralsRoute: typeof ReferralsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TestimonialsRoute: typeof TestimonialsRoute
@@ -695,6 +708,13 @@ declare module '@tanstack/react-router' {
       path: '/referrals'
       fullPath: '/referrals'
       preLoaderRoute: typeof ReferralsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -1104,6 +1124,7 @@ const rootRouteChildren: RootRouteChildren = {
   MyOrdersRoute: MyOrdersRoute,
   MyVideosRoute: MyVideosRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   ReferralsRoute: ReferralsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TestimonialsRoute: TestimonialsRoute,
