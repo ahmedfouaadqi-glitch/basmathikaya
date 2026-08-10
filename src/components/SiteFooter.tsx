@@ -1,4 +1,5 @@
 import { useT } from "../lib/i18n";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { tiktokUrl, FOOTER_TAGLINE_AR, FOOTER_TAGLINE_EN } from "../lib/brand";
@@ -14,20 +15,28 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-16 border-t bg-card/40">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-6 text-center text-sm text-muted-foreground md:flex-row md:justify-between md:text-start">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-6 text-center text-sm text-muted-foreground md:flex-row md:justify-between md:text-start">
         <div>
           <div className="font-bold text-foreground">{tagline}</div>
           <div className="mt-0.5 text-xs">© {new Date().getFullYear()} {t("brand")}</div>
         </div>
-        <a
-          href={tiktokUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-background px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
-        >
-          <TikTokIcon className="size-4" />
-          {t("tiktok_follow")}
-        </a>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Link
+            to="/privacy"
+            className="rounded-md px-3 py-1.5 text-xs font-medium hover:bg-secondary"
+          >
+            سياسة الخصوصية
+          </Link>
+          <a
+            href={tiktokUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-background px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            <TikTokIcon className="size-4" />
+            {t("tiktok_follow")}
+          </a>
+        </div>
       </div>
       <div className="border-t bg-background/60">
         <div className="mx-auto max-w-6xl px-4 py-3 text-[11px] leading-relaxed text-muted-foreground text-center">
