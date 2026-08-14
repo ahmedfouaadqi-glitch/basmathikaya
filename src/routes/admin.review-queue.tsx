@@ -61,7 +61,7 @@ function ReviewQueuePage() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {data.map((o) => (
+          {data.map((o: any) => (
             <ReviewCard
               key={o.id}
               order={o}
@@ -107,6 +107,16 @@ function ReviewCard({
               توثيق: {order.identity_verification_status}
             </span>
           )}
+          {order.content_mode === "adult" && (
+            <span className="rounded-full bg-fuchsia-500/15 px-2 py-0.5 text-xs text-fuchsia-700">
+              +18 · {order.adult_content_level}
+            </span>
+          )}
+          {order.real_person_declared && (
+            <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs text-orange-700">
+              شخصية حقيقية · {order.consent_status}
+            </span>
+          )}
         </div>
         <span className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleString("ar-IQ")}</span>
       </div>
@@ -129,7 +139,7 @@ function ReviewCard({
       )}
       {order.characters.length > 0 && (
         <ul className="mb-3 space-y-1 text-sm">
-          {order.characters.map((c, i) => (
+          {order.characters.map((c: any, i: number) => (
             <li key={i} className="text-muted-foreground">
               • {c.name} {c.age ? `(${c.age})` : ""} {c.description ? `— ${c.description}` : ""}
             </li>

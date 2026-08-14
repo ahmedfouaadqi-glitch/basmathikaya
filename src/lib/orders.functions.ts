@@ -35,6 +35,9 @@ const CreateInput = z.object({
   pdf_orientation: z.enum(["portrait", "landscape"]).default("portrait"),
   art_style_category: z.enum(["realistic", "cartoon"]).optional().nullable(),
   art_style_slug: z.string().trim().min(1).max(60).optional().nullable(),
+  content_mode: z.enum(["family", "adult"]).default("family"),
+  adult_content_level: z.enum(["none", "romantic", "suggestive", "explicit"]).default("none"),
+  real_person_declared: z.boolean().default(false),
 });
 
 
@@ -48,7 +51,7 @@ async function logEvent(
   step: string,
   model: string,
   operation: "chat" | "image",
-  meta: { log_id: string | null; run_id: string | null; usage: { input_tokens?: number; output_tokens?: number; total_tokens?: number }; duration_ms: number },
+  meta: { provider?: string; log_id: string | null; run_id: string | null; usage: { input_tokens?: number; output_tokens?: number; total_tokens?: number }; duration_ms: number },
   costUsd: number,
   imageCount: number,
   pricing: PricingRow,
@@ -67,6 +70,7 @@ async function logEvent(
     operation,
     aig_log_id: meta.log_id,
     aig_run_id: meta.run_id,
+    provider: meta.provider ?? "unknown",
     input_tokens: meta.usage.input_tokens ?? 0,
     output_tokens: meta.usage.output_tokens ?? 0,
     total_tokens: meta.usage.total_tokens ?? ((meta.usage.input_tokens ?? 0) + (meta.usage.output_tokens ?? 0)),
@@ -194,10 +198,14 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         pdf_orientation: data.pdf_orientation,
         art_style_category: data.art_style_category ?? null,
         art_style_slug: data.art_style_slug ?? null,
+        content_mode: data.content_mode,
+        adult_content_level: data.content_mode === "adult" ? data.adult_content_level : "none",
+        real_person_declared: data.real_person_declared,
+        consent_status: data.real_person_declared ? "awaiting_admin_contact" : "not_required",
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
         coupon_code: code,
         whatsapp_sent_at: new Date().toISOString(),
-      })
+      } as never)
       .select("id, order_number")
       .single();
     if (ordErr || !ord) throw new Error(ordErr?.message || "Failed to create order");
@@ -1177,13 +1185,27 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     // Admin must first approve via /admin/review-queue (adminApproveOrder).
     const { data: guard } = await supabaseAdmin
       .from("orders")
-      .select("requires_admin_review, status")
+      .select("requires_admin_review, status, identity_verification_status, content_mode, real_person_declared, consent_status" as never)
       .eq("id", data.orderId).maybeSingle();
-    if (guard?.requires_admin_review || guard?.status === "pending_review") {
+    const guardState = (guard ?? {}) as {
+      requires_admin_review?: boolean | null;
+      status?: string | null;
+      identity_verification_status?: string | null;
+      content_mode?: "family" | "adult" | null;
+      real_person_declared?: boolean | null;
+      consent_status?: string | null;
+    };
+    if (guardState.requires_admin_review || guardState.status === "pending_review") {
       throw new Error("الطلب قيد المراجعة الإدارية — اعتمد المراجعة أولاً من قائمة المراجعة قبل تأكيد الدفع.");
     }
-    if (guard?.status === "rejected") {
+    if (guardState.status === "rejected") {
       throw new Error("الطلب مرفوض — لا يمكن بدء التوليد.");
+    }
+    if (guardState.content_mode === "adult" && guardState.identity_verification_status !== "approved") {
+      throw new Error("يجب إكمال التحقق من العمر قبل توليد محتوى البالغين.");
+    }
+    if (guardState.real_person_declared && guardState.consent_status !== "consent_approved") {
+      throw new Error("لا يمكن بدء التوليد قبل اعتماد موافقة الشخصية الحقيقية من الإدارة.");
     }
 
     await supabaseAdmin

@@ -99,6 +99,9 @@ function CreatePage() {
   const [artStyleCategory, setArtStyleCategory] = useState<"realistic" | "cartoon" | null>(null);
   const [artStyleSlug, setArtStyleSlug] = useState<string | null>(null);
   const [acceptedDisclaimer, setAcceptedDisclaimer] = useState(false);
+  const [contentMode, setContentMode] = useState<"family" | "adult">("family");
+  const [adultContentLevel, setAdultContentLevel] = useState<"romantic" | "suggestive" | "explicit">("romantic");
+  const [realPersonDeclared, setRealPersonDeclared] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -247,6 +250,9 @@ function CreatePage() {
     if (moods.length === 0) return toast.error("اختر جواً واحداً على الأقل");
     if (artStyles.length > 0 && !artStyleCategory) return toast.error("اختر أسلوب الرسم");
     if (artStyles.length > 0 && artStyleCategory === "cartoon" && !artStyleSlug) return toast.error("اختر نمط الرسم الكرتوني");
+    if (contentMode === "adult" && characters.some((c) => !c.age || Number(c.age) < 18)) {
+      return toast.error("في وضع البالغين يجب أن تكون أعمار جميع الشخصيات 18 سنة أو أكثر");
+    }
     if (!acceptedDisclaimer) return toast.error("يرجى الموافقة على إخلاء المسؤولية للمتابعة");
     setConfirmOpen(true);
   }
@@ -280,6 +286,9 @@ function CreatePage() {
           draft_id: draftIdRef.current,
           disclaimer_accepted: true,
           coupon_code: couponCode.trim() || undefined,
+          content_mode: contentMode,
+          adult_content_level: contentMode === "adult" ? adultContentLevel : "none",
+          real_person_declared: realPersonDeclared,
         },
       });
       setConfirmOpen(false);
@@ -302,6 +311,36 @@ function CreatePage() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
+        <section className="space-y-3 rounded-xl border bg-secondary/20 p-4">
+          <div>
+            <h2 className="text-sm font-bold">نوع القصة</h2>
+            <p className="mt-1 text-xs text-muted-foreground">اختر المسار قبل إدخال الشخصيات؛ يطبّق الخادم الحماية المناسبة على الطلب.</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={() => setContentMode("family")} className={`rounded-lg border p-3 text-start text-sm ${contentMode === "family" ? "border-primary bg-primary/10" : ""}`}>
+              <div className="font-bold">عائلية</div>
+              <div className="mt-1 text-xs text-muted-foreground">مناسبة للأطفال والعائلة</div>
+            </button>
+            <button type="button" onClick={() => setContentMode("adult")} className={`rounded-lg border p-3 text-start text-sm ${contentMode === "adult" ? "border-primary bg-primary/10" : ""}`}>
+              <div className="font-bold">للبالغين +18</div>
+              <div className="mt-1 text-xs text-muted-foreground">يتطلب تحقق العمر قبل التوليد</div>
+            </button>
+          </div>
+          {contentMode === "adult" && (
+            <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              <label className="block text-xs font-semibold">مستوى المحتوى</label>
+              <select value={adultContentLevel} onChange={(e) => setAdultContentLevel(e.target.value as typeof adultContentLevel)} className="w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                <option value="romantic">رومانسي وعاطفي</option>
+                <option value="suggestive">إيحائي</option>
+                <option value="explicit">صريح للبالغين</option>
+              </select>
+              <label className="flex items-start gap-2 text-xs leading-relaxed">
+                <input type="checkbox" checked={realPersonDeclared} onChange={(e) => setRealPersonDeclared(e.target.checked)} className="mt-0.5" />
+                <span>توجد شخصية حقيقية قابلة للتعرّف. سيُوقف الطلب للمراجعة والموافقة الإدارية قبل أي توليد.</span>
+              </label>
+            </div>
+          )}
+        </section>
         {/* Characters */}
         <div>
           <div className="mb-2 flex items-baseline justify-between">

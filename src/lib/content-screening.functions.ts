@@ -227,12 +227,12 @@ export const adminListReviewQueue = createServerFn({ method: "GET" }).handler(as
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("orders")
-    .select("id, order_number, status, age_bucket, content_flags, requires_admin_review, identity_verification_status, admin_review_note, custom_instructions, moods, created_at, user_id, customer_phone")
+    .select("id, order_number, status, age_bucket, content_flags, requires_admin_review, identity_verification_status, admin_review_note, custom_instructions, moods, created_at, user_id, customer_phone, content_mode, adult_content_level, real_person_declared, consent_status" as never)
     .or("requires_admin_review.eq.true,status.eq.pending_review")
     .order("created_at", { ascending: false })
     .limit(200);
-  const rows = data ?? [];
-  const ids = rows.map((r) => r.id);
+  const rows = (data ?? []) as any[];
+  const ids = rows.map((r: any) => r.id);
   const { data: chars } = ids.length
     ? await supabaseAdmin.from("order_characters").select("order_id, name, age, description, is_primary").in("order_id", ids)
     : { data: [] };
@@ -242,7 +242,7 @@ export const adminListReviewQueue = createServerFn({ method: "GET" }).handler(as
     list.push(c);
     grouped.set(c.order_id, list);
   }
-  return rows.map((r) => ({ ...r, characters: grouped.get(r.id) ?? [] }));
+  return rows.map((r: any) => ({ ...r, characters: grouped.get(r.id) ?? [] }));
 });
 
 export const adminApproveOrder = createServerFn({ method: "POST" })
