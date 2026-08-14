@@ -6,7 +6,7 @@ export type Usage = {
   cost?: number;
 };
 
-type ProviderName = "omniroute" | "lovable";
+type ProviderName = "lovable";
 type ProviderResult = { response: Response; provider: ProviderName; duration_ms: number };
 
 class ProviderHttpError extends Error {
@@ -19,10 +19,7 @@ class ProviderHttpError extends Error {
   }
 }
 
-const OMNI_BASE = (process.env.OMNIROUTE_BASE_URL ?? "http://localhost:20128/v1").replace(
-  /\/$/,
-  "",
-);
+const LOVABLE_BASE = "https://ai.gateway.lovable.dev/v1";
 
 const TEXT_PRICING_PER_1M: Record<string, { input: number; output: number }> = {
   "google/gemini-3-flash-preview": { input: 0.075, output: 0.3 },
@@ -65,12 +62,10 @@ export type Message = {
   content: string | ContentBlock[];
 };
 
-function omniKey(): string | undefined {
-  return process.env.OMNIROUTE_API_KEY || process.env.OMNIROUTE_KEY;
-}
-
-function isTechnicalFailure(status: number): boolean {
-  return status === 408 || status === 425 || status === 429 || status >= 500;
+function lovableKey(): string {
+  const value = process.env.LOVABLE_API_KEY;
+  if (!value) throw new Error("LOVABLE_API_KEY missing");
+  return value;
 }
 
 function safeErrorBody(body: string): string {
@@ -83,13 +78,9 @@ async function requestProvider(args: {
   timeoutMs?: number;
 }): Promise<ProviderResult> {
   const timeoutMs = args.timeoutMs ?? 120_000;
-  const providers: Array<{ name: ProviderName; base: string; apiKey: string }> = [];
-  if (omniKey()) {
-    providers.push({ name: "omniroute", base: OMNI_BASE, apiKey: omniKey()! });
-  }
-  // Lovable fallback intentionally disabled. All AI requests must use OmniRoute.
-
-  let lastTechnicalError: unknown = null;
+  const providers: Array<{ name: ProviderName; base: string; apiKey: string }> = [
+    { name: "lovable", base: LOVABLE_BASE, apiKey: lovableKey() },
+  ];
   for (const provider of providers) {
     const started = Date.now();
     const controller = new AbortController();
@@ -107,28 +98,16 @@ async function requestProvider(args: {
       const error = new ProviderHttpError(
         `${provider.name} ${args.path} error ${response.status}: ${details}`,
         response.status,
-        isTechnicalFailure(response.status),
+        true,
       );
-      if (provider.name === "omniroute" && error.technical) {
-        lastTechnicalError = error;
-        continue;
-      }
       throw error;
     } catch (error) {
-      if (provider.name === "omniroute") {
-        if (error instanceof ProviderHttpError && !error.technical) throw error;
-        lastTechnicalError = error;
-        continue;
-      }
-      if (lastTechnicalError) throw new Error(`${String(lastTechnicalError)}; OmniRoute request failed`);
       throw error;
     } finally {
       clearTimeout(timer);
     }
   }
-  throw lastTechnicalError instanceof Error
-    ? lastTechnicalError
-    : new Error("No AI provider configured");
+  throw new Error("Lovable AI provider request failed");
 }
 
 function providerMeta(
@@ -230,15 +209,4 @@ export async function callImage(args: {
     );
   }
   return { b64, meta: providerMeta(result, result.response, json.usage ?? {}) };
-}
-
-export async function listOmniModels(): Promise<unknown[]> {
-  const apiKey = omniKey();
-  if (!apiKey) return [];
-  const response = await fetch(`${OMNI_BASE}/models`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!response.ok) throw new Error(`OmniRoute model catalog error ${response.status}`);
-  const body = (await response.json()) as { data?: unknown[] };
-  return body.data ?? [];
 }
