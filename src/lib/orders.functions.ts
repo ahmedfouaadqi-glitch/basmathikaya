@@ -198,6 +198,12 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         pdf_orientation: data.pdf_orientation,
         art_style_category: data.art_style_category ?? null,
         art_style_slug: data.art_style_slug ?? null,
+        content_mode: data.content_mode,
+        adult_content_level: data.adult_content_level,
+        real_person_declared: data.real_person_declared,
+        requires_admin_review: data.content_mode === "adult",
+        status: data.content_mode === "adult" ? "pending_review" : "pending",
+        consent_status: data.real_person_declared ? "awaiting_admin_contact" : "not_required",
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
         coupon_code: code,
         whatsapp_sent_at: new Date().toISOString(),
@@ -246,13 +252,17 @@ export const createOrderDraft = createServerFn({ method: "POST" })
     const whatsapp_url = `https://wa.me/${waNumber}?text=${encodeURIComponent(lines.join("\n"))}`;
 
     // Run content screening (best-effort). Flags for admin review if needed.
-    let requires_review = false;
-    let review_reason: string | null = null;
+    let requires_review = data.content_mode === "adult";
+    let review_reason: string | null = data.content_mode === "adult"
+      ? "طلب محتوى للبالغين — ينتظر موافقة الإدارة"
+      : null;
     try {
       const { screenOrder } = await import("./content-screening.functions");
       const res = await screenOrder({ data: { orderId: ord.id } });
-      requires_review = res.requires_admin_review;
-      review_reason = res.reason;
+      requires_review = data.content_mode === "adult" || res.requires_admin_review;
+      review_reason = data.content_mode === "adult"
+        ? "طلب محتوى للبالغين — ينتظر موافقة الإدارة"
+        : res.reason;
     } catch {
       /* ignore screening failures — order stays in normal flow */
     }
@@ -1181,15 +1191,20 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     // Admin must first approve via /admin/review-queue (adminApproveOrder).
     const { data: guard } = await supabaseAdmin
       .from("orders")
-      .select("requires_admin_review, status, identity_verification_status")
+      .select("requires_admin_review, status, identity_verification_status, content_mode, admin_reviewed_at")
       .eq("id", data.orderId).maybeSingle();
     const guardState = (guard ?? {}) as {
       requires_admin_review?: boolean | null;
       status?: string | null;
       identity_verification_status?: string | null;
+      content_mode?: "family" | "adult" | null;
+      admin_reviewed_at?: string | null;
     };
     if (guardState.requires_admin_review || guardState.status === "pending_review") {
       throw new Error("الطلب قيد المراجعة الإدارية — اعتمد المراجعة أولاً من قائمة المراجعة قبل تأكيد الدفع.");
+    }
+    if (guardState.content_mode === "adult" && !guardState.admin_reviewed_at) {
+      throw new Error("طلب البالغين يحتاج موافقة إدارية صريحة قبل التوليد.");
     }
     if (guardState.status === "rejected") {
       throw new Error("الطلب مرفوض — لا يمكن بدء التوليد.");

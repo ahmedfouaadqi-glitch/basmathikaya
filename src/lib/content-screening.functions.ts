@@ -31,7 +31,7 @@ async function runScreening(payload: {
   heroAge: number | null;
 }): Promise<ScreeningResult> {
   const { callChat } = await import("./ai-gateway.server");
-  const model = "google/gemini-3.1-flash-lite";
+  const model = "google/gemma-4-31b-it:free";
   const sys = `أنت مصفّي محتوى لمنصة "بصمة حكاية" — منصة تحترم الحرية الشخصية الكاملة للبالغين.
 
 قواعد التصنيف الصارمة:
@@ -138,7 +138,7 @@ export const screenOrder = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
       .from("orders")
-      .select("id, user_id, moods, custom_instructions")
+      .select("id, user_id, moods, custom_instructions, content_mode")
       .eq("id", data.orderId)
       .maybeSingle();
     if (!order) throw new Error("Order not found");
@@ -181,13 +181,15 @@ export const screenOrder = createServerFn({ method: "POST" })
       content_intent: result.intent,
       admin_review_note: result.reason ? `فحص تلقائي: ${result.reason}` : null,
     };
+    const isAdultOrder = order.content_mode === "adult";
     if (result.category === "A") {
       patch.status = "rejected";
       patch.rejection_reason = result.reason || "المحتوى يخالف الخطوط الحمراء (قاصرون/عنف/سياسي/كراهية).";
       patch.rejected_at = new Date().toISOString();
       patch.requires_admin_review = false;
       patch.identity_verification_status = "not_required";
-    } else if (result.category === "B") {
+    } else if (result.category === "B" || isAdultOrder) {
+      // Adult orders always remain under the human admin gate, even if a screening rerun classifies the prompt as neutral/OK.
       patch.status = "pending_review";
       patch.requires_admin_review = true;
       patch.identity_verification_status = result.requires_identity ? "requested" : "not_required";
@@ -204,13 +206,13 @@ export const screenOrder = createServerFn({ method: "POST" })
       flags: result.flags,
       decision: result.category === "A" ? "auto_reject" : result.category === "B" ? "needs_review" : "auto_ok",
       reason: result.reason,
-      model_used: "google/gemini-3.1-flash-lite",
+      model_used: model,
     });
 
     return {
       ...result,
-      requires_admin_review: result.category === "B",
-      requires_identity: result.category === "B" && result.requires_identity,
+      requires_admin_review: result.category === "B" || isAdultOrder,
+      requires_identity: (result.category === "B" || isAdultOrder) && result.requires_identity,
     };
   });
 
@@ -261,6 +263,7 @@ export const adminApproveOrder = createServerFn({ method: "POST" })
         status: "pending",
         admin_review_note: data.note ?? "approved",
         admin_reviewed_at: new Date().toISOString(),
+        consent_status: "consent_approved",
       })
       .eq("id", data.orderId);
     if (ord?.user_id) {
@@ -278,7 +281,7 @@ export const adminApproveOrder = createServerFn({ method: "POST" })
       action: "review_approve",
       target_type: "orders",
       target_id: data.orderId,
-      after: { note: data.note ?? null } as never,
+      after: { note: data.note ?? null, decision: "admin_approved", consent_status: "consent_approved" } as never,
     });
     return { ok: true };
   });
