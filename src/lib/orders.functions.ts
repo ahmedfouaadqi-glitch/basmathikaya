@@ -198,10 +198,6 @@ export const createOrderDraft = createServerFn({ method: "POST" })
         pdf_orientation: data.pdf_orientation,
         art_style_category: data.art_style_category ?? null,
         art_style_slug: data.art_style_slug ?? null,
-        content_mode: data.content_mode,
-        adult_content_level: data.content_mode === "adult" ? data.adult_content_level : "none",
-        real_person_declared: data.real_person_declared,
-        consent_status: data.real_person_declared ? "awaiting_admin_contact" : "not_required",
         disclaimer_accepted_at: data.disclaimer_accepted ? new Date().toISOString() : null,
         coupon_code: code,
         whatsapp_sent_at: new Date().toISOString(),
@@ -1185,15 +1181,12 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     // Admin must first approve via /admin/review-queue (adminApproveOrder).
     const { data: guard } = await supabaseAdmin
       .from("orders")
-      .select("requires_admin_review, status, identity_verification_status, content_mode, real_person_declared, consent_status" as never)
+      .select("requires_admin_review, status, identity_verification_status")
       .eq("id", data.orderId).maybeSingle();
     const guardState = (guard ?? {}) as {
       requires_admin_review?: boolean | null;
       status?: string | null;
       identity_verification_status?: string | null;
-      content_mode?: "family" | "adult" | null;
-      real_person_declared?: boolean | null;
-      consent_status?: string | null;
     };
     if (guardState.requires_admin_review || guardState.status === "pending_review") {
       throw new Error("الطلب قيد المراجعة الإدارية — اعتمد المراجعة أولاً من قائمة المراجعة قبل تأكيد الدفع.");
@@ -1201,13 +1194,6 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
     if (guardState.status === "rejected") {
       throw new Error("الطلب مرفوض — لا يمكن بدء التوليد.");
     }
-    if (guardState.content_mode === "adult" && guardState.identity_verification_status !== "approved") {
-      throw new Error("يجب إكمال التحقق من العمر قبل توليد محتوى البالغين.");
-    }
-    if (guardState.real_person_declared && guardState.consent_status !== "consent_approved") {
-      throw new Error("لا يمكن بدء التوليد قبل اعتماد موافقة الشخصية الحقيقية من الإدارة.");
-    }
-
     await supabaseAdmin
       .from("orders")
       .update({
