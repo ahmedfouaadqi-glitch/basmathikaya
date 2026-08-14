@@ -23,7 +23,6 @@ const OMNI_BASE = (process.env.OMNIROUTE_BASE_URL ?? "http://localhost:20128/v1"
   /\/$/,
   "",
 );
-const LOVABLE_BASE = "https://ai.gateway.lovable.dev/v1";
 
 const TEXT_PRICING_PER_1M: Record<string, { input: number; output: number }> = {
   "google/gemini-3-flash-preview": { input: 0.075, output: 0.3 },
@@ -66,12 +65,6 @@ export type Message = {
   content: string | ContentBlock[];
 };
 
-function lovableKey(): string {
-  const value = process.env.LOVABLE_API_KEY;
-  if (!value) throw new Error("LOVABLE_API_KEY missing");
-  return value;
-}
-
 function omniKey(): string | undefined {
   return process.env.OMNIROUTE_API_KEY || process.env.OMNIROUTE_KEY;
 }
@@ -91,8 +84,10 @@ async function requestProvider(args: {
 }): Promise<ProviderResult> {
   const timeoutMs = args.timeoutMs ?? 120_000;
   const providers: Array<{ name: ProviderName; base: string; apiKey: string }> = [];
-  if (omniKey()) providers.push({ name: "omniroute", base: OMNI_BASE, apiKey: omniKey()! });
-  providers.push({ name: "lovable", base: LOVABLE_BASE, apiKey: lovableKey() });
+  if (omniKey()) {
+    providers.push({ name: "omniroute", base: OMNI_BASE, apiKey: omniKey()! });
+  }
+  // Lovable fallback intentionally disabled. All AI requests must use OmniRoute.
 
   let lastTechnicalError: unknown = null;
   for (const provider of providers) {
@@ -125,8 +120,7 @@ async function requestProvider(args: {
         lastTechnicalError = error;
         continue;
       }
-      if (lastTechnicalError)
-        throw new Error(`${String(lastTechnicalError)}; fallback Lovable failed: ${String(error)}`);
+      if (lastTechnicalError) throw new Error(`${String(lastTechnicalError)}; OmniRoute request failed`);
       throw error;
     } finally {
       clearTimeout(timer);
