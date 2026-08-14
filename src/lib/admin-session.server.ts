@@ -1,10 +1,8 @@
 // Server-only: shared password gate session for /admin
-import { useSession } from "@tanstack/react-start/server";
-import { getRequest } from "@tanstack/react-start/server";
-
 export type AdminSession = { authenticated?: boolean };
 
-export function getAdminSessionConfig() {
+export async function getAdminSessionConfig() {
+  const { getRequest } = await import("@tanstack/react-start/server");
   const password = process.env.SESSION_SECRET;
   if (!password) throw new Error("SESSION_SECRET is not configured");
   const request = getRequest();
@@ -31,7 +29,8 @@ export function getAdminSessionConfig() {
 }
 
 export async function readAdminSession() {
-  return useSession<AdminSession>(getAdminSessionConfig());
+  const { useSession } = await import("@tanstack/react-start/server");
+  return useSession<AdminSession>(await getAdminSessionConfig());
 }
 
 export async function requireAdmin() {

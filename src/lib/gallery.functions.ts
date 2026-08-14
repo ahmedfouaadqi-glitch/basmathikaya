@@ -12,11 +12,14 @@ export type GalleryItem = {
   featured: boolean;
   show_author: boolean;
   public_author_name: string | null;
+  gallery_category: "kids" | "adults" | "general";
 };
 
 const ListInput = z.object({
   limit: z.number().int().min(1).max(60).optional(),
   featuredOnly: z.boolean().optional(),
+  category: z.enum(["kids", "adults", "general"]).default("kids"),
+  adultConfirmed: z.boolean().default(false),
 });
 
 async function signCoverForOrder(orderId: string): Promise<string | null> {
@@ -49,12 +52,16 @@ export const listPublicGallery = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<GalleryItem[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const limit = data.limit ?? 24;
+    if (data.category === "adults" && !data.adultConfirmed) {
+      throw new Error("تأكيد أن المستخدم بالغ مطلوب لعرض هذا المعرض");
+    }
 
     let q = supabaseAdmin
       .from("orders")
-      .select("id, order_number, title, public_title, share_token, created_at, gallery_featured, show_author, public_author_name")
+      .select("id, order_number, title, public_title, share_token, created_at, gallery_featured, show_author, public_author_name, gallery_category")
       .eq("is_public", true)
       .eq("status", "delivered")
+      .eq("gallery_category", data.category)
       .order("gallery_featured", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -71,6 +78,7 @@ export const listPublicGallery = createServerFn({ method: "GET" })
       gallery_featured: boolean | null;
       show_author: boolean | null;
       public_author_name: string | null;
+      gallery_category: "kids" | "adults" | "general";
     }>;
     const items = await Promise.all(
       list.map(async (r) => ({
@@ -84,6 +92,7 @@ export const listPublicGallery = createServerFn({ method: "GET" })
         featured: !!r.gallery_featured,
         show_author: !!r.show_author,
         public_author_name: r.public_author_name,
+        gallery_category: r.gallery_category,
       })),
     );
     return items;

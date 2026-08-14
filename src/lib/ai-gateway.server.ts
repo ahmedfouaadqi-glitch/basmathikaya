@@ -1,4 +1,4 @@
-// Server-only AI gateway. OmniRoute is primary; Lovable is a technical fallback.
+// Server-only AI gateway. OpenRouter is primary; Lovable is a technical fallback.
 export type Usage = {
   input_tokens?: number;
   output_tokens?: number;
@@ -6,7 +6,7 @@ export type Usage = {
   cost?: number;
 };
 
-type ProviderName = "lovable";
+type ProviderName = "openrouter" | "lovable";
 type ProviderResult = { response: Response; provider: ProviderName; duration_ms: number };
 
 class ProviderHttpError extends Error {
@@ -19,9 +19,11 @@ class ProviderHttpError extends Error {
   }
 }
 
+const OPENROUTER_BASE = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
 const LOVABLE_BASE = "https://ai.gateway.lovable.dev/v1";
 
 const TEXT_PRICING_PER_1M: Record<string, { input: number; output: number }> = {
+  "google/gemma-4-31b-it:free": { input: 0, output: 0 },
   "google/gemini-3-flash-preview": { input: 0.075, output: 0.3 },
   "google/gemini-2.5-flash": { input: 0.075, output: 0.3 },
   "google/gemini-2.5-pro": { input: 1.25, output: 5 },
@@ -56,15 +58,16 @@ export type GatewayMeta = {
 };
 
 export type ContentBlock =
-  { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
 export type Message = {
   role: "system" | "user" | "assistant";
   content: string | ContentBlock[];
 };
 
-function lovableKey(): string {
-  const value = process.env.LOVABLE_API_KEY;
-  if (!value) throw new Error("LOVABLE_API_KEY missing");
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} missing`);
   return value;
 }
 
@@ -79,8 +82,13 @@ async function requestProvider(args: {
 }): Promise<ProviderResult> {
   const timeoutMs = args.timeoutMs ?? 120_000;
   const providers: Array<{ name: ProviderName; base: string; apiKey: string }> = [
-    { name: "lovable", base: LOVABLE_BASE, apiKey: lovableKey() },
+    { name: "openrouter", base: OPENROUTER_BASE, apiKey: requiredEnv("OPENROUTER_API_KEY") },
   ];
+  if (process.env.ENABLE_LOVABLE_FALLBACK === "true" && process.env.LOVABLE_API_KEY) {
+    providers.push({ name: "lovable", base: LOVABLE_BASE, apiKey: process.env.LOVABLE_API_KEY });
+  }
+
+  let lastError: unknown;
   for (const provider of providers) {
     const started = Date.now();
     const controller = new AbortController();
@@ -88,26 +96,36 @@ async function requestProvider(args: {
     try {
       const response = await fetch(`${provider.base}${args.path}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${provider.apiKey}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${provider.apiKey}`,
+          "Content-Type": "application/json",
+          ...(provider.name === "openrouter"
+            ? {
+                "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://urstory.space",
+                "X-Title": process.env.OPENROUTER_APP_NAME || "Basmathikaya",
+              }
+            : {}),
+        },
         body: JSON.stringify(args.body),
         signal: controller.signal,
       });
       const duration_ms = Date.now() - started;
       if (response.ok) return { response, provider: provider.name, duration_ms };
       const details = safeErrorBody(await response.text().catch(() => ""));
-      const error = new ProviderHttpError(
+      throw new ProviderHttpError(
         `${provider.name} ${args.path} error ${response.status}: ${details}`,
         response.status,
         true,
       );
-      throw error;
     } catch (error) {
+      lastError = error;
+      if (provider.name === "openrouter") continue;
       throw error;
     } finally {
       clearTimeout(timer);
     }
   }
-  throw new Error("Lovable AI provider request failed");
+  throw lastError instanceof Error ? lastError : new Error("AI provider request failed");
 }
 
 function providerMeta(
@@ -119,10 +137,10 @@ function providerMeta(
   return {
     provider: result.provider,
     log_id: response.headers.get(
-      result.provider === "lovable" ? "X-Lovable-AIG-Log-ID" : "X-OmniRoute-Id",
+      result.provider === "lovable" ? "X-Lovable-AIG-Log-ID" : "x-openrouter-log-id",
     ),
     run_id: response.headers.get(
-      result.provider === "lovable" ? "X-Lovable-AIG-Run-ID" : "X-Request-Id",
+      result.provider === "lovable" ? "X-Lovable-AIG-Run-ID" : "x-request-id",
     ),
     usage,
     duration_ms: result.duration_ms,
@@ -189,15 +207,21 @@ export async function callImage(args: {
     : { model: args.model, prompt: args.prompt, size: "1024x1024", quality: "low", n: 1 };
   const result = await requestProvider({ path: "/images/generations", body });
   const json = (await result.response.json()) as {
-    data?: Array<{ b64_json?: string }>;
+    data?: Array<{ b64_json?: string; url?: string }>;
     usage?: Usage;
     choices?: Array<{
-      message?: { content?: string };
+      message?: { content?: string; images?: Array<{ image_url?: { url?: string } }> };
       finish_reason?: string;
       native_finish_reason?: string;
     }>;
   };
-  const b64 = json.data?.[0]?.b64_json ?? "";
+  let b64 = json.data?.[0]?.b64_json ?? "";
+  const imageUrl = json.data?.[0]?.url ?? json.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (!b64 && imageUrl?.startsWith("data:image/")) b64 = imageUrl.split(",", 2)[1] ?? "";
+  if (!b64 && imageUrl && !imageUrl.startsWith("data:")) {
+    const imageResponse = await fetch(imageUrl);
+    if (imageResponse.ok) b64 = Buffer.from(await imageResponse.arrayBuffer()).toString("base64");
+  }
   if (!b64) {
     const why =
       json.choices?.[0]?.message?.content?.trim() ||

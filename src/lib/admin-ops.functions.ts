@@ -418,7 +418,7 @@ export const listGalleryAdmin = createServerFn({ method: "GET" }).handler(async 
   const s = await db();
   const { data } = await s
     .from("orders")
-    .select("id, order_number, title, public_title, is_public, gallery_featured, share_token, created_at, user_id, show_author, public_author_name")
+    .select("id, order_number, title, public_title, is_public, gallery_featured, gallery_category, content_mode, share_token, created_at, user_id, show_author, public_author_name")
     .eq("status", "delivered")
     .order("created_at", { ascending: false })
     .limit(200);
@@ -431,15 +431,22 @@ export const setGalleryFlags = createServerFn({ method: "POST" })
       orderId: z.string().uuid(),
       isPublic: z.boolean().optional(),
       featured: z.boolean().optional(),
+      galleryCategory: z.enum(["kids", "adults", "general"]).optional(),
       publicTitle: z.string().max(120).nullable().optional(),
     }).parse(d),
   )
   .handler(async ({ data }) => {
     await requireAdminSession();
     const s = await db();
-    const patch: { is_public?: boolean; gallery_featured?: boolean; public_title?: string | null } = {};
+    const patch: {
+      is_public?: boolean;
+      gallery_featured?: boolean;
+      gallery_category?: "kids" | "adults" | "general";
+      public_title?: string | null;
+    } = {};
     if (data.isPublic !== undefined) patch.is_public = data.isPublic;
     if (data.featured !== undefined) patch.gallery_featured = data.featured;
+    if (data.galleryCategory !== undefined) patch.gallery_category = data.galleryCategory;
     if (data.publicTitle !== undefined) patch.public_title = data.publicTitle;
     const { error } = await s.from("orders").update(patch).eq("id", data.orderId);
     if (error) throw new Error(error.message);
