@@ -221,6 +221,14 @@ export const createOrderDraft = createServerFn({ method: "POST" })
       photo_path: c.photo_path ?? null,
       is_primary: i === 0,
       position: i,
+      reference_snapshot: {
+        name: c.name,
+        age: c.age ?? null,
+        role: c.role,
+        description: c.description ?? "",
+        photo_path: c.photo_path ?? null,
+      },
+      reference_locked_at: new Date().toISOString(),
     }));
     const { error: chErr } = await supabaseAdmin.from("order_characters").insert(rows);
     if (chErr) throw new Error(chErr.message);
@@ -1272,10 +1280,21 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         .order("page_number");
       const { data: chars } = await supabaseAdmin
         .from("order_characters")
-        .select("photo_path, is_primary, visual_brief, character_profile")
+        .select("photo_path, is_primary, visual_brief, character_profile, reference_snapshot")
         .eq("order_id", data.orderId)
         .order("position");
 
+      const lockedChars = (chars ?? []).map((c) => {
+        const snapshot = (c.reference_snapshot ?? null) as {
+          description?: string | null;
+          photo_path?: string | null;
+        } | null;
+        return {
+          ...c,
+          photo_path: snapshot?.photo_path ?? c.photo_path,
+          visual_brief: snapshot?.description ?? c.visual_brief,
+        };
+      });
       const pricing = await getPricing();
       const tier = (order.image_quality_tier as "fast" | "standard" | "premium" | null) ?? "standard";
       const effectiveTier: "standard" | "premium" = tier === "premium" ? "premium" : "standard";
@@ -1292,7 +1311,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
         "romantic" | "sensual" | "explicit" | "meditative" | "traumatic" | "neutral";
 
       // Preload primary character photo as data URL → used as visual reference for Gemini image gen.
-      const primary = (chars ?? []).find((c) => c.is_primary) ?? (chars ?? [])[0];
+      const primary = lockedChars.find((c) => c.is_primary) ?? lockedChars[0];
       const referenceImages: string[] = [];
       if (primary?.photo_path) {
         const url = await photoToDataUrl(primary.photo_path);
@@ -1364,7 +1383,7 @@ export const adminConfirmPaymentAndGenerate = createServerFn({ method: "POST" })
       }
 
       // Prefer the locked JSON character_profile when present; fall back to the free-text visual_brief.
-      const dnaLines = (chars ?? [])
+      const dnaLines = lockedChars
         .map((c) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const p = c.character_profile as any as CharacterProfile | null;

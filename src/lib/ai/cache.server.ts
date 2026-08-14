@@ -22,7 +22,7 @@ export async function getCached<T = unknown>(
     // Best-effort hit counter (do not await).
     void supabaseAdmin
       .from("prompt_cache")
-      .update({ hits: (undefined as unknown as number), last_hit_at: new Date().toISOString() })
+      .update({ last_hit_at: new Date().toISOString() })
       .eq("cache_key", cacheKey)
       .then(() => {}, () => {});
     return (data as any).response as T;
