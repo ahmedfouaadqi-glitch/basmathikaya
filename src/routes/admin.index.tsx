@@ -146,20 +146,7 @@ function CreditBalanceCard() {
   const fn = useServerFn(getAICreditBalance);
   const q = useQuery({ queryKey: ["ai-credits"], queryFn: () => fn(), refetchInterval: 60_000 });
   if (!q.data || !q.data.available) return null;
-  const d = q.data as {
-    gateway_ok: boolean;
-    credits_remaining: number;
-    balance_usd: number;
-    balance_iqd: number;
-    avg_cost_usd_standard: number;
-    avg_cost_usd_premium: number;
-    stories_sampled_standard: number;
-    stories_sampled_premium: number;
-    stories_left_standard: number | null;
-    stories_left_premium: number | null;
-    source_standard: "actual" | "estimate";
-    source_premium: "actual" | "estimate";
-  };
+  const d = q.data;
   const src = (s: "actual" | "estimate") => s === "actual" ? "من متوسط آخر 30 يوم" : "تقدير افتراضي — لا توجد بيانات فعلية بعد";
   return (
     <div className="mb-4 rounded-2xl border bg-card p-4">
@@ -170,16 +157,19 @@ function CreditBalanceCard() {
         <div className="flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
-              <div className="text-xs text-muted-foreground">الرصيد الحالي لخدمة الذكاء</div>
+              <div className="text-xs text-muted-foreground">مزوّد الذكاء</div>
               <div className="mt-0.5 text-lg font-bold">
-                ${d.balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                <span className="ms-2 text-sm font-normal text-muted-foreground">≈ {d.balance_iqd.toLocaleString()} د.ع</span>
+                OpenRouter
+                <span className="ms-2 text-sm font-normal text-muted-foreground">
+                  {d.gateway_ok ? "مفعّل" : "غير مهيّأ"}
+                </span>
               </div>
             </div>
             {!d.gateway_ok && (
               <span className="rounded-full bg-destructive/15 text-destructive text-[10px] px-2 py-0.5">تعذّر الاتصال بمزوّد الذكاء</span>
             )}
           </div>
+
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border bg-background p-3">
