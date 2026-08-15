@@ -173,24 +173,24 @@ function CreditBalanceCard() {
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border bg-background p-3">
-              <div className="text-xs text-muted-foreground">قصص متبقية — جودة قياسية</div>
-              <div className="mt-1 font-mono text-2xl font-bold text-primary">{d.stories_left_standard ?? "—"}</div>
+              <div className="text-xs text-muted-foreground">متوسط تكلفة القصة — جودة قياسية</div>
+              <div className="mt-1 font-mono text-2xl font-bold text-primary">${d.avg_cost_usd_standard.toFixed(3)}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                متوسط تكلفة القصة: ${d.avg_cost_usd_standard.toFixed(3)} · {src(d.source_standard)}
+                {src(d.source_standard)}
                 {d.source_standard === "actual" && ` (${d.stories_sampled_standard} قصة)`}
               </div>
             </div>
             <div className="rounded-xl border bg-background p-3">
-              <div className="text-xs text-muted-foreground">قصص متبقية — جودة احترافية</div>
-              <div className="mt-1 font-mono text-2xl font-bold text-primary">{d.stories_left_premium ?? "—"}</div>
+              <div className="text-xs text-muted-foreground">متوسط تكلفة القصة — جودة احترافية</div>
+              <div className="mt-1 font-mono text-2xl font-bold text-primary">${d.avg_cost_usd_premium.toFixed(3)}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                متوسط تكلفة القصة: ${d.avg_cost_usd_premium.toFixed(3)} · {src(d.source_premium)}
+                {src(d.source_premium)}
                 {d.source_premium === "actual" && ` (${d.stories_sampled_premium} قصة)`}
               </div>
             </div>
           </div>
           <div className="mt-2 text-[10px] text-muted-foreground">
-            الأرقام تقديرية: تُقسَم قيمة الرصيد الحالي على متوسط تكلفة القصة الفعلي؛ عند غياب قصص من نفس الجودة تُستخدَم قيمة "تقدير التكلفة" في إعدادات التسعير.
+            رصيد OpenRouter يُدار من لوحة المزوّد؛ الأرقام أعلاه متوسطات محلية فعلية لآخر 30 يوماً.
           </div>
         </div>
       </div>
