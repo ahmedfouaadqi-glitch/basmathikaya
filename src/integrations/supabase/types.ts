@@ -1197,6 +1197,8 @@ export type Database = {
           order_id: string
           photo_path: string | null
           position: number
+          reference_locked_at: string | null
+          reference_snapshot: Json | null
           role: string
           visual_brief: string | null
         }
@@ -1213,6 +1215,8 @@ export type Database = {
           order_id: string
           photo_path?: string | null
           position?: number
+          reference_locked_at?: string | null
+          reference_snapshot?: Json | null
           role?: string
           visual_brief?: string | null
         }
@@ -1229,6 +1233,8 @@ export type Database = {
           order_id?: string
           photo_path?: string | null
           position?: number
+          reference_locked_at?: string | null
+          reference_snapshot?: Json | null
           role?: string
           visual_brief?: string | null
         }
