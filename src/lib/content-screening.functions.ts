@@ -206,7 +206,7 @@ export const screenOrder = createServerFn({ method: "POST" })
       flags: result.flags,
       decision: result.category === "A" ? "auto_reject" : result.category === "B" ? "needs_review" : "auto_ok",
       reason: result.reason,
-      model_used: model,
+      model_used: "google/gemma-4-31b-it:free",
     });
 
     return {

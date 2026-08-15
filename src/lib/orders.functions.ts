@@ -186,7 +186,6 @@ export const createOrderDraft = createServerFn({ method: "POST" })
       .insert({
         user_id: userId,
         customer_phone: session.data.phone ?? "",
-        status: "pending",
         payment_status: "pending_payment",
         tier: data.tier,
         amount_iqd: amount,
