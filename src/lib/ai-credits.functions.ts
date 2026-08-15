@@ -1,3 +1,5 @@
+import { createServerFn } from "@tanstack/react-start";
+
 /**
  * Admin-only: report the active AI provider and local generation estimates.
  * OpenRouter does not expose a Lovable-style credit balance endpoint here, so
@@ -44,7 +46,7 @@ export const getAICreditBalance = createServerFn({ method: "GET" }).handler(asyn
   const avgPrem = premN > 0 ? premSum / premN : configPrem;
 
   return {
-    available: providerConfigured as const,
+    available: providerConfigured,
     provider: "openrouter" as const,
     gateway_ok: providerConfigured,
     credits_remaining: null,
