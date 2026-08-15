@@ -1197,6 +1197,8 @@ export type Database = {
           order_id: string
           photo_path: string | null
           position: number
+          reference_locked_at: string | null
+          reference_snapshot: Json | null
           role: string
           visual_brief: string | null
         }
@@ -1213,6 +1215,8 @@ export type Database = {
           order_id: string
           photo_path?: string | null
           position?: number
+          reference_locked_at?: string | null
+          reference_snapshot?: Json | null
           role?: string
           visual_brief?: string | null
         }
@@ -1229,6 +1233,8 @@ export type Database = {
           order_id?: string
           photo_path?: string | null
           position?: number
+          reference_locked_at?: string | null
+          reference_snapshot?: Json | null
           role?: string
           visual_brief?: string | null
         }
@@ -1254,6 +1260,7 @@ export type Database = {
           admin_review_note: string | null
           admin_reviewed_at: string | null
           admin_reviewed_by: string | null
+          adult_content_level: string
           age_bucket: string | null
           age_verification_status: string | null
           amount_iqd: number
@@ -1264,8 +1271,10 @@ export type Database = {
           character_brief: string | null
           character_dna: Json | null
           character_id: string | null
+          consent_status: string
           content_flags: Json | null
           content_intent: string | null
+          content_mode: string
           coupon_code: string | null
           coupon_discount_iqd: number
           created_at: string
@@ -1273,6 +1282,7 @@ export type Database = {
           customer_phone: string
           delivered_at: string | null
           disclaimer_accepted_at: string | null
+          gallery_category: string
           gallery_featured: boolean
           id: string
           identity_document_path: string | null
@@ -1298,6 +1308,7 @@ export type Database = {
           photo_age_estimate: number | null
           public_author_name: string | null
           public_title: string | null
+          real_person_declared: boolean
           redownload_amount_iqd: number | null
           redownload_paid_at: string | null
           redownload_requested_at: string | null
@@ -1320,6 +1331,7 @@ export type Database = {
           admin_review_note?: string | null
           admin_reviewed_at?: string | null
           admin_reviewed_by?: string | null
+          adult_content_level?: string
           age_bucket?: string | null
           age_verification_status?: string | null
           amount_iqd?: number
@@ -1330,8 +1342,10 @@ export type Database = {
           character_brief?: string | null
           character_dna?: Json | null
           character_id?: string | null
+          consent_status?: string
           content_flags?: Json | null
           content_intent?: string | null
+          content_mode?: string
           coupon_code?: string | null
           coupon_discount_iqd?: number
           created_at?: string
@@ -1339,6 +1353,7 @@ export type Database = {
           customer_phone: string
           delivered_at?: string | null
           disclaimer_accepted_at?: string | null
+          gallery_category?: string
           gallery_featured?: boolean
           id?: string
           identity_document_path?: string | null
@@ -1364,6 +1379,7 @@ export type Database = {
           photo_age_estimate?: number | null
           public_author_name?: string | null
           public_title?: string | null
+          real_person_declared?: boolean
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
           redownload_requested_at?: string | null
@@ -1386,6 +1402,7 @@ export type Database = {
           admin_review_note?: string | null
           admin_reviewed_at?: string | null
           admin_reviewed_by?: string | null
+          adult_content_level?: string
           age_bucket?: string | null
           age_verification_status?: string | null
           amount_iqd?: number
@@ -1396,8 +1413,10 @@ export type Database = {
           character_brief?: string | null
           character_dna?: Json | null
           character_id?: string | null
+          consent_status?: string
           content_flags?: Json | null
           content_intent?: string | null
+          content_mode?: string
           coupon_code?: string | null
           coupon_discount_iqd?: number
           created_at?: string
@@ -1405,6 +1424,7 @@ export type Database = {
           customer_phone?: string
           delivered_at?: string | null
           disclaimer_accepted_at?: string | null
+          gallery_category?: string
           gallery_featured?: boolean
           id?: string
           identity_document_path?: string | null
@@ -1430,6 +1450,7 @@ export type Database = {
           photo_age_estimate?: number | null
           public_author_name?: string | null
           public_title?: string | null
+          real_person_declared?: boolean
           redownload_amount_iqd?: number | null
           redownload_paid_at?: string | null
           redownload_requested_at?: string | null

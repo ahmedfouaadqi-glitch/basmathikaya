@@ -146,20 +146,7 @@ function CreditBalanceCard() {
   const fn = useServerFn(getAICreditBalance);
   const q = useQuery({ queryKey: ["ai-credits"], queryFn: () => fn(), refetchInterval: 60_000 });
   if (!q.data || !q.data.available) return null;
-  const d = q.data as {
-    gateway_ok: boolean;
-    credits_remaining: number;
-    balance_usd: number;
-    balance_iqd: number;
-    avg_cost_usd_standard: number;
-    avg_cost_usd_premium: number;
-    stories_sampled_standard: number;
-    stories_sampled_premium: number;
-    stories_left_standard: number | null;
-    stories_left_premium: number | null;
-    source_standard: "actual" | "estimate";
-    source_premium: "actual" | "estimate";
-  };
+  const d = q.data;
   const src = (s: "actual" | "estimate") => s === "actual" ? "من متوسط آخر 30 يوم" : "تقدير افتراضي — لا توجد بيانات فعلية بعد";
   return (
     <div className="mb-4 rounded-2xl border bg-card p-4">
@@ -170,10 +157,12 @@ function CreditBalanceCard() {
         <div className="flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
-              <div className="text-xs text-muted-foreground">الرصيد الحالي لخدمة الذكاء</div>
+              <div className="text-xs text-muted-foreground">مزوّد الذكاء</div>
               <div className="mt-0.5 text-lg font-bold">
-                ${d.balance_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                <span className="ms-2 text-sm font-normal text-muted-foreground">≈ {d.balance_iqd.toLocaleString()} د.ع</span>
+                OpenRouter
+                <span className="ms-2 text-sm font-normal text-muted-foreground">
+                  {d.gateway_ok ? "مفعّل" : "غير مهيّأ"}
+                </span>
               </div>
             </div>
             {!d.gateway_ok && (
@@ -181,26 +170,27 @@ function CreditBalanceCard() {
             )}
           </div>
 
+
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border bg-background p-3">
-              <div className="text-xs text-muted-foreground">قصص متبقية — جودة قياسية</div>
-              <div className="mt-1 font-mono text-2xl font-bold text-primary">{d.stories_left_standard ?? "—"}</div>
+              <div className="text-xs text-muted-foreground">متوسط تكلفة القصة — جودة قياسية</div>
+              <div className="mt-1 font-mono text-2xl font-bold text-primary">${d.avg_cost_usd_standard.toFixed(3)}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                متوسط تكلفة القصة: ${d.avg_cost_usd_standard.toFixed(3)} · {src(d.source_standard)}
+                {src(d.source_standard)}
                 {d.source_standard === "actual" && ` (${d.stories_sampled_standard} قصة)`}
               </div>
             </div>
             <div className="rounded-xl border bg-background p-3">
-              <div className="text-xs text-muted-foreground">قصص متبقية — جودة احترافية</div>
-              <div className="mt-1 font-mono text-2xl font-bold text-primary">{d.stories_left_premium ?? "—"}</div>
+              <div className="text-xs text-muted-foreground">متوسط تكلفة القصة — جودة احترافية</div>
+              <div className="mt-1 font-mono text-2xl font-bold text-primary">${d.avg_cost_usd_premium.toFixed(3)}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                متوسط تكلفة القصة: ${d.avg_cost_usd_premium.toFixed(3)} · {src(d.source_premium)}
+                {src(d.source_premium)}
                 {d.source_premium === "actual" && ` (${d.stories_sampled_premium} قصة)`}
               </div>
             </div>
           </div>
           <div className="mt-2 text-[10px] text-muted-foreground">
-            الأرقام تقديرية: تُقسَم قيمة الرصيد الحالي على متوسط تكلفة القصة الفعلي؛ عند غياب قصص من نفس الجودة تُستخدَم قيمة "تقدير التكلفة" في إعدادات التسعير.
+            رصيد OpenRouter يُدار من لوحة المزوّد؛ الأرقام أعلاه متوسطات محلية فعلية لآخر 30 يوماً.
           </div>
         </div>
       </div>
