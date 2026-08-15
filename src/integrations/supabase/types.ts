@@ -1276,6 +1276,7 @@ export type Database = {
           customer_phone: string
           delivered_at: string | null
           disclaimer_accepted_at: string | null
+          gallery_category: string
           gallery_featured: boolean
           id: string
           identity_document_path: string | null
@@ -1346,6 +1347,7 @@ export type Database = {
           customer_phone: string
           delivered_at?: string | null
           disclaimer_accepted_at?: string | null
+          gallery_category?: string
           gallery_featured?: boolean
           id?: string
           identity_document_path?: string | null
@@ -1416,6 +1418,7 @@ export type Database = {
           customer_phone?: string
           delivered_at?: string | null
           disclaimer_accepted_at?: string | null
+          gallery_category?: string
           gallery_featured?: boolean
           id?: string
           identity_document_path?: string | null
